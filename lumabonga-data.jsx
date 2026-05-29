@@ -4,7 +4,7 @@
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "dark": true,
   "lumayaShare": 70,
-  "currency": "FCFA",
+  "currency": "IDR",
   "accent": "#7dd3a0",
   "showCreative": true,
   "showSage": false
@@ -15,7 +15,7 @@ const fmtNum = (n) => {
   const v = Math.round(Number(n) || 0);
   return v.toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ');
 };
-const fmtMoney = (n, cur = 'FCFA') => `${fmtNum(n)} ${cur}`;
+const fmtMoney = (n, cur = 'IDR') => `${fmtNum(n)} ${cur}`;
 const fmtShort = (n) => {
   const v = Math.round(Number(n) || 0);
   if (Math.abs(v) >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.0', '') + 'M';

@@ -83,7 +83,8 @@ const loadTweaks = () => {
   try { const r = localStorage.getItem(TWEAKS_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; }
 };
 function useAppTweaks() {
-  const [t, setT] = useState(() => ({ ...TWEAK_DEFAULTS, ...(loadTweaks() || {}) }));
+  // Devise verrouillée sur IDR (écrase toute valeur héritée d'anciennes sessions).
+  const [t, setT] = useState(() => ({ ...TWEAK_DEFAULTS, ...(loadTweaks() || {}), currency: 'IDR' }));
   useEffect(() => { try { localStorage.setItem(TWEAKS_KEY, JSON.stringify(t)); } catch (e) {} }, [t]);
   const set = (k, v) => setT((p) => ({ ...p, [k]: v }));
   return [t, set];
@@ -94,7 +95,6 @@ function SettingsButton({ t, set, dark }) {
   const [open, setOpen] = useState(false);
   const c = creaTheme(dark, t.accent);
   const accents = ['#7dd3a0', '#8db4ff', '#f5c451', '#c4a8ff', '#f48fb1'];
-  const currencies = ['FCFA', 'XOF', 'XAF', '€', '$', 'MAD', 'DH'];
 
   const Row = ({ label, children }) => (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${c.borderSoft}` }}>
@@ -154,12 +154,7 @@ function SettingsButton({ t, set, dark }) {
             </Row>
 
             <Row label="Devise">
-              <select value={t.currency} onChange={(e) => set('currency', e.target.value)} style={{
-                background: c.panel2, color: c.text, border: `1px solid ${c.border}`,
-                borderRadius: 10, padding: '6px 10px', fontFamily: creaMono, fontSize: 13, cursor: 'pointer',
-              }}>
-                {currencies.map((cu) => <option key={cu} value={cu}>{cu}</option>)}
-              </select>
+              <span style={{ fontFamily: creaMono, fontSize: 13, color: c.text }}>IDR</span>
             </Row>
 
             <Row label={`Part Lumaya · ${t.lumayaShare}%`}>

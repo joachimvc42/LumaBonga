@@ -30,29 +30,13 @@ const creaDisplay = '"Instrument Serif", "Bodoni Moda", Georgia, serif'; // edit
 // ── Top bar ──────────────────────────────────────────────────
 function CreaTopBar({ store, dark, t, onAdd }) {
   const c = creaTheme(dark, t.accent);
-  const initials = (u) => u === 'lumaya' ? 'L' : 'G';
-  const tone = (u) => u === 'lumaya' ? c.accent : c.purple;
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       padding: '6px 20px 14px',
     }}>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {['lumaya', 'gawah'].map((u) => {
-          const sel = store.activeUser === u;
-          return (
-            <button key={u} onClick={() => store.setActiveUser(u)} style={{
-              width: 34, height: 34, borderRadius: 999,
-              background: sel ? tone(u) : c.panel2,
-              color: sel ? c.inkContrast : c.muted,
-              border: `1px solid ${sel ? tone(u) : c.border}`,
-              fontFamily: creaSans, fontSize: 13, fontWeight: 700,
-              cursor: 'pointer', transition: 'all .2s',
-              boxShadow: sel ? `0 4px 14px ${tone(u)}55` : 'none',
-            }}>{initials(u)}</button>
-          );
-        })}
-      </div>
+      {/* spacer to keep the title centred (mirrors the + button width) */}
+      <div style={{ width: 34, height: 34 }} />
       <div style={{ fontFamily: creaSans, fontSize: 11, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>
         Luma · Bonga
       </div>
@@ -559,6 +543,8 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   const [mKind, setMKind] = React.useState(ed && kind === 'material' ? ed.kind : 'matière');
   const [mStock, setMStock] = React.useState(ed && kind === 'material' ? String(ed.stock0 ?? '') : '');
   const [mPrice, setMPrice] = React.useState('');
+  // which organisation paid / cashed in this transaction
+  const [org, setOrg] = React.useState(ed?.org || 'lumaya');
 
   // default price from selected product/material when creating
   React.useEffect(() => {
@@ -574,15 +560,15 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   const submit = () => {
     if (kind === 'sale') {
       if (!productId || !qty || !price) return;
-      const payload = { productId, qty: Number(qty), price: Number(price), note };
+      const payload = { productId, qty: Number(qty), price: Number(price), note, org };
       isEdit ? store.updateSale(ed.id, payload) : store.addSale(payload);
     } else if (kind === 'buy') {
       if (!materialId || !qty || !price) return;
-      const payload = { materialId, qty: Number(qty), price: Number(price), note };
+      const payload = { materialId, qty: Number(qty), price: Number(price), note, org };
       isEdit ? store.updatePurchase(ed.id, payload) : store.addPurchase(payload);
     } else if (kind === 'cost') {
       if (!label || !amount) return;
-      const payload = { label, amount: Number(amount), who: note };
+      const payload = { label, amount: Number(amount), who: note, org };
       isEdit ? store.updateCost(ed.id, payload) : store.addCost(payload);
     } else if (kind === 'production') {
       if (!productId || !qty) return;
@@ -627,6 +613,18 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
     border: `1px solid ${sel ? (tone || c.ink) : c.border}`,
     fontFamily: creaSans, fontSize: 12, fontWeight: 600, cursor: 'pointer',
   });
+
+  // Organisation qui a payé / encaissé — figée par transaction (remplace l'ancien toggle global).
+  const orgSelector = (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={labelStyle}>{kind === 'sale' ? 'Encaissé par' : 'Payé par'}</span>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[['lumaya', 'Lumaya', c.accent], ['gawah', 'GawahBonga', c.purple]].map(([id, lab, tone]) => (
+          <button key={id} onClick={() => setOrg(id)} style={pill(org === id, tone)}>{lab}</button>
+        ))}
+      </div>
+    </div>
+  );
 
   return (
     <div style={{
@@ -690,6 +688,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
               <div style={labelStyle}>Note</div>
               <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Optionnel" />
             </div>
+            {orgSelector}
             {qty && price && (() => {
               const uc = store.unitCostFor(productId);
               const marg = (Number(price) - uc) * Number(qty);
@@ -736,6 +735,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
               <div style={labelStyle}>Fournisseur / note</div>
               <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Optionnel" />
             </div>
+            {orgSelector}
             {qty && price && (
               <div style={{ padding: '14px 16px', borderRadius: 16, background: c.panel2, border: `1px dashed ${c.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                 <span style={labelStyle}>Total facture</span>
@@ -761,6 +761,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Optionnel" />
               </div>
             </div>
+            {orgSelector}
           </React.Fragment>
         )}
 
