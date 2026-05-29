@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#08080b" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>LumaBonga</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: -apple-system, "Inter", system-ui, sans-serif;
+    background: #08080b; color: #f3f1ea;
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  * { box-sizing: border-box; }
+
+  /* Full-screen on phones; centered "device" frame on wide screens. */
+  #stage {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #device {
+    position: relative;
+    width: 100%; height: 100%;
+    background: #08080b;
+    overflow: hidden;
+  }
+  @media (min-width: 520px) {
+    #stage { background: #0a0b10; }
+    #device {
+      width: 402px; height: 874px; max-height: 96vh;
+      border-radius: 44px;
+      border: 12px solid #1a1d24;
+      box-shadow: 0 30px 80px rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.25);
+    }
+  }
+
+  .phone-scroll::-webkit-scrollbar { display: none; }
+  .phone-scroll { scrollbar-width: none; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+<div id="stage"><div id="device"><div id="root"></div></div></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<!-- Supabase client (shared backend). Anon key is public by design — RLS + members allowlist protect the data. -->
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+  const SUPABASE_URL  = 'https://ivooxizmcqkwzplimvtg.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2b294aXptY3Frd3pwbGltdnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTA5OTgsImV4cCI6MjA5NTYyNjk5OH0.OZOqwW0LVG4jFUmwRxMb3WK6aoASlf2BeTvdTPsLSIg';
+  window.__SB_EMAIL = 'equipe@lumabonga.app';   // compte partagé (caché) — le code = son mot de passe
+  window.__sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'lumabonga:auth' },
+  });
+  window.dispatchEvent(new CustomEvent('sb-ready'));
+</script>
+
+<!-- Business logic + screens (design work, unchanged). Sage/canvas not needed for the app. -->
+<script type="text/babel" src="lumabonga-data.jsx"></script>
+<script type="text/babel" src="lumabonga-creative.jsx"></script>
+<script type="text/babel" src="lumabonga-product.jsx"></script>
+<script type="text/babel" src="lumabonga-stock.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+// ── Settings persistence (accent / dark / currency / share) ──────────────────
+const TWEAKS_KEY = 'lumabonga:tweaks';
+const loadTweaks = () => {
+  try { const r = localStorage.getItem(TWEAKS_KEY); return r ? JSON.parse(r) : null; } catch (e) { return null; }
+};
+function useAppTweaks() {
+  const [t, setT] = useState(() => ({ ...TWEAK_DEFAULTS, ...(loadTweaks() || {}) }));
+  useEffect(() => { try { localStorage.setItem(TWEAKS_KEY, JSON.stringify(t)); } catch (e) {} }, [t]);
+  const set = (k, v) => setT((p) => ({ ...p, [k]: v }));
+  return [t, set];
+}
+
+// ── Settings sheet (gear button, top-right) ──────────────────────────────────
+function SettingsButton({ t, set, dark }) {
+  const [open, setOpen] = useState(false);
+  const c = creaTheme(dark, t.accent);
+  const accents = ['#7dd3a0', '#8db4ff', '#f5c451', '#c4a8ff', '#f48fb1'];
+  const currencies = ['FCFA', 'XOF', 'XAF', '€', '$', 'MAD', 'DH'];
+
+  const Row = ({ label, children }) => (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: `1px solid ${c.borderSoft}` }}>
+      <span style={{ fontSize: 13, color: c.muted, fontFamily: creaSans }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>{children}</div>
+    </div>
+  );
+
+  return (
+    <>
+      <button onClick={() => setOpen(true)} aria-label="Réglages" style={{
+        position: 'absolute', top: 12, right: 14, zIndex: 30,
+        width: 32, height: 32, borderRadius: 999, cursor: 'pointer',
+        background: c.panel2, color: c.muted, border: `1px solid ${c.border}`,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+      </button>
+
+      {open && (
+        <div onClick={() => setOpen(false)} style={{
+          position: 'absolute', inset: 0, zIndex: 100,
+          background: 'rgba(0,0,0,.55)', backdropFilter: 'blur(3px)',
+          display: 'flex', alignItems: 'flex-end',
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            width: '100%', background: c.panel, color: c.text,
+            borderTopLeftRadius: 28, borderTopRightRadius: 28,
+            padding: '20px 22px calc(28px + env(safe-area-inset-bottom))',
+            fontFamily: creaSans, animation: 'lbSheet .3s cubic-bezier(.2,.8,.2,1)',
+            borderTop: `1px solid ${c.border}`,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 26 }}>Réglages</span>
+              <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: c.muted, cursor: 'pointer' }}><Icon.close /></button>
+            </div>
+
+            <Row label="Mode sombre">
+              <button onClick={() => set('dark', !t.dark)} style={{
+                width: 46, height: 26, borderRadius: 999, cursor: 'pointer', position: 'relative',
+                background: t.dark ? c.accent : c.border, border: 'none', transition: 'background .2s',
+              }}>
+                <span style={{ position: 'absolute', top: 3, left: t.dark ? 23 : 3, width: 20, height: 20, borderRadius: 999, background: '#fff', transition: 'left .2s' }} />
+              </button>
+            </Row>
+
+            <Row label="Couleur d'accent">
+              {accents.map((a) => (
+                <button key={a} onClick={() => set('accent', a)} style={{
+                  width: 24, height: 24, borderRadius: 999, cursor: 'pointer', background: a,
+                  border: t.accent === a ? `2px solid ${c.text}` : `2px solid transparent`,
+                }} />
+              ))}
+            </Row>
+
+            <Row label="Devise">
+              <select value={t.currency} onChange={(e) => set('currency', e.target.value)} style={{
+                background: c.panel2, color: c.text, border: `1px solid ${c.border}`,
+                borderRadius: 10, padding: '6px 10px', fontFamily: creaMono, fontSize: 13, cursor: 'pointer',
+              }}>
+                {currencies.map((cu) => <option key={cu} value={cu}>{cu}</option>)}
+              </select>
+            </Row>
+
+            <Row label={`Part Lumaya · ${t.lumayaShare}%`}>
+              <input type="range" min="0" max="100" step="1" value={t.lumayaShare}
+                onChange={(e) => set('lumayaShare', Number(e.target.value))}
+                style={{ width: 150, accentColor: c.accent }} />
+            </Row>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 18 }}>
+              <button onClick={async () => {
+                try { if (window.__sb) await window.__sb.auth.signOut(); } catch (e) {}
+                location.reload();
+              }} style={{
+                flex: 1, padding: '12px', borderRadius: 12, cursor: 'pointer',
+                background: 'transparent', color: c.muted, border: `1px solid ${c.border}`,
+                fontFamily: creaSans, fontSize: 13, fontWeight: 600,
+              }}>Déconnexion</button>
+
+              <button onClick={async () => {
+                if (!confirm('Réinitialiser TOUTES les données partagées et revenir aux exemples ? Irréversible, pour tout le monde.')) return;
+                try { localStorage.removeItem('lumabonga:v1'); } catch (e) {}
+                try {
+                  if (window.__sb) await window.__sb.from('app_state')
+                    .update({ data: {}, updated_at: new Date().toISOString() }).eq('id', 1);
+                } catch (e) {}
+                location.reload();
+              }} style={{
+                flex: 1, padding: '12px', borderRadius: 12, cursor: 'pointer',
+                background: 'transparent', color: c.rose, border: `1px solid ${c.rose}55`,
+                fontFamily: creaSans, fontSize: 13, fontWeight: 600,
+              }}>Réinitialiser</button>
+            </div>
+
+            <p style={{ fontSize: 11, color: c.mutedSoft, marginTop: 14, lineHeight: 1.5, fontFamily: creaSans }}>
+              Données partagées via Supabase : tout le monde voit le même registre, synchronisé entre
+              appareils. La réinitialisation efface les données pour tous les utilisateurs.
+            </p>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+function LumaBongaApp() {
+  const [t, set] = useAppTweaks();
+  const dark = t.dark;
+  const c = creaTheme(dark, t.accent);
+  return (
+    <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
+      <CreaApp t={t} dark={dark} />
+      <SettingsButton t={t} set={set} dark={dark} />
+    </div>
+  );
+}
+
+// slide-up keyframe for the settings sheet
+const kf = document.createElement('style');
+kf.textContent = '@keyframes lbSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }';
+document.head.appendChild(kf);
+
+// ── Supabase glue ────────────────────────────────────────────────────────────
+const CLIENT_ID = Math.random().toString(36).slice(2);   // distinguishes my writes from peers'
+const waitForSb = () => new Promise((res) => {
+  if (window.__sb) return res(window.__sb);
+  window.addEventListener('sb-ready', () => res(window.__sb), { once: true });
+});
+
+// Loads the shared snapshot, wires the persistence globals the store reads,
+// and subscribes to realtime so peers' changes surface.
+async function bootData(sb, onRemoteChange) {
+  const { data, error } = await sb.from('app_state').select('data').eq('id', 1).maybeSingle();
+  if (error) throw error;
+  window.__LUMA_INITIAL = (data && data.data) ? data.data : {};
+
+  let timer = null, pending = null;
+  window.__LUMA_SAVE = (snapshot) => {
+    pending = snapshot;
+    clearTimeout(timer);
+    timer = setTimeout(async () => {
+      const snap = pending; pending = null;
+      try {
+        await sb.from('app_state').update({
+          data: snap, updated_at: new Date().toISOString(), updated_by: CLIENT_ID,
+        }).eq('id', 1);
+      } catch (e) { /* local backup still holds; will retry on next change */ }
+    }, 700);
+  };
+
+  sb.channel('app_state_sync')
+    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, (payload) => {
+      if (payload.new && payload.new.updated_by !== CLIENT_ID) onRemoteChange();
+    })
+    .subscribe();
+}
+
+// ── Login gate ───────────────────────────────────────────────────────────────
+function LoginGate({ onAuthed }) {
+  const c = creaTheme(true, '#7dd3a0');
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!code) return;
+    setBusy(true); setErr('');
+    const sb = window.__sb;
+    const { error } = await sb.auth.signInWithPassword({ email: window.__SB_EMAIL, password: code });
+    if (error) { setErr('Code incorrect.'); setBusy(false); return; }
+    onAuthed();
+  };
+
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, background: c.bg, color: c.text,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      fontFamily: creaSans, padding: 32,
+    }}>
+      <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 44, marginBottom: 4 }}>LumaBonga</div>
+      <div style={{ fontSize: 12, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 32 }}>Luma · Bonga</div>
+      <form onSubmit={submit} style={{ width: '100%', maxWidth: 320 }}>
+        <label style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>Code d'accès</label>
+        <input type="password" value={code} autoFocus onChange={(e) => setCode(e.target.value)}
+          placeholder="••••••••" style={{
+            width: '100%', marginTop: 8, padding: '14px 16px', borderRadius: 14,
+            background: c.panel, color: c.text, border: `1px solid ${err ? c.rose : c.border}`,
+            fontFamily: creaMono, fontSize: 16, outline: 'none',
+          }} />
+        {err && <div style={{ color: c.rose, fontSize: 12, marginTop: 8 }}>{err}</div>}
+        <button type="submit" disabled={busy} style={{
+          width: '100%', marginTop: 16, padding: '14px', borderRadius: 14, cursor: busy ? 'default' : 'pointer',
+          background: c.accent, color: c.inkContrast, border: 'none', fontFamily: creaSans, fontSize: 15, fontWeight: 700,
+          opacity: busy ? .6 : 1,
+        }}>{busy ? 'Connexion…' : 'Entrer'}</button>
+      </form>
+    </div>
+  );
+}
+
+// ── Splash while connecting / loading ────────────────────────────────────────
+function Splash({ label }) {
+  const c = creaTheme(true, '#7dd3a0');
+  return (
+    <div style={{
+      position: 'absolute', inset: 0, background: c.bg, color: c.muted,
+      display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaSans, fontSize: 13,
+    }}>{label}</div>
+  );
+}
+
+// ── Remote-update banner ─────────────────────────────────────────────────────
+function UpdateBanner() {
+  const c = creaTheme(true, '#7dd3a0');
+  return (
+    <div onClick={() => location.reload()} style={{
+      position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
+      background: c.accent, color: c.inkContrast, padding: '8px 16px', borderRadius: 999,
+      fontFamily: creaSans, fontSize: 12, fontWeight: 600, cursor: 'pointer',
+      boxShadow: '0 6px 20px rgba(0,0,0,.4)',
+    }}>Données mises à jour — toucher pour recharger</div>
+  );
+}
+
+function Root() {
+  const [phase, setPhase] = useState('connecting'); // connecting | login | loading | ready
+  const [remote, setRemote] = useState(false);
+
+  const load = React.useCallback(async () => {
+    setPhase('loading');
+    try {
+      await bootData(window.__sb, () => setRemote(true));
+      setPhase('ready');
+    } catch (e) {
+      // Member check / RLS failure or network — back to login.
+      try { await window.__sb.auth.signOut(); } catch (_) {}
+      setPhase('login');
+    }
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const sb = await waitForSb();
+      const { data } = await sb.auth.getSession();
+      if (!alive) return;
+      if (data && data.session) load(); else setPhase('login');
+    })();
+    return () => { alive = false; };
+  }, [load]);
+
+  if (phase === 'connecting') return <Splash label="Connexion…" />;
+  if (phase === 'login') return <LoginGate onAuthed={load} />;
+  if (phase === 'loading') return <Splash label="Chargement du registre…" />;
+  return (<><LumaBongaApp />{remote && <UpdateBanner />}</>);
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
+</script>
+</body>
+</html>

@@ -1,0 +1,713 @@
+// lumabonga-data.jsx
+// Shared state, formatters and seed data for the LumaBonga prototype.
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "dark": true,
+  "lumayaShare": 70,
+  "currency": "FCFA",
+  "accent": "#7dd3a0",
+  "showCreative": true,
+  "showSage": false
+}/*EDITMODE-END*/;
+
+// ── Formatters ───────────────────────────────────────────────
+const fmtNum = (n) => {
+  const v = Math.round(Number(n) || 0);
+  return v.toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ');
+};
+const fmtMoney = (n, cur = 'FCFA') => `${fmtNum(n)} ${cur}`;
+const fmtShort = (n) => {
+  const v = Math.round(Number(n) || 0);
+  if (Math.abs(v) >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.0', '') + 'M';
+  if (Math.abs(v) >= 1000) return (v / 1000).toFixed(1).replace('.0', '') + 'k';
+  return String(v);
+};
+const fmtDate = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+};
+const fmtDay = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' });
+};
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// ── Seed products (with default unit prices) ─────────────────
+const SEED_PRODUCTS = [
+  { id: 'p_zinc',     name: 'Zinc',              emoji: 'Zn', unitPrice: 2500, unitCost: 1200, hue: 196 },
+  { id: 'p_deo',      name: 'Déodorant',         emoji: 'Dé', unitPrice: 3500, unitCost: 1700, hue: 152 },
+  { id: 'p_anti',     name: 'Anti-moustique',    emoji: 'Am', unitPrice: 3000, unitCost: 1500, hue: 76  },
+  { id: 'p_wax',      name: 'Wax',               emoji: 'Wx', unitPrice: 4000, unitCost: 2000, hue: 32  },
+  { id: 'p_baume',    name: 'Baume pour le corps', emoji: 'Bc', unitPrice: 4500, unitCost: 2100, hue: 14 },
+  { id: 'p_huile',    name: 'Huile cheveux',     emoji: 'Hc', unitPrice: 5000, unitCost: 2400, hue: 48  },
+  { id: 'p_dent',     name: 'Dentifrice',        emoji: 'De', unitPrice: 2000, unitCost: 900,  hue: 220 },
+  { id: 'p_levres',   name: 'Baume pour les lèvres', emoji: 'Bl', unitPrice: 1800, unitCost: 800, hue: 340 },
+];
+
+// ── Seed transactions (recent days) ──────────────────────────
+const day = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d.toISOString().slice(0, 10);
+};
+
+const SEED_SALES = [
+  { id: 's1', date: day(0), productId: 'p_zinc',   qty: 18, price: 2500, note: 'Marché Niamey' },
+  { id: 's2', date: day(0), productId: 'p_deo',    qty: 12, price: 3500, note: '' },
+  { id: 's3', date: day(1), productId: 'p_anti',   qty: 24, price: 3000, note: 'Pharmacie' },
+  { id: 's4', date: day(1), productId: 'p_huile',  qty: 8,  price: 5000, note: '' },
+  { id: 's5', date: day(2), productId: 'p_baume',  qty: 14, price: 4500, note: 'Boutique Marie' },
+  { id: 's6', date: day(3), productId: 'p_wax',    qty: 10, price: 4000, note: '' },
+  { id: 's7', date: day(4), productId: 'p_dent',   qty: 22, price: 2000, note: '' },
+  { id: 's8', date: day(5), productId: 'p_levres', qty: 16, price: 1800, note: 'Coiffeuse' },
+  { id: 's9', date: day(6), productId: 'p_zinc',   qty: 14, price: 2500, note: '' },
+  { id: 's10',date: day(8), productId: 'p_deo',    qty: 8,  price: 3500, note: '' },
+];
+
+// Purchases now buy RAW MATERIALS: qty (in the material's unit) + unit price.
+// The most recent purchase sets the material's current unit price.
+const SEED_PURCHASES = [
+  { id: 'a1', date: day(12), materialId: 'm_karite', qty: 5000, price: 2.9, note: 'Fournisseur Karité' },
+  { id: 'a2', date: day(11), materialId: 'm_coco',   qty: 4000, price: 2.0, note: '' },
+  { id: 'a3', date: day(10), materialId: 'm_cire',   qty: 1500, price: 4.4, note: '' },
+  { id: 'a4', date: day(9),  materialId: 'm_zinc',   qty: 3000, price: 3.5, note: 'Lot import' },
+  { id: 'a5', date: day(8),  materialId: 'm_etiq',   qty: 400,  price: 35,  note: 'Imprimerie' },
+  { id: 'a6', date: day(8),  materialId: 'm_pot',    qty: 150,  price: 180, note: '' },
+  { id: 'a7', date: day(7),  materialId: 'm_lavande',qty: 300,  price: 32,  note: '' },
+  { id: 'a8', date: day(6),  materialId: 'm_tissu',  qty: 40,   price: 640, note: 'Marché textile' },
+];
+
+// Production lots: qty units of a product produced on a date.
+// Consumes raw-material stock (per recipe) and creates finished-goods stock.
+const SEED_PRODUCTION = [
+  { id: 'pr1', date: day(13), productId: 'p_zinc',   qty: 50, who: 'Atelier' },
+  { id: 'pr2', date: day(12), productId: 'p_deo',    qty: 40, who: 'Atelier' },
+  { id: 'pr3', date: day(11), productId: 'p_anti',   qty: 40, who: 'Yacine' },
+  { id: 'pr4', date: day(10), productId: 'p_huile',  qty: 20, who: 'Awa' },
+  { id: 'pr5', date: day(9),  productId: 'p_baume',  qty: 30, who: 'Atelier' },
+  { id: 'pr6', date: day(8),  productId: 'p_wax',    qty: 20, who: 'Moussa' },
+  { id: 'pr7', date: day(7),  productId: 'p_dent',   qty: 40, who: 'Awa' },
+  { id: 'pr8', date: day(6),  productId: 'p_levres', qty: 30, who: 'Awa' },
+];
+
+// Opening raw-material stock by unit (before purchases & production).
+const STOCK0_BY_UNIT = { g: 20000, ml: 15000, 'm': 80, 'pièce': 600 };
+
+const SEED_COSTS = [
+  { id: 'c1', date: day(2),  label: 'Main d\u2019\u0153uvre — production déodorant', amount: 8500, who: 'Atelier' },
+  { id: 'c2', date: day(4),  label: 'Étiquetage anti-moustique', amount: 3200, who: 'Yacine' },
+  { id: 'c3', date: day(6),  label: 'Conditionnement Wax', amount: 5400, who: 'Atelier' },
+  { id: 'c4', date: day(9),  label: 'Transport matières premières', amount: 4000, who: '' },
+  { id: 'c5', date: day(11), label: 'Production baume corps (lot 12)', amount: 7200, who: 'Atelier' },
+];
+
+// ── Raw materials (matières premières) with price history ────
+// price = FCFA per base unit (g, ml, m, or pièce). History is a step
+// function: the price applies from its date forward.
+const SEED_MATERIALS = [
+  { id: 'm_karite', name: 'Beurre de karité', unit: 'g', hue: 48, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 2.2 }, { date: '2026-01-15', price: 2.4 }, { date: '2026-03-01', price: 2.7 }, { date: '2026-04-15', price: 2.9 }] },
+  { id: 'm_coco', name: 'Huile de coco', unit: 'ml', hue: 76, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 1.6 }, { date: '2026-02-01', price: 1.8 }, { date: '2026-04-15', price: 2.0 }] },
+  { id: 'm_cire', name: 'Cire d’abeille', unit: 'g', hue: 32, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 3.6 }, { date: '2026-01-15', price: 3.8 }, { date: '2026-03-01', price: 4.2 }, { date: '2026-04-15', price: 4.4 }] },
+  { id: 'm_zinc', name: 'Oxyde de zinc', unit: 'g', hue: 196, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 3.2 }, { date: '2026-03-01', price: 3.5 }] },
+  { id: 'm_bicarb', name: 'Bicarbonate', unit: 'g', hue: 220, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 0.9 }] },
+  { id: 'm_glyc', name: 'Glycérine', unit: 'ml', hue: 260, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 1.1 }, { date: '2026-03-01', price: 1.2 }] },
+  { id: 'm_citron', name: 'H.E. citronnelle', unit: 'ml', hue: 110, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 18 }, { date: '2026-01-15', price: 20 }, { date: '2026-03-01', price: 24 }, { date: '2026-04-15', price: 22 }] },
+  { id: 'm_menthe', name: 'H.E. menthe', unit: 'ml', hue: 152, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 24 }, { date: '2026-03-01', price: 26 }] },
+  { id: 'm_lavande', name: 'H.E. lavande', unit: 'ml', hue: 300, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 28 }, { date: '2026-02-01', price: 30 }, { date: '2026-04-15', price: 32 }] },
+  { id: 'm_parfum', name: 'Parfum', unit: 'ml', hue: 14, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 16 }, { date: '2026-03-01', price: 18 }] },
+  { id: 'm_argile', name: 'Argile blanche', unit: 'g', hue: 60, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 0.7 }] },
+  { id: 'm_aloe', name: 'Gel d’aloe vera', unit: 'ml', hue: 140, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 1.4 }, { date: '2026-03-01', price: 1.5 }] },
+  { id: 'm_eau', name: 'Eau distillée', unit: 'ml', hue: 210, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 0.2 }] },
+  // Wax (textile)
+  { id: 'm_tissu', name: 'Tissu écru', unit: 'm', hue: 24, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 560 }, { date: '2026-01-15', price: 600 }, { date: '2026-04-15', price: 640 }] },
+  { id: 'm_paraffine', name: 'Paraffine', unit: 'm', hue: 50, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 110 }, { date: '2026-03-01', price: 120 }] },
+  { id: 'm_colorant', name: 'Colorant wax', unit: 'm', hue: 330, kind: 'matière',
+    priceHistory: [{ date: '2025-12-01', price: 180 }, { date: '2026-02-01', price: 200 }] },
+  // Packaging (emballage)
+  { id: 'm_pot', name: 'Pot 100 ml', unit: 'pièce', hue: 250, kind: 'emballage',
+    priceHistory: [{ date: '2025-12-01', price: 170 }, { date: '2026-03-01', price: 180 }] },
+  { id: 'm_flacon', name: 'Flacon 50 ml', unit: 'pièce', hue: 250, kind: 'emballage',
+    priceHistory: [{ date: '2025-12-01', price: 145 }, { date: '2026-03-01', price: 150 }] },
+  { id: 'm_stickdeo', name: 'Stick déodorant', unit: 'pièce', hue: 250, kind: 'emballage',
+    priceHistory: [{ date: '2025-12-01', price: 210 }, { date: '2026-03-01', price: 220 }] },
+  { id: 'm_sticklip', name: 'Pot baume lèvres', unit: 'pièce', hue: 250, kind: 'emballage',
+    priceHistory: [{ date: '2025-12-01', price: 115 }, { date: '2026-03-01', price: 120 }] },
+  { id: 'm_tube', name: 'Tube 75 ml', unit: 'pièce', hue: 250, kind: 'emballage',
+    priceHistory: [{ date: '2025-12-01', price: 155 }, { date: '2026-03-01', price: 160 }] },
+  { id: 'm_spray', name: 'Spray 100 ml', unit: 'pièce', hue: 250, kind: 'emballage',
+    priceHistory: [{ date: '2025-12-01', price: 240 }, { date: '2026-03-01', price: 250 }] },
+  { id: 'm_etiq', name: 'Étiquette', unit: 'pièce', hue: 250, kind: 'emballage',
+    priceHistory: [{ date: '2025-12-01', price: 30 }, { date: '2026-03-01', price: 35 }] },
+];
+
+// ── Recipes: per-unit material quantities + labor lines ──────
+// ingredients: { materialId, qty } — qty is per 1 unit produced.
+// labor:       { task, who, minutes, rate } — rate is FCFA per hour.
+const SEED_RECIPES = {
+  p_zinc: {
+    ingredients: [
+      { materialId: 'm_zinc', qty: 60 }, { materialId: 'm_karite', qty: 120 },
+      { materialId: 'm_coco', qty: 40 }, { materialId: 'm_pot', qty: 1 }, { materialId: 'm_etiq', qty: 1 },
+    ],
+    labor: [
+      { task: 'Mélange', who: 'Atelier', minutes: 8, rate: 1200 },
+      { task: 'Conditionnement', who: 'Awa', minutes: 6, rate: 1000 },
+      { task: 'Étiquetage', who: 'Awa', minutes: 3, rate: 1000 },
+    ],
+  },
+  p_deo: {
+    ingredients: [
+      { materialId: 'm_karite', qty: 50 }, { materialId: 'm_coco', qty: 30 }, { materialId: 'm_cire', qty: 25 },
+      { materialId: 'm_bicarb', qty: 30 }, { materialId: 'm_lavande', qty: 6 },
+      { materialId: 'm_stickdeo', qty: 1 }, { materialId: 'm_etiq', qty: 1 },
+    ],
+    labor: [
+      { task: 'Chauffe & mélange', who: 'Atelier', minutes: 12, rate: 1200 },
+      { task: 'Coulage', who: 'Yacine', minutes: 6, rate: 1000 },
+      { task: 'Conditionnement', who: 'Awa', minutes: 5, rate: 1000 },
+      { task: 'Étiquetage', who: 'Awa', minutes: 3, rate: 1000 },
+    ],
+  },
+  p_anti: {
+    ingredients: [
+      { materialId: 'm_citron', qty: 25 }, { materialId: 'm_coco', qty: 20 }, { materialId: 'm_eau', qty: 50 },
+      { materialId: 'm_glyc', qty: 10 }, { materialId: 'm_spray', qty: 1 }, { materialId: 'm_etiq', qty: 1 },
+    ],
+    labor: [
+      { task: 'Mélange', who: 'Atelier', minutes: 6, rate: 1200 },
+      { task: 'Conditionnement', who: 'Awa', minutes: 5, rate: 1000 },
+      { task: 'Étiquetage', who: 'Awa', minutes: 3, rate: 1000 },
+    ],
+  },
+  p_wax: {
+    ingredients: [
+      { materialId: 'm_tissu', qty: 2 }, { materialId: 'm_paraffine', qty: 2 }, { materialId: 'm_colorant', qty: 2 },
+    ],
+    labor: [
+      { task: 'Impression cire', who: 'Moussa', minutes: 15, rate: 1500 },
+      { task: 'Teinture', who: 'Moussa', minutes: 20, rate: 1200 },
+      { task: 'Rinçage & séchage', who: 'Atelier', minutes: 10, rate: 1000 },
+    ],
+  },
+  p_baume: {
+    ingredients: [
+      { materialId: 'm_karite', qty: 150 }, { materialId: 'm_coco', qty: 60 }, { materialId: 'm_cire', qty: 30 },
+      { materialId: 'm_parfum', qty: 8 }, { materialId: 'm_pot', qty: 1 }, { materialId: 'm_etiq', qty: 1 },
+    ],
+    labor: [
+      { task: 'Chauffe & mélange', who: 'Atelier', minutes: 12, rate: 1200 },
+      { task: 'Coulage', who: 'Yacine', minutes: 6, rate: 1000 },
+      { task: 'Conditionnement', who: 'Awa', minutes: 5, rate: 1000 },
+      { task: 'Étiquetage', who: 'Awa', minutes: 3, rate: 1000 },
+    ],
+  },
+  p_huile: {
+    ingredients: [
+      { materialId: 'm_coco', qty: 80 }, { materialId: 'm_karite', qty: 20 }, { materialId: 'm_lavande', qty: 5 },
+      { materialId: 'm_parfum', qty: 5 }, { materialId: 'm_glyc', qty: 10 },
+      { materialId: 'm_flacon', qty: 1 }, { materialId: 'm_etiq', qty: 1 },
+    ],
+    labor: [
+      { task: 'Mélange', who: 'Atelier', minutes: 8, rate: 1200 },
+      { task: 'Conditionnement', who: 'Awa', minutes: 6, rate: 1000 },
+      { task: 'Étiquetage', who: 'Awa', minutes: 3, rate: 1000 },
+    ],
+  },
+  p_dent: {
+    ingredients: [
+      { materialId: 'm_argile', qty: 40 }, { materialId: 'm_bicarb', qty: 20 }, { materialId: 'm_glyc', qty: 15 },
+      { materialId: 'm_menthe', qty: 4 }, { materialId: 'm_eau', qty: 20 },
+      { materialId: 'm_tube', qty: 1 }, { materialId: 'm_etiq', qty: 1 },
+    ],
+    labor: [
+      { task: 'Mélange', who: 'Atelier', minutes: 6, rate: 1200 },
+      { task: 'Conditionnement', who: 'Awa', minutes: 5, rate: 1000 },
+      { task: 'Étiquetage', who: 'Awa', minutes: 3, rate: 1000 },
+    ],
+  },
+  p_levres: {
+    ingredients: [
+      { materialId: 'm_karite', qty: 20 }, { materialId: 'm_cire', qty: 12 }, { materialId: 'm_coco', qty: 10 },
+      { materialId: 'm_parfum', qty: 2 }, { materialId: 'm_sticklip', qty: 1 }, { materialId: 'm_etiq', qty: 1 },
+    ],
+    labor: [
+      { task: 'Chauffe & coulage', who: 'Atelier', minutes: 8, rate: 1200 },
+      { task: 'Conditionnement', who: 'Awa', minutes: 4, rate: 1000 },
+      { task: 'Étiquetage', who: 'Awa', minutes: 3, rate: 1000 },
+    ],
+  },
+};
+
+const LABOR_PRESETS = ['Mélange', 'Chauffe & mélange', 'Coulage', 'Conditionnement', 'Étiquetage', 'Teinture', 'Impression cire', 'Contrôle qualité', 'Transport'];
+
+// ── Cost engine ──────────────────────────────────────────────
+// A material's price points = seed history + every purchase of it,
+// sorted by date. Purchases are the real source of truth going forward.
+const materialPricePoints = (mat, purchases) => {
+  const pts = (mat?.priceHistory || []).map((h) => ({ date: h.date, price: h.price }));
+  for (const p of (purchases || [])) {
+    if (p.materialId === mat?.id) pts.push({ date: p.date, price: Number(p.price) });
+  }
+  pts.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  return pts;
+};
+
+// Step-function lookup: price of a material on a given ISO date.
+const materialPriceAt = (mat, iso, purchases) => {
+  const pts = materialPricePoints(mat, purchases);
+  if (!pts.length) return 0;
+  let price = pts[0].price;
+  for (const h of pts) {
+    if (h.date <= iso) price = h.price; else break;
+  }
+  return price;
+};
+const materialCurrentPrice = (mat, purchases) => materialPriceAt(mat, todayISO(), purchases);
+
+// Full breakdown of a recipe's per-unit cost at a date (default: today).
+const recipeCost = (recipe, materialById, purchases, iso) => {
+  const date = iso || todayISO();
+  let materials = 0;
+  const ingredientLines = (recipe?.ingredients || []).map((ing) => {
+    const m = materialById[ing.materialId];
+    const price = materialPriceAt(m, date, purchases);
+    const cost = ing.qty * price;
+    materials += cost;
+    return { ...ing, material: m, price, cost };
+  });
+  let labor = 0;
+  const laborLines = (recipe?.labor || []).map((l) => {
+    const cost = (Number(l.minutes) / 60) * Number(l.rate);
+    labor += cost;
+    return { ...l, cost };
+  });
+  return { materials, labor, total: materials + labor, ingredientLines, laborLines };
+};
+
+// Monthly series of per-unit total cost (uses CURRENT quantities across history).
+const costSeries = (recipe, materialById, purchases, months = 6) => {
+  const now = new Date();
+  const pts = [];
+  for (let i = months - 1; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const iso = d.toISOString().slice(0, 10);
+    const { total, materials, labor } = recipeCost(recipe, materialById, purchases, iso);
+    pts.push({ date: iso, total, materials, labor, label: d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '') });
+  }
+  return pts;
+};
+
+// ── Persistence (localStorage) ───────────────────────────────
+// Every transaction is saved to the browser. Survives refresh & reboot.
+// Single device only — see README for multi-device sync (Supabase).
+const LUMA_STORE_KEY = 'lumabonga:v1';
+// Pluggable backend: if the host page (index.html) wires Supabase it sets
+// window.__LUMA_INITIAL (loaded snapshot) and window.__LUMA_SAVE (writer).
+// Otherwise we fall back to localStorage (single-device offline mode).
+const loadPersisted = () => {
+  if (typeof window !== 'undefined' && window.__LUMA_INITIAL !== undefined) {
+    return window.__LUMA_INITIAL;
+  }
+  try {
+    const raw = (typeof localStorage !== 'undefined') && localStorage.getItem(LUMA_STORE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch (e) { return null; }
+};
+const savePersisted = (snapshot) => {
+  // Always keep a local backup (offline / refresh safety).
+  try {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(LUMA_STORE_KEY, JSON.stringify(snapshot));
+  } catch (e) { /* quota / private mode — ignore */ }
+  // Push to the shared backend when wired.
+  if (typeof window !== 'undefined' && typeof window.__LUMA_SAVE === 'function') {
+    try { window.__LUMA_SAVE(snapshot); } catch (e) { /* network — local backup still holds */ }
+  }
+};
+
+// ── Store hook ───────────────────────────────────────────────
+function useLumaStore(seed) {
+  const saved = React.useMemo(loadPersisted, []);
+  const [products, setProducts] = React.useState(saved?.products || seed?.products || SEED_PRODUCTS);
+  const [sales, setSales] = React.useState(saved?.sales || seed?.sales || SEED_SALES);
+  const [purchases, setPurchases] = React.useState(saved?.purchases || seed?.purchases || SEED_PURCHASES);
+  const [costs, setCosts] = React.useState(saved?.costs || seed?.costs || SEED_COSTS);
+  const [production, setProduction] = React.useState(saved?.production || seed?.production || SEED_PRODUCTION);
+  const [activeUser, setActiveUser] = React.useState(saved?.activeUser || 'lumaya'); // 'lumaya' | 'gawah'
+  const [materials, setMaterials] = React.useState(() =>
+    saved?.materials || (seed?.materials || SEED_MATERIALS).map((m) => ({ stock0: STOCK0_BY_UNIT[m.unit] ?? 0, ...m })));
+
+  // recipes: give every ingredient/labor line a stable id for editing & keys
+  const withIds = (recipes) => {
+    const out = {};
+    for (const pid of Object.keys(recipes)) {
+      const r = recipes[pid];
+      out[pid] = {
+        ingredients: (r.ingredients || []).map((x, i) => ({ id: `${pid}_i${i}`, ...x })),
+        labor: (r.labor || []).map((x, i) => ({ id: `${pid}_l${i}`, ...x })),
+      };
+    }
+    return out;
+  };
+  const [recipes, setRecipes] = React.useState(() => saved?.recipes || withIds(seed?.recipes || SEED_RECIPES));
+  const rid = (p) => p + Math.random().toString(36).slice(2, 7);
+
+  // Persist on any change. Recipes already carry stable ids, so they round-trip.
+  React.useEffect(() => {
+    savePersisted({ products, sales, purchases, costs, production, materials, recipes, activeUser });
+  }, [products, sales, purchases, costs, production, materials, recipes, activeUser]);
+
+  const recipeFor = (pid) => recipes[pid] || { ingredients: [], labor: [] };
+  const editRecipe = (pid, fn) => setRecipes((rs) => {
+    const cur = rs[pid] || { ingredients: [], labor: [] };
+    return { ...rs, [pid]: fn(cur) };
+  });
+  const addIngredient = (pid, materialId, qty) => editRecipe(pid, (r) =>
+    ({ ...r, ingredients: [...r.ingredients, { id: rid('i_'), materialId, qty }] }));
+  const updateIngredientQty = (pid, id, qty) => editRecipe(pid, (r) =>
+    ({ ...r, ingredients: r.ingredients.map((i) => i.id === id ? { ...i, qty: Math.max(0, qty) } : i) }));
+  const removeIngredient = (pid, id) => editRecipe(pid, (r) =>
+    ({ ...r, ingredients: r.ingredients.filter((i) => i.id !== id) }));
+  const addLabor = (pid, labor) => editRecipe(pid, (r) =>
+    ({ ...r, labor: [...r.labor, { id: rid('l_'), ...labor }] }));
+  const updateLabor = (pid, id, patch) => editRecipe(pid, (r) =>
+    ({ ...r, labor: r.labor.map((l) => l.id === id ? { ...l, ...patch } : l) }));
+  const removeLabor = (pid, id) => editRecipe(pid, (r) =>
+    ({ ...r, labor: r.labor.filter((l) => l.id !== id) }));
+
+  const addProduct = (p) => {
+    const id = 'p_' + Math.random().toString(36).slice(2, 8);
+    const next = { id, hue: Math.floor(Math.random() * 360), emoji: (p.name || '?').slice(0, 2), stock0: 0, unitPrice: 0, ...p };
+    setProducts((xs) => [next, ...xs]);
+    // start with an empty recipe so the fiche opens cleanly
+    setRecipes((rs) => ({ ...rs, [id]: { ingredients: [], labor: [] } }));
+    return next;
+  };
+  const updateProduct = (id, patch) => setProducts((xs) => xs.map((p) => p.id === id ? { ...p, ...patch } : p));
+  const removeProduct = (id) => setProducts((xs) => xs.filter((p) => p.id !== id));
+
+  // Raw materials CRUD
+  const addMaterial = (m) => {
+    const id = 'm_' + Math.random().toString(36).slice(2, 8);
+    const unit = m.unit || 'g';
+    const price = Number(m.price) || 0;
+    const next = {
+      id, kind: m.kind || 'matière', hue: m.hue ?? Math.floor(Math.random() * 360),
+      stock0: Number(m.stock0) || 0, unit, name: m.name || 'Matière',
+      priceHistory: price > 0 ? [{ date: todayISO(), price }] : [],
+    };
+    setMaterials((xs) => [...xs, next]);
+    return next;
+  };
+  const updateMaterial = (id, patch) => setMaterials((xs) => xs.map((m) => m.id === id ? { ...m, ...patch } : m));
+  const removeMaterial = (id) => setMaterials((xs) => xs.filter((m) => m.id !== id));
+
+  const addSale = (s) => {
+    const id = 's_' + Math.random().toString(36).slice(2, 8);
+    setSales((xs) => [{ id, date: todayISO(), ...s }, ...xs]);
+  };
+  const addPurchase = (s) => {
+    const id = 'a_' + Math.random().toString(36).slice(2, 8);
+    setPurchases((xs) => [{ id, date: todayISO(), ...s }, ...xs]);
+  };
+  const addCost = (c) => {
+    const id = 'c_' + Math.random().toString(36).slice(2, 8);
+    setCosts((xs) => [{ id, date: todayISO(), ...c }, ...xs]);
+  };
+  const addProductionLot = (p) => {
+    const id = 'pr_' + Math.random().toString(36).slice(2, 8);
+    setProduction((xs) => [{ id, date: todayISO(), ...p }, ...xs]);
+  };
+  const removeSale = (id) => setSales((xs) => xs.filter((x) => x.id !== id));
+  const removePurchase = (id) => setPurchases((xs) => xs.filter((x) => x.id !== id));
+  const removeCost = (id) => setCosts((xs) => xs.filter((x) => x.id !== id));
+  const removeProduction = (id) => setProduction((xs) => xs.filter((x) => x.id !== id));
+  const updateSale = (id, patch) => setSales((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
+  const updatePurchase = (id, patch) => setPurchases((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
+  const updateCost = (id, patch) => setCosts((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
+  const updateProduction = (id, patch) => setProduction((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
+
+  // Wipe saved data and restore seed demo content.
+  const resetStore = () => {
+    try { if (typeof localStorage !== 'undefined') localStorage.removeItem(LUMA_STORE_KEY); } catch (e) {}
+    setProducts(SEED_PRODUCTS);
+    setSales(SEED_SALES);
+    setPurchases(SEED_PURCHASES);
+    setCosts(SEED_COSTS);
+    setProduction(SEED_PRODUCTION);
+    setMaterials(SEED_MATERIALS.map((m) => ({ stock0: STOCK0_BY_UNIT[m.unit] ?? 0, ...m })));
+    setRecipes(withIds(SEED_RECIPES));
+    setActiveUser('lumaya');
+  };
+
+  const productById = React.useMemo(() => {
+    const m = {};
+    for (const p of products) m[p.id] = p;
+    return m;
+  }, [products]);
+
+  const materialById = React.useMemo(() => {
+    const m = {};
+    for (const x of materials) m[x.id] = x;
+    return m;
+  }, [materials]);
+
+  // Current unit price per material (last purchase / seed history)
+  const materialPrices = React.useMemo(() => {
+    const m = {};
+    for (const mat of materials) m[mat.id] = materialCurrentPrice(mat, purchases);
+    return m;
+  }, [materials, purchases]);
+
+  // Per-unit production cost of each product (materials at current price + labour)
+  const unitCostFor = React.useCallback((pid) => {
+    const r = recipes[pid] || { ingredients: [], labor: [] };
+    return recipeCost(r, materialById, purchases).total;
+  }, [recipes, materialById, purchases]);
+
+  // ── Stock derivations ──────────────────────────────────────
+  // Raw-material stock = opening + purchases − consumed by production (current recipe).
+  const materialStock = React.useMemo(() => {
+    const s = {};
+    for (const m of materials) s[m.id] = m.stock0 || 0;
+    for (const p of purchases) if (s[p.materialId] != null) s[p.materialId] += Number(p.qty) || 0;
+    for (const pr of production) {
+      const r = recipes[pr.productId];
+      if (!r) continue;
+      for (const ing of r.ingredients) {
+        if (s[ing.materialId] != null) s[ing.materialId] -= (Number(pr.qty) || 0) * (Number(ing.qty) || 0);
+      }
+    }
+    return s;
+  }, [materials, purchases, production, recipes]);
+
+  // Finished-goods stock = opening + produced − sold.
+  const finishedStock = React.useMemo(() => {
+    const s = {};
+    for (const p of products) s[p.id] = p.stock0 || 0;
+    for (const pr of production) if (s[pr.productId] != null) s[pr.productId] += Number(pr.qty) || 0;
+    for (const sa of sales) if (s[sa.productId] != null) s[sa.productId] -= Number(sa.qty) || 0;
+    return s;
+  }, [products, production, sales]);
+
+  // How many more units of a product can be produced with current material stock.
+  const producibleFor = React.useCallback((pid) => {
+    const r = recipes[pid];
+    if (!r || !r.ingredients.length) return 0;
+    let min = Infinity;
+    for (const ing of r.ingredients) {
+      const need = Number(ing.qty) || 0;
+      if (need <= 0) continue;
+      const have = materialStock[ing.materialId] ?? 0;
+      min = Math.min(min, Math.floor(have / need));
+    }
+    return min === Infinity ? 0 : Math.max(0, min);
+  }, [recipes, materialStock]);
+
+  // What limits production of a product (lowest-stock ingredient).
+  const bottleneckFor = React.useCallback((pid) => {
+    const r = recipes[pid];
+    if (!r || !r.ingredients.length) return null;
+    let best = null;
+    for (const ing of r.ingredients) {
+      const need = Number(ing.qty) || 0;
+      if (need <= 0) continue;
+      const have = materialStock[ing.materialId] ?? 0;
+      const units = Math.floor(have / need);
+      if (best === null || units < best.units) best = { materialId: ing.materialId, units, have, need };
+    }
+    return best;
+  }, [recipes, materialStock]);
+
+  const totals = React.useMemo(() => {
+    const ventes = sales.reduce((a, s) => a + s.qty * s.price, 0);
+    const achats = purchases.reduce((a, s) => a + (Number(s.qty) || 0) * (Number(s.price) || 0), 0);
+    const charges = costs.reduce((a, c) => a + c.amount, 0);
+    // Cost of goods sold = units sold × unit production cost (at sale date)
+    let cogs = 0;
+    for (const s of sales) {
+      const r = recipes[s.productId];
+      const unit = r ? recipeCost(r, materialById, purchases, s.date).total : 0;
+      cogs += unit * (Number(s.qty) || 0);
+    }
+    const profit = ventes - cogs - charges; // net profit
+    const marge = ventes > 0 ? (profit / ventes) * 100 : 0;
+    // Inventory value at cost
+    let valMatieres = 0;
+    for (const m of materials) valMatieres += (materialStock[m.id] || 0) * (materialPrices[m.id] || 0);
+    let valProduits = 0;
+    for (const p of products) valProduits += (finishedStock[p.id] || 0) * unitCostFor(p.id);
+    return { ventes, achats, charges, cogs, profit, marge, valMatieres, valProduits, valStock: valMatieres + valProduits };
+  }, [sales, purchases, costs, recipes, materialById, materials, products, materialStock, finishedStock, materialPrices, unitCostFor]);
+
+  return {
+    products, sales, purchases, costs, production, activeUser, materials,
+    setActiveUser,
+    addProduct, updateProduct, removeProduct,
+    addMaterial, updateMaterial, removeMaterial,
+    addSale, updateSale, removeSale,
+    addPurchase, updatePurchase, removePurchase,
+    addCost, updateCost, removeCost,
+    addProductionLot, updateProduction, removeProduction,
+    resetStore,
+    productById, materialById, materialPrices, totals,
+    recipes, recipeFor, unitCostFor,
+    materialStock, finishedStock, producibleFor, bottleneckFor,
+    addIngredient, updateIngredientQty, removeIngredient,
+    addLabor, updateLabor, removeLabor,
+  };
+}
+
+// ── Icons (line, stroke-based, no emoji) ─────────────────────
+const Icon = {
+  dash: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" {...p}>
+      <rect x="3" y="3" width="7" height="9" rx="1.5"/>
+      <rect x="14" y="3" width="7" height="5" rx="1.5"/>
+      <rect x="14" y="12" width="7" height="9" rx="1.5"/>
+      <rect x="3" y="16" width="7" height="5" rx="1.5"/>
+    </svg>
+  ),
+  sale: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M7 17 17 7"/>
+      <path d="M9 7h8v8"/>
+    </svg>
+  ),
+  buy: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M17 7 7 17"/>
+      <path d="M15 17H7v-8"/>
+    </svg>
+  ),
+  cost: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4 21V10l5-3 5 3v11"/>
+      <path d="M14 13h6v8h-6"/>
+      <path d="M9 21v-4"/>
+    </svg>
+  ),
+  prod: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M3 7l9-4 9 4"/>
+      <path d="M3 7v10l9 4 9-4V7"/>
+      <path d="M12 11v10"/>
+      <path d="M3 7l9 4 9-4"/>
+    </svg>
+  ),
+  plus: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}>
+      <path d="M12 5v14M5 12h14"/>
+    </svg>
+  ),
+  close: (p) => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}>
+      <path d="M6 6l12 12M18 6L6 18"/>
+    </svg>
+  ),
+
+  trash: (p) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>
+    </svg>
+  ),
+  back: (p) => (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M15 6l-6 6 6 6"/>
+    </svg>
+  ),
+  minus: (p) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" {...p}>
+      <path d="M5 12h14"/>
+    </svg>
+  ),
+  clock: (p) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <circle cx="12" cy="12" r="9"/>
+      <path d="M12 7v5l3 2"/>
+    </svg>
+  ),
+  edit: (p) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 20h9"/>
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+    </svg>
+  ),
+  box: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M3 7l9-4 9 4v10l-9 4-9-4V7Z"/>
+      <path d="M3 7l9 4 9-4M12 11v10"/>
+    </svg>
+  ),
+  alert: (p) => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 9v4M12 17h.01"/>
+      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/>
+    </svg>
+  ),
+  check: (p) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M4 12l5 5L20 6"/>
+    </svg>
+  ),
+  arrow: (p) => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M5 12h14M13 6l6 6-6 6"/>
+    </svg>
+  ),
+  spark: (p) => (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l3 3M15 15l3 3M18 6l-3 3M9 15l-3 3"/>
+    </svg>
+  ),
+};
+
+// Animated number that counts up smoothly
+function AnimatedNumber({ value, duration = 600, format = fmtNum, style }) {
+  const [display, setDisplay] = React.useState(value);
+  const fromRef = React.useRef(value);
+  const startRef = React.useRef(null);
+  const rafRef = React.useRef(null);
+  React.useEffect(() => {
+    cancelAnimationFrame(rafRef.current);
+    const from = display;
+    fromRef.current = from;
+    startRef.current = null;
+    const tick = (t) => {
+      if (startRef.current === null) startRef.current = t;
+      const elapsed = t - startRef.current;
+      const k = Math.min(1, elapsed / duration);
+      // easeOutCubic
+      const e = 1 - Math.pow(1 - k, 3);
+      setDisplay(from + (value - from) * e);
+      if (k < 1) rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafRef.current);
+    // eslint-disable-next-line
+  }, [value]);
+  return <span style={style}>{format(display)}</span>;
+}
+
+Object.assign(window, {
+  TWEAK_DEFAULTS,
+  fmtNum, fmtMoney, fmtShort, fmtDate, fmtDay, todayISO,
+  SEED_PRODUCTS, SEED_SALES, SEED_PURCHASES, SEED_COSTS,
+  SEED_MATERIALS, SEED_RECIPES, SEED_PRODUCTION, STOCK0_BY_UNIT, LABOR_PRESETS,
+  materialPricePoints, materialPriceAt, materialCurrentPrice, recipeCost, costSeries,
+  useLumaStore, Icon, AnimatedNumber,
+});

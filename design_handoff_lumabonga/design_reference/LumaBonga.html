@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LumaBonga — comptabilité mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    font-family: -apple-system, "Inter", system-ui, sans-serif;
+    background: #1a1d24;
+    color: #e6edf3;
+    overflow: hidden;
+  }
+  * { box-sizing: border-box; }
+
+  @keyframes sageSlideUp {
+    from { transform: translateY(100%); opacity: 0.4; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+  @keyframes lbFadeIn {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* hide scrollbars inside phones */
+  .phone-scroll::-webkit-scrollbar { display: none; }
+  .phone-scroll { scrollbar-width: none; }
+
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+  input[type=number] { -moz-appearance: textfield; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="lumabonga-data.jsx"></script>
+<script type="text/babel" src="lumabonga-sage.jsx"></script>
+<script type="text/babel" src="lumabonga-creative.jsx"></script>
+<script type="text/babel" src="lumabonga-product.jsx"></script>
+<script type="text/babel" src="lumabonga-stock.jsx"></script>
+
+<script type="text/babel">
+const { useState } = React;
+
+function PhoneShell({ label, dark, children }) {
+  const W = 402, H = 874;
+  return (
+    <div data-screen-label={label} style={{
+      position: 'relative', width: W, height: H,
+      background: dark ? '#0d1117' : '#fbfaf7',
+      borderRadius: 56,
+      border: dark ? '14px solid #1a1d24' : '14px solid #25262a',
+      boxShadow: '0 30px 80px rgba(0,0,0,0.45), 0 8px 24px rgba(0,0,0,0.25), inset 0 0 0 1px rgba(255,255,255,0.04)',
+      overflow: 'hidden',
+    }}>
+      {/* dynamic island */}
+      <div style={{
+        position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)',
+        width: 122, height: 35, borderRadius: 22, background: '#000', zIndex: 50,
+      }} />
+      {/* status bar */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 40 }}>
+        <IOSStatusBar dark={dark} />
+      </div>
+      {/* home indicator */}
+      <div style={{
+        position: 'absolute', bottom: 8, left: '50%', transform: 'translateX(-50%)',
+        width: 139, height: 5, borderRadius: 100,
+        background: dark ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.25)',
+        zIndex: 60, pointerEvents: 'none',
+      }} />
+      {children}
+    </div>
+  );
+}
+
+function PhoneVariant({ variant, t, dark }) {
+  if (variant === 'sage')     return <SageApp t={t} dark={dark} />;
+  if (variant === 'creative') return <CreaApp t={t} dark={dark} />;
+  return null;
+}
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const dark = t.dark;
+
+  // canvas wrapper bg
+  const wrapBg = dark ? '#0a0b10' : '#efece4';
+
+  return (
+    <div style={{ width: '100%', height: '100%' }}>
+      <style>{`body { background: ${wrapBg}; }`}</style>
+
+      <DesignCanvas
+        title="LumaBonga"
+        subtitle="Deux directions pour une app de comptabilité mobile · Lumaya · GawahBonga"
+        bg={wrapBg}
+      >
+        <DCSection
+          id="variants"
+          title="Variations"
+          subtitle="A — Sage : interface dense, claire, list-driven. B — Créatif : typographie expressive, vases de répartition, fil chronologique."
+        >
+          {t.showSage && (
+            <DCArtboard id="sage" label="A · Sage" width={402} height={874}>
+              <PhoneShell label="A · Sage" dark={dark}>
+                <PhoneVariant variant="sage" t={t} dark={dark} />
+              </PhoneShell>
+            </DCArtboard>
+          )}
+          {t.showCreative && (
+            <DCArtboard id="creative" label="B · Créatif" width={402} height={874}>
+              <PhoneShell label="B · Créatif" dark={dark}>
+                <PhoneVariant variant="creative" t={t} dark={dark} />
+              </PhoneShell>
+            </DCArtboard>
+          )}
+          <DCPostIt top={120} right={-60} rotate={-3} width={240}>
+            <strong>Le modèle Créatif</strong><br />
+            Achats = matières premières (quantité + prix). La <strong>recette</strong> de
+            chaque produit (matières + main d’œuvre) donne le coût de production unitaire.
+            Les ventes en déduisent marges, profits et répartition.
+          </DCPostIt>
+          <DCPostIt top={520} right={-60} rotate={2} width={240}>
+            <strong>Stock & production</strong><br />
+            L’onglet <em>Stock</em> suit les matières restantes et les produits finis, et
+            calcule combien d’unités sont encore <strong>produisibles</strong>. Chaque entrée
+            est modifiable ou supprimable. Tout se crée via <strong>+</strong>.
+          </DCPostIt>
+        </DCSection>
+      </DesignCanvas>
+
+      <TweaksPanel>
+        <TweakSection label="Apparence" />
+        <TweakToggle label="Mode sombre" value={t.dark} onChange={(v) => setTweak('dark', v)} />
+        <TweakColor label="Accent" value={t.accent}
+          options={['#7dd3a0', '#8db4ff', '#f5c451', '#c4a8ff', '#f48fb1']}
+          onChange={(v) => setTweak('accent', v)} />
+
+        <TweakSection label="Répartition des profits" />
+        <TweakSlider label="Part Lumaya" value={t.lumayaShare} min={0} max={100} step={1} unit="%"
+          onChange={(v) => setTweak('lumayaShare', v)} />
+
+        <TweakSection label="Devise" />
+        <TweakSelect label="Symbole" value={t.currency}
+          options={['FCFA', 'XOF', 'XAF', '€', '$', 'MAD', 'DH']}
+          onChange={(v) => setTweak('currency', v)} />
+
+        <TweakSection label="Variations affichées" />
+        <TweakToggle label="Sage" value={t.showSage} onChange={(v) => setTweak('showSage', v)} />
+        <TweakToggle label="Créatif" value={t.showCreative} onChange={(v) => setTweak('showCreative', v)} />
+      </TweaksPanel>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
