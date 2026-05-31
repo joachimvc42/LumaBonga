@@ -357,9 +357,15 @@ function Root() {
     let alive = true;
     (async () => {
       const sb = await waitForSb();
-      const { data } = await sb.auth.getSession();
-      if (!alive) return;
-      if (data && data.session) load(); else setPhase('login');
+      // Poll getSession briefly: the session may not be rehydrated from storage
+      // by the time we mount (avoids the mount-race that left us stuck on login).
+      for (let i = 0; i < 14 && alive; i++) {
+        const { data } = await sb.auth.getSession();
+        if (!alive) return;
+        if (data && data.session) { load(); return; }
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      if (alive) setPhase('login');
     })();
     return () => { alive = false; };
   }, [load]);

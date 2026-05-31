@@ -439,14 +439,18 @@ const savePersisted = (snapshot) => {
 // ── Store hook ───────────────────────────────────────────────
 function useLumaStore(seed) {
   const saved = React.useMemo(loadPersisted, []);
-  const [products, setProducts] = React.useState(saved?.products || seed?.products || SEED_PRODUCTS);
-  const [sales, setSales] = React.useState(saved?.sales || seed?.sales || SEED_SALES);
-  const [purchases, setPurchases] = React.useState(saved?.purchases || seed?.purchases || SEED_PURCHASES);
-  const [costs, setCosts] = React.useState(saved?.costs || seed?.costs || SEED_COSTS);
-  const [production, setProduction] = React.useState(saved?.production || seed?.production || SEED_PRODUCTION);
+  // When a backend snapshot exists (Supabase, or prior local save) it is
+  // authoritative — empty means empty. Demo seeds load only on a true first run.
+  // No demo data anywhere: defaults are empty. Real data comes from the backend
+  // (Supabase) or an explicit `seed` arg.
+  const [products, setProducts] = React.useState(saved?.products || seed?.products || []);
+  const [sales, setSales] = React.useState(saved?.sales || seed?.sales || []);
+  const [purchases, setPurchases] = React.useState(saved?.purchases || seed?.purchases || []);
+  const [costs, setCosts] = React.useState(saved?.costs || seed?.costs || []);
+  const [production, setProduction] = React.useState(saved?.production || seed?.production || []);
   const [activeUser, setActiveUser] = React.useState(saved?.activeUser || 'lumaya'); // 'lumaya' | 'gawah'
   const [materials, setMaterials] = React.useState(() =>
-    saved?.materials || (seed?.materials || SEED_MATERIALS).map((m) => ({ stock0: STOCK0_BY_UNIT[m.unit] ?? 0, ...m })));
+    saved?.materials || seed?.materials || []);
 
   // recipes: give every ingredient/labor line a stable id for editing & keys
   const withIds = (recipes) => {
@@ -460,7 +464,7 @@ function useLumaStore(seed) {
     }
     return out;
   };
-  const [recipes, setRecipes] = React.useState(() => saved?.recipes || withIds(seed?.recipes || SEED_RECIPES));
+  const [recipes, setRecipes] = React.useState(() => saved?.recipes || (seed?.recipes ? withIds(seed.recipes) : {}));
   const rid = (p) => p + Math.random().toString(36).slice(2, 7);
 
   // Persist on any change. Recipes already carry stable ids, so they round-trip.
@@ -538,16 +542,16 @@ function useLumaStore(seed) {
   const updateCost = (id, patch) => setCosts((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
   const updateProduction = (id, patch) => setProduction((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
 
-  // Wipe saved data and restore seed demo content.
+  // Wipe everything to an empty ledger (no demo data).
   const resetStore = () => {
     try { if (typeof localStorage !== 'undefined') localStorage.removeItem(LUMA_STORE_KEY); } catch (e) {}
-    setProducts(SEED_PRODUCTS);
-    setSales(SEED_SALES);
-    setPurchases(SEED_PURCHASES);
-    setCosts(SEED_COSTS);
-    setProduction(SEED_PRODUCTION);
-    setMaterials(SEED_MATERIALS.map((m) => ({ stock0: STOCK0_BY_UNIT[m.unit] ?? 0, ...m })));
-    setRecipes(withIds(SEED_RECIPES));
+    setProducts([]);
+    setSales([]);
+    setPurchases([]);
+    setCosts([]);
+    setProduction([]);
+    setMaterials([]);
+    setRecipes({});
     setActiveUser('lumaya');
   };
 
