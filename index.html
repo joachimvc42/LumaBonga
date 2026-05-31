@@ -32,13 +32,19 @@
     background: #08080b;
     overflow: hidden;
   }
+  /* Desktop: no phone frame — app fills the window, content centred on a
+     comfortable column. Mobile (<520px) keeps the full-screen layout untouched. */
   @media (min-width: 520px) {
     #stage { background: #0a0b10; }
     #device {
-      width: 402px; height: 874px; max-height: 96vh;
-      border-radius: 44px;
-      border: 12px solid #1a1d24;
-      box-shadow: 0 30px 80px rgba(0,0,0,.45), 0 8px 24px rgba(0,0,0,.25);
+      width: min(900px, 100vw);
+      height: 100vh;
+      max-height: none;
+      border-radius: 0;
+      border: none;
+      border-left: 1px solid rgba(255,255,255,.06);
+      border-right: 1px solid rgba(255,255,255,.06);
+      box-shadow: 0 0 80px rgba(0,0,0,.35);
     }
   }
 
@@ -105,7 +111,7 @@ function SettingsButton({ t, set, dark }) {
 
   return (
     <>
-      <button onClick={() => setOpen(true)} aria-label="Réglages" style={{
+      <button onClick={() => setOpen(true)} aria-label={tr('Réglages')} style={{
         position: 'absolute', top: 12, right: 14, zIndex: 30,
         width: 32, height: 32, borderRadius: 999, cursor: 'pointer',
         background: c.panel2, color: c.muted, border: `1px solid ${c.border}`,
@@ -131,11 +137,23 @@ function SettingsButton({ t, set, dark }) {
             borderTop: `1px solid ${c.border}`,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 26 }}>Réglages</span>
+              <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 26 }}>{tr('Réglages')}</span>
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: c.muted, cursor: 'pointer' }}><Icon.close /></button>
             </div>
 
-            <Row label="Mode sombre">
+            <Row label={tr('Langue')}>
+              {[['en', 'EN'], ['fr', 'FR']].map(([id, lab]) => (
+                <button key={id} onClick={() => set('lang', id)} style={{
+                  padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
+                  background: t.lang === id ? c.accent : 'transparent',
+                  color: t.lang === id ? c.inkContrast : c.text,
+                  border: `1px solid ${t.lang === id ? c.accent : c.border}`,
+                  fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+                }}>{lab}</button>
+              ))}
+            </Row>
+
+            <Row label={tr('Mode sombre')}>
               <button onClick={() => set('dark', !t.dark)} style={{
                 width: 46, height: 26, borderRadius: 999, cursor: 'pointer', position: 'relative',
                 background: t.dark ? c.accent : c.border, border: 'none', transition: 'background .2s',
@@ -144,7 +162,7 @@ function SettingsButton({ t, set, dark }) {
               </button>
             </Row>
 
-            <Row label="Couleur d'accent">
+            <Row label={tr("Couleur d'accent")}>
               {accents.map((a) => (
                 <button key={a} onClick={() => set('accent', a)} style={{
                   width: 24, height: 24, borderRadius: 999, cursor: 'pointer', background: a,
@@ -153,11 +171,11 @@ function SettingsButton({ t, set, dark }) {
               ))}
             </Row>
 
-            <Row label="Devise">
+            <Row label={tr('Devise')}>
               <span style={{ fontFamily: creaMono, fontSize: 13, color: c.text }}>IDR</span>
             </Row>
 
-            <Row label={`Part Lumaya · ${t.lumayaShare}%`}>
+            <Row label={tr('Part Lumaya · {x}%', { x: t.lumayaShare })}>
               <input type="range" min="0" max="100" step="1" value={t.lumayaShare}
                 onChange={(e) => set('lumayaShare', Number(e.target.value))}
                 style={{ width: 150, accentColor: c.accent }} />
@@ -171,10 +189,10 @@ function SettingsButton({ t, set, dark }) {
                 flex: 1, padding: '12px', borderRadius: 12, cursor: 'pointer',
                 background: 'transparent', color: c.muted, border: `1px solid ${c.border}`,
                 fontFamily: creaSans, fontSize: 13, fontWeight: 600,
-              }}>Déconnexion</button>
+              }}>{tr('Déconnexion')}</button>
 
               <button onClick={async () => {
-                if (!confirm('Réinitialiser TOUTES les données partagées et revenir aux exemples ? Irréversible, pour tout le monde.')) return;
+                if (!confirm(tr('Réinitialiser TOUTES les données partagées et revenir aux exemples ? Irréversible, pour tout le monde.'))) return;
                 try { localStorage.removeItem('lumabonga:v1'); } catch (e) {}
                 try {
                   if (window.__sb) await window.__sb.from('app_state')
@@ -185,12 +203,11 @@ function SettingsButton({ t, set, dark }) {
                 flex: 1, padding: '12px', borderRadius: 12, cursor: 'pointer',
                 background: 'transparent', color: c.rose, border: `1px solid ${c.rose}55`,
                 fontFamily: creaSans, fontSize: 13, fontWeight: 600,
-              }}>Réinitialiser</button>
+              }}>{tr('Réinitialiser')}</button>
             </div>
 
             <p style={{ fontSize: 11, color: c.mutedSoft, marginTop: 14, lineHeight: 1.5, fontFamily: creaSans }}>
-              Données partagées via Supabase : tout le monde voit le même registre, synchronisé entre
-              appareils. La réinitialisation efface les données pour tous les utilisateurs.
+              {tr('Données partagées via Supabase : tout le monde voit le même registre, synchronisé entre appareils. La réinitialisation efface les données pour tous les utilisateurs.')}
             </p>
           </div>
         </div>
@@ -202,6 +219,7 @@ function SettingsButton({ t, set, dark }) {
 function LumaBongaApp() {
   const [t, set] = useAppTweaks();
   const dark = t.dark;
+  setLbLang(t.lang);   // keep global translator in sync before children render
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
@@ -264,7 +282,7 @@ function LoginGate({ onAuthed }) {
     setBusy(true); setErr('');
     const sb = window.__sb;
     const { error } = await sb.auth.signInWithPassword({ email: window.__SB_EMAIL, password: code });
-    if (error) { setErr('Code incorrect.'); setBusy(false); return; }
+    if (error) { setErr(tr('Code incorrect.')); setBusy(false); return; }
     onAuthed();
   };
 
@@ -277,7 +295,7 @@ function LoginGate({ onAuthed }) {
       <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 44, marginBottom: 4 }}>LumaBonga</div>
       <div style={{ fontSize: 12, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 32 }}>Luma · Bonga</div>
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 320 }}>
-        <label style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>Code d'accès</label>
+        <label style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>{tr("Code d'accès")}</label>
         <input type="password" value={code} autoFocus onChange={(e) => setCode(e.target.value)}
           placeholder="••••••••" style={{
             width: '100%', marginTop: 8, padding: '14px 16px', borderRadius: 14,
@@ -289,7 +307,7 @@ function LoginGate({ onAuthed }) {
           width: '100%', marginTop: 16, padding: '14px', borderRadius: 14, cursor: busy ? 'default' : 'pointer',
           background: c.accent, color: c.inkContrast, border: 'none', fontFamily: creaSans, fontSize: 15, fontWeight: 700,
           opacity: busy ? .6 : 1,
-        }}>{busy ? 'Connexion…' : 'Entrer'}</button>
+        }}>{busy ? tr('Connexion…') : tr('Entrer')}</button>
       </form>
     </div>
   );
@@ -315,7 +333,7 @@ function UpdateBanner() {
       background: c.accent, color: c.inkContrast, padding: '8px 16px', borderRadius: 999,
       fontFamily: creaSans, fontSize: 12, fontWeight: 600, cursor: 'pointer',
       boxShadow: '0 6px 20px rgba(0,0,0,.4)',
-    }}>Données mises à jour — toucher pour recharger</div>
+    }}>{tr('Données mises à jour — toucher pour recharger')}</div>
   );
 }
 
@@ -346,12 +364,14 @@ function Root() {
     return () => { alive = false; };
   }, [load]);
 
-  if (phase === 'connecting') return <Splash label="Connexion…" />;
+  if (phase === 'connecting') return <Splash label={tr('Connexion…')} />;
   if (phase === 'login') return <LoginGate onAuthed={load} />;
-  if (phase === 'loading') return <Splash label="Chargement du registre…" />;
+  if (phase === 'loading') return <Splash label={tr('Chargement du registre…')} />;
   return (<><LumaBongaApp />{remote && <UpdateBanner />}</>);
 }
 
+// Pre-login screens (login/splash) use the stored language; the app keeps it in sync afterwards.
+setLbLang((loadTweaks() || {}).lang || 'en');
 ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
 </script>
 </body>

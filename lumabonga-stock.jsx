@@ -60,18 +60,18 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
 
   return (
     <div>
-      <CreaHero label={seg === 'mat' ? 'Achats matières' : 'Charges'} value={seg === 'mat' ? matTotal : chTotal}
-        sub={seg === 'mat' ? `${store.purchases.length} factures` : `${store.costs.length} charges`}
+      <CreaHero label={seg === 'mat' ? tr('Achats matières') : tr('Charges')} value={seg === 'mat' ? matTotal : chTotal}
+        sub={seg === 'mat' ? tr('{n} factures', { n: store.purchases.length }) : tr('{n} charges', { n: store.costs.length })}
         color={seg === 'mat' ? c.purple : c.amber} t={t} dark={dark} />
 
       <StkSegment value={seg} onChange={setSeg} c={c} options={[
-        { id: 'mat', label: 'Matières', count: store.purchases.length },
-        { id: 'ch', label: 'Charges', count: store.costs.length },
+        { id: 'mat', label: tr('Matières'), count: store.purchases.length },
+        { id: 'ch', label: tr('Charges'), count: store.costs.length },
       ]} />
 
       {seg === 'mat' && (
         <React.Fragment>
-          <CreaSection title="Factures d’achat" right="matières premières" dark={dark} t={t} />
+          <CreaSection title={tr('Factures d’achat')} right={tr('matières premières')} dark={dark} t={t} />
           <div style={{ padding: '0 22px' }}>
             {store.purchases.map((it, i) => {
               const m = store.materialById[it.materialId];
@@ -87,7 +87,7 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
                     fontFamily: creaMono, fontSize: 15, fontWeight: 700, flexShrink: 0,
                   }}>{m?.name?.slice(0, 1) || '?'}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{m?.name || 'Matière supprimée'}</div>
+                    <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{m?.name || tr('Matière supprimée')}</div>
                     <div style={{ fontSize: 11, color: c.muted, fontFamily: creaSans, marginTop: 2 }}>
                       <span style={{ fontFamily: creaMono }}>{fmtNum(it.qty)}</span> {m?.unit} × <span style={{ fontFamily: creaMono }}>{fmtNum(it.price)}</span> {t.currency} · {fmtDate(it.date)}{it.note ? ` · ${it.note}` : ''}
                     </div>
@@ -101,14 +101,14 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
             })}
           </div>
           <div style={{ padding: '14px 22px 0' }}>
-            <AddRowButton c={c} label="Nouvelle facture d’achat" onClick={() => onAdd('buy')} />
+            <AddRowButton c={c} label={tr('Nouvelle facture d’achat')} onClick={() => onAdd('buy')} />
           </div>
         </React.Fragment>
       )}
 
       {seg === 'ch' && (
         <React.Fragment>
-          <CreaSection title="Charges" right="hors matières" dark={dark} t={t} />
+          <CreaSection title={tr('Charges')} right={tr('hors matières')} dark={dark} t={t} />
           <div style={{ padding: '0 22px' }}>
             {store.costs.map((it, i) => (
               <div key={it.id} style={{
@@ -134,7 +134,7 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
             ))}
           </div>
           <div style={{ padding: '14px 22px 0' }}>
-            <AddRowButton c={c} label="Nouvelle charge" onClick={() => onAdd('cost')} />
+            <AddRowButton c={c} label={tr('Nouvelle charge')} onClick={() => onAdd('cost')} />
           </div>
         </React.Fragment>
       )}
@@ -160,18 +160,18 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
 
   return (
     <div>
-      <CreaHero label={seg === 'mat' ? 'Valeur matières' : 'Valeur produits finis'}
+      <CreaHero label={seg === 'mat' ? tr('Valeur matières') : tr('Valeur produits finis')}
         value={seg === 'mat' ? store.totals.valMatieres : store.totals.valProduits}
-        sub="au coût de revient" color={seg === 'mat' ? c.purple : c.accent} t={t} dark={dark} />
+        sub={tr('au coût de revient')} color={seg === 'mat' ? c.purple : c.accent} t={t} dark={dark} />
 
       <StkSegment value={seg} onChange={setSeg} c={c} options={[
-        { id: 'mat', label: 'Matières', count: store.materials.length },
-        { id: 'prod', label: 'Produits finis', count: store.products.length },
+        { id: 'mat', label: tr('Matières'), count: store.materials.length },
+        { id: 'prod', label: tr('Produits finis'), count: store.products.length },
       ]} />
 
       {seg === 'mat' && (
         <React.Fragment>
-          <CreaSection title="Stock matières" right="restant" dark={dark} t={t} />
+          <CreaSection title={tr('Stock matières')} right={tr('restant')} dark={dark} t={t} />
           <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {store.materials.map((m) => {
               const stock = store.materialStock[m.id] ?? 0;
@@ -187,7 +187,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
                     <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>
-                      {fmtNum(price)} {t.currency}/{m.unit} · {m.kind}
+                      {fmtNum(price)} {t.currency}/{m.unit} · {tr(m.kind)}
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
@@ -201,14 +201,14 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
             })}
           </div>
           <div style={{ padding: '14px 22px 0' }}>
-            <AddRowButton c={c} label="Nouvelle matière" onClick={() => onAdd('material')} />
+            <AddRowButton c={c} label={tr('Nouvelle matière')} onClick={() => onAdd('material')} />
           </div>
         </React.Fragment>
       )}
 
       {seg === 'prod' && (
         <React.Fragment>
-          <CreaSection title="Produits finis" right="en stock" dark={dark} t={t} />
+          <CreaSection title={tr('Produits finis')} right={tr('en stock')} dark={dark} t={t} />
           <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {store.products.map((p) => {
               const stock = store.finishedStock[p.id] ?? 0;
@@ -228,7 +228,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{p.name}</div>
                     <div style={{ fontFamily: creaMono, fontSize: 11, color: can === 0 ? c.rose : c.muted, marginTop: 2 }}>
-                      {can} produisibles
+                      {tr('{n} produisibles', { n: can })}
                     </div>
                   </div>
                   <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 20, color: stock <= 5 ? c.amber : c.text }}>
@@ -238,13 +238,13 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                     padding: '8px 12px', borderRadius: 999, border: 'none',
                     background: c.ink, color: c.inkContrast, cursor: 'pointer',
                     fontFamily: creaSans, fontSize: 11.5, fontWeight: 600, flexShrink: 0,
-                  }}>Produire</button>
+                  }}>{tr('Produire')}</button>
                 </div>
               );
             })}
           </div>
 
-          <CreaSection title="Production" right={`${store.production.length} lots`} dark={dark} t={t} />
+          <CreaSection title={tr('Production')} right={tr('{n} lots', { n: store.production.length })} dark={dark} t={t} />
           <div style={{ padding: '0 22px' }}>
             {store.production.map((it, i) => {
               const p = store.productById[it.productId];
@@ -265,7 +265,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
             })}
           </div>
           <div style={{ padding: '14px 22px 0' }}>
-            <AddRowButton c={c} label="Lancer une production" onClick={() => onAdd('production')} />
+            <AddRowButton c={c} label={tr('Lancer une production')} onClick={() => onAdd('production')} />
           </div>
         </React.Fragment>
       )}

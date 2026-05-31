@@ -171,7 +171,7 @@ function CreaBead({ item, store, dark, t, isLast }) {
   const material = item.materialId ? store.materialById[item.materialId] : null;
   const amount = isCost ? item.amount : isProd ? 0 : item.qty * item.price;
   const color = isSale ? c.accent : isCost ? c.amber : isProd ? c.rose : c.purple;
-  const tag = isSale ? 'Vente' : isCost ? 'Charge' : isProd ? 'Production' : 'Achat';
+  const tag = isSale ? tr('Vente') : isCost ? tr('Charge') : isProd ? tr('Production') : tr('Achat');
   const sign = isSale ? '+' : isProd ? '' : '−';
   const title = isSale || isProd ? (product?.name || '—') : isBuy ? (material?.name || '—') : item.label;
   const unit = material?.unit || 'u';
@@ -208,8 +208,8 @@ function CreaBead({ item, store, dark, t, isLast }) {
           </span>
         </div>
         <div style={{ fontFamily: creaSans, fontSize: 11, color: c.muted }}>
-          {isCost ? (item.who || 'Charge') :
-           isProd ? `${item.qty} unités produites${item.who ? ` · ${item.who}` : ''}` :
+          {isCost ? (item.who || tr('Charge')) :
+           isProd ? `${tr('{n} unités produites', { n: item.qty })}${item.who ? ` · ${item.who}` : ''}` :
            isBuy ? `${fmtNum(item.qty)} ${unit} × ${fmtNum(item.price)} ${t.currency}` :
            `${item.qty} u × ${fmtNum(item.price)} ${t.currency}`}
         </div>
@@ -241,7 +241,7 @@ function CreaDashboard({ store, dark, t }) {
 
   return (
     <div>
-      <CreaHero label="Profit net" value={totals.profit} sub={`marge ${Math.round(totals.marge)}%`} t={t} dark={dark} />
+      <CreaHero label={tr('Profit net')} value={totals.profit} sub={tr('marge {p}%', { p: Math.round(totals.marge) })} t={t} dark={dark} />
       <CreaVessels profit={totals.profit} share={t.lumayaShare} t={t} dark={dark} />
 
       <div style={{
@@ -249,9 +249,9 @@ function CreaDashboard({ store, dark, t }) {
         padding: '20px 22px 0',
       }}>
         {[
-          { label: 'Ventes', value: totals.ventes, color: c.accent },
-          { label: 'Coût prod.', value: totals.cogs, color: c.amber },
-          { label: 'Valeur stock', value: totals.valStock, color: c.purple },
+          { label: tr('Ventes'), value: totals.ventes, color: c.accent },
+          { label: tr('Coût prod.'), value: totals.cogs, color: c.amber },
+          { label: tr('Valeur stock'), value: totals.valStock, color: c.purple },
         ].map((k) => (
           <div key={k.label} style={{
             padding: '12px 12px', borderRadius: 14,
@@ -277,7 +277,7 @@ function CreaDashboard({ store, dark, t }) {
 
       {alerts.length > 0 && (
         <React.Fragment>
-          <CreaSection title="Stock faible" right="à produire" dark={dark} t={t} />
+          <CreaSection title={tr('Stock faible')} right={tr('à produire')} dark={dark} t={t} />
           <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
             {alerts.map(({ p, can }) => (
               <div key={p.id} style={{
@@ -287,20 +287,20 @@ function CreaDashboard({ store, dark, t }) {
               }}>
                 <span style={{ color: can === 0 ? c.rose : c.amber, display: 'flex' }}><Icon.alert /></span>
                 <span style={{ flex: 1, fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{p.name}</span>
-                <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted }}>{store.finishedStock[p.id] ?? 0} en stock</span>
+                <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted }}>{tr('{n} en stock', { n: store.finishedStock[p.id] ?? 0 })}</span>
                 <span style={{
                   fontFamily: creaMono, fontSize: 11, fontWeight: 600,
                   color: can === 0 ? c.rose : c.amber,
                   padding: '3px 8px', borderRadius: 999,
                   background: can === 0 ? `${c.rose}22` : `${c.amber}1c`,
-                }}>{can === 0 ? 'rupture matières' : `${can} produisibles`}</span>
+                }}>{can === 0 ? tr('rupture matières') : tr('{n} produisibles', { n: can })}</span>
               </div>
             ))}
           </div>
         </React.Fragment>
       )}
 
-      <CreaSection title="Mouvements" right={`${recent.length} récents`} dark={dark} t={t} />
+      <CreaSection title={tr('Mouvements')} right={tr('{n} récents', { n: recent.length })} dark={dark} t={t} />
       <div>
         {recent.map((r, i) => (
           <CreaBead key={r.id} item={r} store={store} dark={dark} t={t} isLast={i === recent.length - 1} />
@@ -353,7 +353,7 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
 
   return (
     <div>
-      <CreaHero label="Total ventes" value={total} sub={`${items.length} transactions`} color={color} t={t} dark={dark} />
+      <CreaHero label={tr('Total ventes')} value={total} sub={tr('{n} transactions', { n: items.length })} color={color} t={t} dark={dark} />
 
       <div style={{ padding: '6px 22px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {topProducts.map((tp) => (
@@ -368,7 +368,7 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
         ))}
       </div>
 
-      <CreaSection title="Ventes" right={`${items.length} entrées`} dark={dark} t={t} />
+      <CreaSection title={tr('Ventes')} right={tr('{n} entrées', { n: items.length })} dark={dark} t={t} />
 
       <div style={{ padding: '0 22px' }}>
         {items.map((it, i) => {
@@ -391,7 +391,7 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{p?.name}</div>
                 <div style={{ fontSize: 11, color: c.muted, fontFamily: creaSans, marginTop: 2 }}>
-                  <span style={{ fontFamily: creaMono }}>{it.qty}</span> × <span style={{ fontFamily: creaMono }}>{fmtNum(it.price)}</span> {t.currency} · marge <span style={{ color: margin >= 0 ? c.accent : c.rose, fontFamily: creaMono }}>{margin >= 0 ? '+' : '−'}{fmtShort(Math.abs(margin))}</span>
+                  <span style={{ fontFamily: creaMono }}>{it.qty}</span> × <span style={{ fontFamily: creaMono }}>{fmtNum(it.price)}</span> {t.currency} · {tr('marge')} <span style={{ color: margin >= 0 ? c.accent : c.rose, fontFamily: creaMono }}>{margin >= 0 ? '+' : '−'}{fmtShort(Math.abs(margin))}</span>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
@@ -416,8 +416,8 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
   const c = creaTheme(dark, t.accent);
   return (
     <div>
-      <CreaHero label="Catalogue" value={store.products.length} sub="produits actifs" color={c.rose} t={t} dark={dark} />
-      <CreaSection title="Produits" right={`${store.products.length}`} dark={dark} t={t} />
+      <CreaHero label={tr('Catalogue')} value={store.products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} />
+      <CreaSection title={tr('Produits')} right={`${store.products.length}`} dark={dark} t={t} />
       <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
         {store.products.map((p) => {
           const unitCost = store.unitCostFor(p.id);
@@ -463,7 +463,7 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
           border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
           cursor: 'pointer', fontFamily: creaSans, fontSize: 13, fontWeight: 600,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        }}><Icon.plus width={16} height={16} /> Nouveau produit</button>
+        }}><Icon.plus width={16} height={16} /> {tr('Nouveau produit')}</button>
       </div>
     </div>
   );
@@ -513,7 +513,7 @@ function CreaNav({ value, onChange, dark, t }) {
               transition: 'color .2s',
             }}>
               <T />
-              {tab.label}
+              {tr(tab.label)}
             </button>
           );
         })}
@@ -617,7 +617,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   // Organisation qui a payé / encaissé — figée par transaction (remplace l'ancien toggle global).
   const orgSelector = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <span style={labelStyle}>{kind === 'sale' ? 'Encaissé par' : 'Payé par'}</span>
+      <span style={labelStyle}>{kind === 'sale' ? tr('Encaissé par') : tr('Payé par')}</span>
       <div style={{ display: 'flex', gap: 6 }}>
         {[['lumaya', 'Lumaya', c.accent], ['gawah', 'GawahBonga', c.purple]].map(([id, lab, tone]) => (
           <button key={id} onClick={() => setOrg(id)} style={pill(org === id, tone)}>{lab}</button>
@@ -643,9 +643,9 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         <div style={{ width: 36, height: 4, background: c.border, borderRadius: 2, margin: '0 auto' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
-            <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 600 }}>{isEdit ? 'Modifier' : 'Nouvelle entrée'}</div>
+            <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 600 }}>{isEdit ? tr('Modifier') : tr('Nouvelle entrée')}</div>
             <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 30, color: c.text, lineHeight: 1, marginTop: 2 }}>
-              {kinds.find((k) => k.id === kind)?.label}
+              {tr(kinds.find((k) => k.id === kind)?.label)}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -658,7 +658,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         {!isEdit && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {kinds.map((k) => (
-              <button key={k.id} onClick={() => setKind(k.id)} style={pill(kind === k.id)}>{k.label}</button>
+              <button key={k.id} onClick={() => setKind(k.id)} style={pill(kind === k.id)}>{tr(k.label)}</button>
             ))}
           </div>
         )}
@@ -666,7 +666,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         {kind === 'sale' && (
           <React.Fragment>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={labelStyle}>Produit</span>
+              <span style={labelStyle}>{tr('Produit')}</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {store.products.map((p) => (
                   <CreaProductChip key={p.id} p={p} dark={dark} t={t}
@@ -676,17 +676,17 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <div style={labelStyle}>Unités vendues</div>
+                <div style={labelStyle}>{tr('Unités vendues')}</div>
                 <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               <div>
-                <div style={labelStyle}>Prix unité ({t.currency})</div>
+                <div style={labelStyle}>{tr('Prix unité ({cur})', { cur: t.currency })}</div>
                 <input type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
             </div>
             <div>
-              <div style={labelStyle}>Note</div>
-              <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Optionnel" />
+              <div style={labelStyle}>{tr('Note')}</div>
+              <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Optionnel')} />
             </div>
             {orgSelector}
             {qty && price && (() => {
@@ -695,11 +695,11 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
               return (
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: c.panel2, border: `1px dashed ${c.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={labelStyle}>Total vente</span>
+                    <span style={labelStyle}>{tr('Total vente')}</span>
                     <span style={{ fontFamily: creaMono, fontSize: 14, color: c.text }}>{fmtNum(Number(qty) * Number(price))} {t.currency}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                    <span style={labelStyle}>Marge ({fmtNum(uc)}/u de coût)</span>
+                    <span style={labelStyle}>{tr('Marge ({c}/u de coût)', { c: fmtNum(uc) })}</span>
                     <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 24, color: marg >= 0 ? c.accent : c.rose }}>{marg >= 0 ? '+' : '−'}{fmtNum(Math.abs(marg))}</span>
                   </div>
                 </div>
@@ -711,9 +711,9 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         {kind === 'buy' && (
           <React.Fragment>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={labelStyle}>Matière première</span>
+              <span style={labelStyle}>{tr('Matière première')}</span>
               {store.materials.length === 0 && (
-                <span style={{ fontFamily: creaSans, fontSize: 12, color: c.muted }}>Crée d’abord une matière (onglet Matière).</span>
+                <span style={{ fontFamily: creaSans, fontSize: 12, color: c.muted }}>{tr("Crée d’abord une matière (onglet Matière).")}</span>
               )}
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {store.materials.map((m) => (
@@ -723,22 +723,22 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <div style={labelStyle}>Quantité ({selMat?.unit || ''})</div>
+                <div style={labelStyle}>{tr('Quantité ({u})', { u: selMat?.unit || '' })}</div>
                 <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               <div>
-                <div style={labelStyle}>Prix / {selMat?.unit || 'unité'} ({t.currency})</div>
+                <div style={labelStyle}>{tr('Prix / {u} ({cur})', { u: selMat?.unit || tr('unité'), cur: t.currency })}</div>
                 <input type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
             </div>
             <div>
-              <div style={labelStyle}>Fournisseur / note</div>
-              <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Optionnel" />
+              <div style={labelStyle}>{tr('Fournisseur / note')}</div>
+              <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Optionnel')} />
             </div>
             {orgSelector}
             {qty && price && (
               <div style={{ padding: '14px 16px', borderRadius: 16, background: c.panel2, border: `1px dashed ${c.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={labelStyle}>Total facture</span>
+                <span style={labelStyle}>{tr('Total facture')}</span>
                 <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 26, color: c.text }}>{fmtNum(Number(qty) * Number(price))} <span style={{ fontSize: 13, color: c.muted, fontFamily: creaMono, fontStyle: 'normal' }}>{t.currency}</span></span>
               </div>
             )}
@@ -748,17 +748,17 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         {kind === 'cost' && (
           <React.Fragment>
             <div>
-              <div style={labelStyle}>Description</div>
-              <input value={label} onChange={(e) => setLabel(e.target.value)} style={inputStyle} placeholder="Transport, loyer atelier…" />
+              <div style={labelStyle}>{tr('Description')}</div>
+              <input value={label} onChange={(e) => setLabel(e.target.value)} style={inputStyle} placeholder={tr('Transport, loyer atelier…')} />
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <div style={labelStyle}>Montant ({t.currency})</div>
+                <div style={labelStyle}>{tr('Montant ({cur})', { cur: t.currency })}</div>
                 <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               <div>
-                <div style={labelStyle}>Qui / atelier</div>
-                <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Optionnel" />
+                <div style={labelStyle}>{tr('Qui / atelier')}</div>
+                <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Optionnel')} />
               </div>
             </div>
             {orgSelector}
@@ -768,7 +768,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         {kind === 'production' && (
           <React.Fragment>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={labelStyle}>Produit fabriqué</span>
+              <span style={labelStyle}>{tr('Produit fabriqué')}</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {store.products.map((p) => (
                   <CreaProductChip key={p.id} p={p} dark={dark} t={t}
@@ -778,12 +778,12 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <div style={labelStyle}>Unités à produire</div>
+                <div style={labelStyle}>{tr('Unités à produire')}</div>
                 <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               <div>
-                <div style={labelStyle}>Responsable</div>
-                <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder="Atelier" />
+                <div style={labelStyle}>{tr('Responsable')}</div>
+                <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Atelier')} />
               </div>
             </div>
             <div style={{
@@ -795,8 +795,8 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 {Number(qty) > canProduce ? <Icon.alert /> : <Icon.check />}
               </span>
               <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.text, flex: 1 }}>
-                Stock matières : <b>{canProduce}</b> unités produisibles
-                {bottleneck && canProduce >= 0 ? ` · limité par ${store.materialById[bottleneck.materialId]?.name}` : ''}
+                {tr('Stock matières : {n} unités produisibles', { n: canProduce })}
+                {bottleneck && canProduce >= 0 ? tr(' · limité par {name}', { name: store.materialById[bottleneck.materialId]?.name }) : ''}
               </span>
             </div>
           </React.Fragment>
@@ -805,11 +805,11 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         {kind === 'material' && (
           <React.Fragment>
             <div>
-              <div style={labelStyle}>Nom de la matière</div>
-              <input value={mName} onChange={(e) => setMName(e.target.value)} style={inputStyle} placeholder="Ex: Beurre de karité" />
+              <div style={labelStyle}>{tr('Nom de la matière')}</div>
+              <input value={mName} onChange={(e) => setMName(e.target.value)} style={inputStyle} placeholder={tr('Ex: Beurre de karité')} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={labelStyle}>Unité de mesure</span>
+              <span style={labelStyle}>{tr('Unité de mesure')}</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {['g', 'ml', 'm', 'pièce'].map((u) => (
                   <button key={u} onClick={() => setMUnit(u)} style={pill(mUnit === u)}>{u}</button>
@@ -817,21 +817,21 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <span style={labelStyle}>Catégorie</span>
+              <span style={labelStyle}>{tr('Catégorie')}</span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {[['matière', 'Matière'], ['emballage', 'Emballage']].map(([id, lab]) => (
-                  <button key={id} onClick={() => setMKind(id)} style={pill(mKind === id)}>{lab}</button>
+                  <button key={id} onClick={() => setMKind(id)} style={pill(mKind === id)}>{tr(lab)}</button>
                 ))}
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <div style={labelStyle}>Stock de départ ({mUnit})</div>
+                <div style={labelStyle}>{tr('Stock de départ ({u})', { u: mUnit })}</div>
                 <input type="number" inputMode="decimal" value={mStock} onChange={(e) => setMStock(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               {!ed && (
                 <div>
-                  <div style={labelStyle}>Prix / {mUnit} ({t.currency})</div>
+                  <div style={labelStyle}>{tr('Prix / {u} ({cur})', { u: mUnit, cur: t.currency })}</div>
                   <input type="number" inputMode="decimal" value={mPrice} onChange={(e) => setMPrice(e.target.value)} style={inputStyle} placeholder="0" />
                 </div>
               )}
@@ -842,16 +842,16 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         {kind === 'product' && (
           <React.Fragment>
             <div>
-              <div style={labelStyle}>Nom du produit</div>
-              <input value={npName} onChange={(e) => setNpName(e.target.value)} style={inputStyle} placeholder="Ex: Savon noir" />
+              <div style={labelStyle}>{tr('Nom du produit')}</div>
+              <input value={npName} onChange={(e) => setNpName(e.target.value)} style={inputStyle} placeholder={tr('Ex: Savon noir')} />
             </div>
             <div>
-              <div style={labelStyle}>Prix de vente ({t.currency})</div>
+              <div style={labelStyle}>{tr('Prix de vente ({cur})', { cur: t.currency })}</div>
               <input type="number" inputMode="decimal" value={npPrice} onChange={(e) => setNpPrice(e.target.value)} style={inputStyle} placeholder="0" />
             </div>
             {!ed && (
               <div style={{ fontFamily: creaSans, fontSize: 12, color: c.muted }}>
-                La recette (matières + main d’œuvre) se définit ensuite dans la fiche produit.
+                {tr("La recette (matières + main d’œuvre) se définit ensuite dans la fiche produit.")}
               </div>
             )}
           </React.Fragment>
@@ -864,7 +864,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
           fontFamily: creaSans, fontSize: 14, fontWeight: 600, letterSpacing: 0.4,
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
-          {isEdit ? 'Enregistrer les modifications' : 'Enregistrer'} →
+          {isEdit ? tr('Enregistrer les modifications') : tr('Enregistrer')} →
         </button>
       </div>
     </div>

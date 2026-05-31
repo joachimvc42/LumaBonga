@@ -66,12 +66,12 @@ function ProdCostChart({ series, c }) {
 function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
   const c = prodTheme(dark, t.accent);
   const groups = [
-    { kind: 'matière', title: 'Matières premières' },
-    { kind: 'emballage', title: 'Emballage' },
+    { kind: 'matière', title: tr('Matières premières') },
+    { kind: 'emballage', title: tr('Emballage') },
   ];
   const defaultQty = (m) => m.unit === 'pièce' ? 1 : m.unit === 'm' ? 1 : 10;
   return (
-    <ProdSheet title="Ajouter un composant" c={c} onClose={onClose}>
+    <ProdSheet title={tr('Ajouter un composant')} c={c} onClose={onClose}>
       {groups.map((g) => (
         <div key={g.kind} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{g.title}</div>
@@ -111,14 +111,14 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
 function ProdAddLaborSheet({ store, dark, t, productId, onClose }) {
   const c = prodTheme(dark, t.accent);
   return (
-    <ProdSheet title="Ajouter de la main d’œuvre" c={c} onClose={onClose}>
+    <ProdSheet title={tr('Ajouter de la main d’œuvre')} c={c} onClose={onClose}>
       <div style={{ fontSize: 12, color: c.muted, fontFamily: prodSans, marginTop: -4 }}>
-        Une tâche par défaut à 5 min · 1 000 {t.currency}/h. Ajuste ensuite la durée et le taux.
+        {tr('Une tâche par défaut à 5 min · 1 000 {cur}/h. Ajuste ensuite la durée et le taux.', { cur: t.currency })}
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
         {LABOR_PRESETS.map((task) => (
           <button key={task}
-            onClick={() => { store.addLabor(productId, { task, who: 'Atelier', minutes: 5, rate: 1000 }); onClose(); }}
+            onClick={() => { store.addLabor(productId, { task: tr(task), who: tr('Atelier'), minutes: 5, rate: 1000 }); onClose(); }}
             style={{
               display: 'flex', alignItems: 'center', gap: 7, padding: '9px 13px',
               borderRadius: 999, border: `1px solid ${c.border}`, background: c.panel2,
@@ -217,10 +217,10 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
           borderRadius: 999, border: `1px solid ${c.border}`, background: c.panel2,
           color: c.text, cursor: 'pointer', fontFamily: prodSans, fontSize: 13, fontWeight: 500,
         }}>
-          <Icon.back width={16} height={16} /> Produits
+          <Icon.back width={16} height={16} /> {tr('Produits')}
         </button>
         <span style={{ fontFamily: prodSans, fontSize: 10, color: c.muted, letterSpacing: 1.4, textTransform: 'uppercase', fontWeight: 600 }}>
-          Fiche produit
+          {tr('Fiche produit')}
         </span>
       </div>
 
@@ -246,20 +246,20 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
                 background: 'transparent', border: 'none', cursor: 'pointer',
                 fontFamily: prodMono, fontSize: 12, color: c.muted,
               }}>
-                Vente {fmtNum(sell)} {t.currency}
+                {tr('Vente {x} {cur}', { x: fmtNum(sell), cur: t.currency })}
                 <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={13} height={13} /></span>
               </button>
             )}
-            <span style={{ fontFamily: prodMono, fontSize: 12, color: c.mutedSoft }}>· {recipe.ingredients.length} composants</span>
+            <span style={{ fontFamily: prodMono, fontSize: 12, color: c.mutedSoft }}>{tr(' · {n} composants', { n: recipe.ingredients.length })}</span>
           </div>
         </div>
       </div>
 
       {/* margin tiles */}
       <div style={{ display: 'flex', gap: 10, padding: '18px 22px 0' }}>
-        <Tile label="Coût / unité" value={cost.total} />
-        <Tile label="Marge nette" value={margin} color={margin >= 0 ? c.accent : c.rose} big />
-        <Tile label="Marge %" value={Math.round(marginPct)} color={margin >= 0 ? c.accent : c.rose} suffix="%" />
+        <Tile label={tr('Coût / unité')} value={cost.total} />
+        <Tile label={tr('Marge nette')} value={margin} color={margin >= 0 ? c.accent : c.rose} big />
+        <Tile label={tr('Marge %')} value={Math.round(marginPct)} color={margin >= 0 ? c.accent : c.rose} suffix="%" />
       </div>
 
       {/* stock + production strip */}
@@ -269,30 +269,30 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
         display: 'flex', alignItems: 'center', gap: 14,
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <span style={{ fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>En stock</span>
+          <span style={{ fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr('En stock')}</span>
           <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: c.text, lineHeight: 1 }}>{stock} <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>u</span></span>
         </div>
         <div style={{ width: 1, alignSelf: 'stretch', background: c.border }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>Produisibles</span>
+          <span style={{ fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr('Produisibles')}</span>
           <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: can === 0 ? c.rose : c.text, lineHeight: 1 }}>{can} <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>u</span></span>
-          {bn && <span style={{ fontFamily: prodMono, fontSize: 9.5, color: c.mutedSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>limité par {store.materialById[bn.materialId]?.name}</span>}
+          {bn && <span style={{ fontFamily: prodMono, fontSize: 9.5, color: c.mutedSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tr('limité par {name}', { name: store.materialById[bn.materialId]?.name })}</span>}
         </div>
         <button onClick={onProduce} style={{
           padding: '11px 16px', borderRadius: 999, border: 'none',
           background: c.accent, color: '#0c0c10', cursor: 'pointer',
           fontFamily: prodSans, fontSize: 13, fontWeight: 700, flexShrink: 0,
-        }}>Produire</button>
+        }}>{tr('Produire')}</button>
       </div>
 
       {/* chart */}
       <div style={{ margin: '14px 22px 0', padding: '14px 14px 12px', borderRadius: 18, background: c.panel, border: `1px solid ${c.border}` }}>
         <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
           <div style={{ fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>
-            Coût de production · 1 unité
+            {tr('Coût de production · 1 unité')}
           </div>
           <div style={{ fontFamily: prodMono, fontSize: 11, color: trend >= 0 ? c.rose : c.accent, fontWeight: 600 }}>
-            {trend >= 0 ? '↑' : '↓'} {Math.abs(Math.round(trend))}% / 6 mois
+            {trend >= 0 ? '↑' : '↓'} {tr('{x}% / 6 mois', { x: Math.abs(Math.round(trend)) })}
           </div>
         </div>
         <ProdCostChart series={series} c={c} />
@@ -305,7 +305,7 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
 
       {/* materials */}
       <div style={{ padding: '0 22px' }}>
-        <ProdRowSection title="Matières & emballage" total={cost.materials} t={t} c={c} />
+        <ProdRowSection title={tr('Matières & emballage')} total={cost.materials} t={t} c={c} />
         <div style={{ background: c.panel, border: `1px solid ${c.border}`, borderRadius: 16, overflow: 'hidden' }}>
           {cost.ingredientLines.map((ln, i) => (
             <div key={ln.id} style={{
@@ -335,13 +335,13 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
             background: 'transparent', color: c.muted, cursor: 'pointer',
             fontFamily: prodSans, fontSize: 13, fontWeight: 600,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}><Icon.plus width={16} height={16} /> Ajouter un composant</button>
+          }}><Icon.plus width={16} height={16} /> {tr('Ajouter un composant')}</button>
         </div>
       </div>
 
       {/* labor */}
       <div style={{ padding: '0 22px' }}>
-        <ProdRowSection title="Main d’œuvre" total={cost.labor} t={t} c={c} />
+        <ProdRowSection title={tr('Main d’œuvre')} total={cost.labor} t={t} c={c} />
         <div style={{ background: c.panel, border: `1px solid ${c.border}`, borderRadius: 16, overflow: 'hidden' }}>
           {cost.laborLines.map((ln, i) => (
             <div key={ln.id} style={{
@@ -371,15 +371,15 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
             background: 'transparent', color: c.muted, cursor: 'pointer',
             fontFamily: prodSans, fontSize: 13, fontWeight: 600,
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-          }}><Icon.plus width={16} height={16} /> Ajouter une tâche</button>
+          }}><Icon.plus width={16} height={16} /> {tr('Ajouter une tâche')}</button>
         </div>
       </div>
 
       {/* recap */}
       <div style={{ margin: '24px 22px 0', padding: 18, borderRadius: 18, background: c.panel2, border: `1px dashed ${c.border}` }}>
         {[
-          { k: 'Matières & emballage', v: cost.materials, col: c.text },
-          { k: 'Main d’œuvre', v: cost.labor, col: c.amber },
+          { k: tr('Matières & emballage'), v: cost.materials, col: c.text },
+          { k: tr('Main d’œuvre'), v: cost.labor, col: c.amber },
         ].map((r) => (
           <div key={r.k} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
             <span style={{ fontFamily: prodSans, fontSize: 13, color: c.muted }}>{r.k}</span>
@@ -388,11 +388,11 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
         ))}
         <div style={{ height: 1, background: c.border, margin: '4px 0 12px' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-          <span style={{ fontFamily: prodSans, fontSize: 13, color: c.text, fontWeight: 600 }}>Coût total / unité</span>
+          <span style={{ fontFamily: prodSans, fontSize: 13, color: c.text, fontWeight: 600 }}>{tr('Coût total / unité')}</span>
           <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: c.text }}>{fmtNum(cost.total)} <span style={{ fontFamily: prodMono, fontSize: 12, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span></span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-          <span style={{ fontFamily: prodSans, fontSize: 13, color: c.text, fontWeight: 600 }}>Marge par unité</span>
+          <span style={{ fontFamily: prodSans, fontSize: 13, color: c.text, fontWeight: 600 }}>{tr('Marge par unité')}</span>
           <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: margin >= 0 ? c.accent : c.rose }}>
             {margin >= 0 ? '+' : '−'}{fmtNum(Math.abs(margin))} <span style={{ fontFamily: prodMono, fontSize: 12, color: c.muted, fontStyle: 'normal' }}>{t.currency} · {Math.round(marginPct)}%</span>
           </span>

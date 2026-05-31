@@ -6,6 +6,7 @@ const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
   "lumayaShare": 70,
   "currency": "IDR",
   "accent": "#7dd3a0",
+  "lang": "en",
   "showCreative": true,
   "showSage": false
 }/*EDITMODE-END*/;
@@ -24,13 +25,109 @@ const fmtShort = (n) => {
 };
 const fmtDate = (iso) => {
   const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+  return d.toLocaleDateString(LB_LOCALE, { day: '2-digit', month: 'short' });
 };
 const fmtDay = (iso) => {
   const d = new Date(iso);
-  return d.toLocaleDateString('fr-FR', { weekday: 'short', day: '2-digit', month: 'short' });
+  return d.toLocaleDateString(LB_LOCALE, { weekday: 'short', day: '2-digit', month: 'short' });
 };
 const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// ── i18n ─────────────────────────────────────────────────────
+// French strings are the keys. tr() returns English when lang==='en',
+// else the key itself (French). Placeholders: tr('margin {p}%', {p: 12}).
+let LB_LANG = 'en';
+let LB_LOCALE = 'en-US';
+const setLbLang = (l) => { LB_LANG = (l === 'fr') ? 'fr' : 'en'; LB_LOCALE = (LB_LANG === 'fr') ? 'fr-FR' : 'en-US'; };
+const LB_EN = {
+  // generic
+  'Optionnel': 'Optional', 'Note': 'Note', 'Description': 'Description',
+  'Enregistrer': 'Save', 'Enregistrer les modifications': 'Save changes',
+  'Modifier': 'Edit', 'Nouvelle entrée': 'New entry', 'Produire': 'Produce',
+  'Responsable': 'In charge', 'Atelier': 'Workshop', 'Qui / atelier': 'Who / workshop',
+  'Catégorie': 'Category', 'matière': 'material', 'emballage': 'packaging', 'unité': 'unit',
+  'Matière': 'Material', 'Emballage': 'Packaging',
+  // transaction kinds / tags
+  'Vente': 'Sale', 'Achat': 'Purchase', 'Charge': 'Expense', 'Production': 'Production',
+  'Produit': 'Product', 'Matière première': 'Raw material',
+  // nav
+  'Profit': 'Profit', 'Ventes': 'Sales', 'Achats': 'Purchases', 'Stock': 'Stock', 'Produits': 'Products',
+  // dashboard
+  'Profit net': 'Net profit', 'marge {p}%': 'margin {p}%',
+  'Coût prod.': 'Prod. cost', 'Valeur stock': 'Stock value',
+  'Stock faible': 'Low stock', 'à produire': 'to produce',
+  '{n} produisibles': '{n} producible', 'rupture matières': 'out of materials',
+  '{n} en stock': '{n} in stock',
+  'Mouvements': 'Activity', '{n} récents': '{n} recent',
+  '{n} unités produites': '{n} units produced',
+  // sales screen
+  'Total ventes': 'Total sales', '{n} transactions': '{n} transactions',
+  '{n} entrées': '{n} entries', 'marge': 'margin',
+  // products screen
+  'Catalogue': 'Catalog', 'produits actifs': 'active products', 'Nouveau produit': 'New product',
+  // add sheet
+  'Unités vendues': 'Units sold', 'Prix unité ({cur})': 'Unit price ({cur})',
+  'Total vente': 'Sale total', 'Marge ({c}/u de coût)': 'Margin ({c}/u cost)',
+  "Crée d’abord une matière (onglet Matière).": 'Create a material first (Material tab).',
+  'Quantité ({u})': 'Quantity ({u})', 'Prix / {u} ({cur})': 'Price / {u} ({cur})',
+  'Fournisseur / note': 'Supplier / note', 'Total facture': 'Invoice total',
+  'Transport, loyer atelier…': 'Transport, workshop rent…', 'Montant ({cur})': 'Amount ({cur})',
+  'Produit fabriqué': 'Product made', 'Unités à produire': 'Units to produce',
+  'Stock matières : {n} unités produisibles': 'Materials stock: {n} producible units',
+  ' · limité par {name}': ' · limited by {name}',
+  'Nom de la matière': 'Material name', 'Ex: Beurre de karité': 'e.g. Shea butter',
+  'Unité de mesure': 'Unit of measure', 'Stock de départ ({u})': 'Starting stock ({u})',
+  'Nom du produit': 'Product name', 'Ex: Savon noir': 'e.g. Black soap',
+  'Prix de vente ({cur})': 'Selling price ({cur})',
+  "La recette (matières + main d’œuvre) se définit ensuite dans la fiche produit.":
+    'The recipe (materials + labor) is defined next in the product sheet.',
+  'Encaissé par': 'Cashed in by', 'Payé par': 'Paid by',
+  // purchases / stock screens
+  'Achats matières': 'Material purchases', 'Charges': 'Expenses',
+  '{n} factures': '{n} invoices', '{n} charges': '{n} expenses',
+  'Matières': 'Materials', 'Factures d’achat': 'Purchase invoices', 'matières premières': 'raw materials',
+  'Matière supprimée': 'Deleted material', 'Nouvelle facture d’achat': 'New purchase invoice',
+  'hors matières': 'non-materials', 'Nouvelle charge': 'New expense',
+  'Valeur matières': 'Materials value', 'Valeur produits finis': 'Finished goods value',
+  'au coût de revient': 'at cost', 'Produits finis': 'Finished goods',
+  'Stock matières': 'Materials stock', 'restant': 'remaining', 'en stock': 'in stock',
+  'Nouvelle matière': 'New material', '{n} lots': '{n} batches', 'Lancer une production': 'Start a production',
+  // product detail
+  'Ajouter un composant': 'Add a component', 'Ajouter de la main d’œuvre': 'Add labor',
+  'Une tâche par défaut à 5 min · 1 000 {cur}/h. Ajuste ensuite la durée et le taux.':
+    'A default task at 5 min · 1,000 {cur}/h. Adjust the duration and rate afterwards.',
+  'Fiche produit': 'Product sheet', 'Vente {x} {cur}': 'Sell {x} {cur}',
+  ' · {n} composants': ' · {n} components',
+  'Coût / unité': 'Cost / unit', 'Marge nette': 'Net margin', 'Marge %': 'Margin %',
+  'En stock': 'In stock', 'Produisibles': 'Producible', 'limité par {name}': 'limited by {name}',
+  'Coût de production · 1 unité': 'Production cost · 1 unit', '{x}% / 6 mois': '{x}% / 6 months',
+  'Matières & emballage': 'Materials & packaging', 'Main d’œuvre': 'Labor', 'Ajouter une tâche': 'Add a task',
+  'Coût total / unité': 'Total cost / unit', 'Marge par unité': 'Margin per unit',
+  // settings / auth (index.html)
+  'Réglages': 'Settings', 'Mode sombre': 'Dark mode', "Couleur d’accent": 'Accent color',
+  'Langue': 'Language', 'Devise': 'Currency', 'Part Lumaya · {x}%': 'Lumaya share · {x}%',
+  'Déconnexion': 'Log out', 'Réinitialiser': 'Reset',
+  'Réinitialiser TOUTES les données partagées et revenir aux exemples ? Irréversible, pour tout le monde.':
+    'Reset ALL shared data and restore the demo content? Irreversible, for everyone.',
+  'Données partagées via Supabase : tout le monde voit le même registre, synchronisé entre appareils. La réinitialisation efface les données pour tous les utilisateurs.':
+    'Shared data via Supabase: everyone sees the same ledger, synced across devices. Resetting wipes the data for all users.',
+  'Données mises à jour — toucher pour recharger': 'Data updated — tap to reload',
+  "Code d’accès": 'Access code', 'Entrer': 'Enter', 'Connexion…': 'Connecting…',
+  'Code incorrect.': 'Wrong code.', 'Chargement du registre…': 'Loading ledger…',
+  // labor presets
+  'Mélange': 'Mixing', 'Chauffe & mélange': 'Heating & mixing', 'Coulage': 'Pouring',
+  'Conditionnement': 'Packaging', 'Étiquetage': 'Labeling', 'Teinture': 'Dyeing',
+  'Impression cire': 'Wax printing', 'Contrôle qualité': 'Quality control', 'Transport': 'Transport',
+};
+// Normalise apostrophes so straight ' and curly ’ in the source both match.
+const _lbNorm = (s) => String(s).replace(/’/g, "'");
+const LB_EN_N = {};
+for (const k of Object.keys(LB_EN)) LB_EN_N[_lbNorm(k)] = LB_EN[k];
+const tr = (key, vars) => {
+  let s = (LB_LANG === 'en') ? (LB_EN_N[_lbNorm(key)] != null ? LB_EN_N[_lbNorm(key)] : key) : key;
+  if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k]);
+  return s;
+};
 
 // ── Seed products (with default unit prices) ─────────────────
 const SEED_PRODUCTS = [
@@ -710,4 +807,5 @@ Object.assign(window, {
   SEED_MATERIALS, SEED_RECIPES, SEED_PRODUCTION, STOCK0_BY_UNIT, LABOR_PRESETS,
   materialPricePoints, materialPriceAt, materialCurrentPrice, recipeCost, costSeries,
   useLumaStore, Icon, AnimatedNumber,
+  tr, setLbLang,
 });
