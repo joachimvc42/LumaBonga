@@ -470,15 +470,16 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
 }
 
 // ── Bottom nav (creative — blob style) ──────────────────────
-function CreaNav({ value, onChange, dark, t }) {
+function CreaNav({ value, onChange, dark, t, role }) {
   const c = creaTheme(dark, t.accent);
+  const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
   const tabs = [
     { id: 'dash', label: 'Profit', icon: Icon.dash },
     { id: 'sales', label: 'Ventes', icon: Icon.sale },
     { id: 'buys', label: 'Achats', icon: Icon.buy },
     { id: 'stock', label: 'Stock', icon: Icon.box },
     { id: 'prods', label: 'Produits', icon: Icon.prod },
-  ];
+  ].filter((tab) => allowed.includes(tab.id));
   const idx = tabs.findIndex((tab) => tab.id === value);
   return (
     <div style={{
@@ -490,13 +491,13 @@ function CreaNav({ value, onChange, dark, t }) {
     }}>
       <div style={{
         position: 'relative',
-        display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
+        display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
         background: c.panel, border: `1px solid ${c.border}`,
         borderRadius: 22, padding: 6, gap: 0,
       }}>
         <div style={{
-          position: 'absolute', top: 6, left: `calc(6px + ${idx} * ((100% - 12px) / 5))`,
-          width: `calc((100% - 12px) / 5)`, height: 'calc(100% - 12px)',
+          position: 'absolute', top: 6, left: `calc(6px + ${idx} * ((100% - 12px) / ${tabs.length}))`,
+          width: `calc((100% - 12px) / ${tabs.length})`, height: 'calc(100% - 12px)',
           background: c.ink, borderRadius: 16, zIndex: 0,
           transition: 'left .35s cubic-bezier(.4,1.4,.5,1)',
         }} />
@@ -895,10 +896,18 @@ function CreaMatChip({ m, c, selected, onClick }) {
 }
 
 // ── Creative App root ────────────────────────────────────────
-function CreaApp({ t, dark }) {
+// Tabs each role may see. Staff: restricted to sales / stock / products.
+const ALLOWED_TABS = {
+  admin: ['dash', 'sales', 'buys', 'stock', 'prods'],
+  staff: ['sales', 'stock', 'prods'],
+};
+function CreaApp({ t, dark, role }) {
   const c = creaTheme(dark, t.accent);
   const store = useLumaStore();
-  const [tab, setTab] = React.useState('dash');
+  const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
+  const [tab, setTab] = React.useState(allowed[0]);
+  // If the role can't see the current tab, snap to its first allowed tab.
+  if (!allowed.includes(tab)) { setTab(allowed[0]); }
   const [adding, setAdding] = React.useState(null);      // kind string
   const [editing, setEditing] = React.useState(null);    // entry data being edited
   const [openProduct, setOpenProduct] = React.useState(null);
@@ -940,7 +949,7 @@ function CreaApp({ t, dark }) {
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={setOpenProduct} />}
         {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onOpen={setOpenProduct} onAdd={openAdd} />}
       </div>
-      <CreaNav value={tab} onChange={goTab} dark={dark} t={t} />
+      <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} />
       {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} />}
     </div>
   );

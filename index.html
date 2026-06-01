@@ -68,6 +68,11 @@
   const SUPABASE_URL  = 'https://ivooxizmcqkwzplimvtg.supabase.co';
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2b294aXptY3Frd3pwbGltdnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTA5OTgsImV4cCI6MjA5NTYyNjk5OH0.OZOqwW0LVG4jFUmwRxMb3WK6aoASlf2BeTvdTPsLSIg';
   window.__SB_EMAIL = 'equipe@lumabonga.app';   // compte partagé (caché) — le code = son mot de passe
+  // Accounts mapped to a role. Login tries each email with the entered code.
+  window.__SB_ACCOUNTS = [
+    { email: 'equipe@lumabonga.app', role: 'admin' },   // full access
+    { email: 'staff@lumabonga.app',  role: 'staff' },   // restricted: sales / stock / products
+  ];
   window.__sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: 'lumabonga:auth' },
   });
@@ -216,18 +221,24 @@ function SettingsButton({ t, set, dark }) {
   );
 }
 
-function LumaBongaApp() {
+function LumaBongaApp({ role }) {
   const [t, set] = useAppTweaks();
   const dark = t.dark;
   setLbLang(t.lang);   // keep global translator in sync before children render
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
-      <CreaApp t={t} dark={dark} />
+      <CreaApp t={t} dark={dark} role={role} />
       <SettingsButton t={t} set={set} dark={dark} />
     </div>
   );
 }
+
+// Map the authenticated user's email to a role (default: admin / full access).
+const roleForEmail = (email) => {
+  const a = (window.__SB_ACCOUNTS || []).find((x) => x.email === email);
+  return a ? a.role : 'admin';
+};
 
 // slide-up keyframe for the settings sheet
 const kf = document.createElement('style');
@@ -281,8 +292,13 @@ function LoginGate({ onAuthed }) {
     if (!code) return;
     setBusy(true); setErr('');
     const sb = window.__sb;
-    const { error } = await sb.auth.signInWithPassword({ email: window.__SB_EMAIL, password: code });
-    if (error) { setErr(tr('Code incorrect.')); setBusy(false); return; }
+    // Try each known account with the entered code; first that works wins.
+    let ok = false;
+    for (const acct of (window.__SB_ACCOUNTS || [{ email: window.__SB_EMAIL }])) {
+      const { error } = await sb.auth.signInWithPassword({ email: acct.email, password: code });
+      if (!error) { ok = true; break; }
+    }
+    if (!ok) { setErr(tr('Code incorrect.')); setBusy(false); return; }
     onAuthed();
   };
 
@@ -340,10 +356,13 @@ function UpdateBanner() {
 function Root() {
   const [phase, setPhase] = useState('connecting'); // connecting | login | loading | ready
   const [remote, setRemote] = useState(false);
+  const [role, setRole] = useState('admin');
 
   const load = React.useCallback(async () => {
     setPhase('loading');
     try {
+      const { data: u } = await window.__sb.auth.getUser();
+      setRole(roleForEmail(u && u.user ? u.user.email : null));
       await bootData(window.__sb, () => setRemote(true));
       setPhase('ready');
     } catch (e) {
@@ -373,7 +392,7 @@ function Root() {
   if (phase === 'connecting') return <Splash label={tr('Connexion…')} />;
   if (phase === 'login') return <LoginGate onAuthed={load} />;
   if (phase === 'loading') return <Splash label={tr('Chargement du registre…')} />;
-  return (<><LumaBongaApp />{remote && <UpdateBanner />}</>);
+  return (<><LumaBongaApp role={role} />{remote && <UpdateBanner />}</>);
 }
 
 // Pre-login screens (login/splash) use the stored language; the app keeps it in sync afterwards.
