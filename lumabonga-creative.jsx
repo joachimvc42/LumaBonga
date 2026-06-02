@@ -27,6 +27,17 @@ const creaMono = '"JetBrains Mono", "SF Mono", "Geist Mono", ui-monospace, monos
 const creaDisplay = '"Instrument Serif", "Bodoni Moda", Georgia, serif'; // editorial display
 // fallback: this loads from google later but if not loaded, falls back to Georgia. We can also try a strong sans.
 
+// Purchase-unit options grouped by the material's base unit, with a factor to
+// convert the entered quantity INTO that base unit (g, ml, m, pièce).
+const BUY_UNITS = {
+  g:      [{ u: 'g', f: 1 }, { u: 'kg', f: 1000 }],
+  ml:     [{ u: 'ml', f: 1 }, { u: 'l', f: 1000 }, { u: 'cl', f: 10 }],
+  m:      [{ u: 'm', f: 1 }, { u: 'cm', f: 0.01 }],
+  'pièce':[{ u: 'pièce', f: 1 }],
+};
+const buyUnitsFor = (base) => BUY_UNITS[base] || [{ u: base || 'pièce', f: 1 }];
+const buyFactor = (base, u) => (buyUnitsFor(base).find((x) => x.u === u) || { f: 1 }).f;
+
 // ── Top bar ──────────────────────────────────────────────────
 function CreaTopBar({ store, dark, t, onAdd }) {
   const c = creaTheme(dark, t.accent);
@@ -548,6 +559,15 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   const [mKind, setMKind] = React.useState(ed && kind === 'material' ? ed.kind : 'matière');
   const [mStock, setMStock] = React.useState(ed && kind === 'material' ? String(ed.stock0 ?? '') : '');
   const [mPrice, setMPrice] = React.useState('');
+  // Purchase: user enters quantity (in a chosen unit) + total price paid (IDR).
+  // Stored values stay per BASE unit (g/ml/m/pièce); per-unit price is computed.
+  const selMatBase = store.materialById[materialId]?.unit || 'g';
+  const [buyUnit, setBuyUnit] = React.useState(ed?.buyUnit || selMatBase);
+  const [buyTotal, setBuyTotal] = React.useState(ed && ed.qty != null && ed.price != null ? String(Math.round(ed.qty * ed.price)) : '');
+  // keep buy unit aligned with the selected material's base unit family
+  React.useEffect(() => {
+    if (kind === 'buy' && !ed) setBuyUnit(store.materialById[materialId]?.unit || 'g');
+  }, [materialId, kind]);
   // which organisation paid / cashed in this transaction
   const [org, setOrg] = React.useState(ed?.org || 'lumaya');
   // settlement: who pays whom
@@ -570,8 +590,12 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
       const payload = { productId, qty: Number(qty), price: Number(price), note, org };
       isEdit ? store.updateSale(ed.id, payload) : store.addSale(payload);
     } else if (kind === 'buy') {
-      if (!materialId || !qty || !price) return;
-      const payload = { materialId, qty: Number(qty), price: Number(price), note, org };
+      if (!materialId || !qty || !buyTotal) return;
+      const base = store.materialById[materialId]?.unit || 'g';
+      const baseQty = Number(qty) * buyFactor(base, buyUnit);   // qty in base unit
+      if (baseQty <= 0) return;
+      const unitPrice = Number(buyTotal) / baseQty;             // computed price per base unit
+      const payload = { materialId, qty: baseQty, price: unitPrice, note, org, buyUnit };
       isEdit ? store.updatePurchase(ed.id, payload) : store.addPurchase(payload);
     } else if (kind === 'cost') {
       if (!label || !amount) return;
@@ -733,27 +757,43 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 ))}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
               <div>
-                <div style={labelStyle}>{tr('Quantité ({u})', { u: selMat?.unit || '' })}</div>
+                <div style={labelStyle}>{tr('Quantité achetée')}</div>
                 <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               <div>
-                <div style={labelStyle}>{tr('Prix / {u} ({cur})', { u: selMat?.unit || tr('unité'), cur: t.currency })}</div>
-                <input type="number" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} style={inputStyle} placeholder="0" />
+                <div style={labelStyle}>{tr('Unité')}</div>
+                <select value={buyUnit} onChange={(e) => setBuyUnit(e.target.value)} style={{ ...inputStyle, paddingRight: 4 }}>
+                  {buyUnitsFor(selMatBase).map((x) => <option key={x.u} value={x.u}>{x.u}</option>)}
+                </select>
               </div>
+            </div>
+            <div>
+              <div style={labelStyle}>{tr('Prix total payé ({cur})', { cur: t.currency })}</div>
+              <input type="number" inputMode="decimal" value={buyTotal} onChange={(e) => setBuyTotal(e.target.value)} style={inputStyle} placeholder="0" />
             </div>
             <div>
               <div style={labelStyle}>{tr('Fournisseur / note')}</div>
               <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Optionnel')} />
             </div>
             {orgSelector}
-            {qty && price && (
-              <div style={{ padding: '14px 16px', borderRadius: 16, background: c.panel2, border: `1px dashed ${c.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <span style={labelStyle}>{tr('Total facture')}</span>
-                <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 26, color: c.text }}>{fmtNum(Number(qty) * Number(price))} <span style={{ fontSize: 13, color: c.muted, fontFamily: creaMono, fontStyle: 'normal' }}>{t.currency}</span></span>
-              </div>
-            )}
+            {qty && buyTotal && (() => {
+              const baseQty = Number(qty) * buyFactor(selMatBase, buyUnit);
+              const unitPrice = baseQty > 0 ? Number(buyTotal) / baseQty : 0;
+              return (
+                <div style={{ padding: '14px 16px', borderRadius: 16, background: c.panel2, border: `1px dashed ${c.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={labelStyle}>{tr('Total facture')}</span>
+                    <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 24, color: c.text }}>{fmtNum(Number(buyTotal))} <span style={{ fontSize: 12, color: c.muted, fontFamily: creaMono, fontStyle: 'normal' }}>{t.currency}</span></span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <span style={labelStyle}>{tr('Prix calculé / {u}', { u: selMatBase })}</span>
+                    <span style={{ fontFamily: creaMono, fontSize: 13, color: c.accent }}>{unitPrice >= 100 ? fmtNum(unitPrice) : unitPrice.toFixed(2)} {t.currency}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </React.Fragment>
         )}
 

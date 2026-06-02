@@ -75,6 +75,8 @@ const LB_EN = {
   'Total vente': 'Sale total', 'Marge ({c}/u de coût)': 'Margin ({c}/u cost)',
   "Crée d’abord une matière (onglet Matière).": 'Create a material first (Material tab).',
   'Quantité ({u})': 'Quantity ({u})', 'Prix / {u} ({cur})': 'Price / {u} ({cur})',
+  'Quantité achetée': 'Quantity bought', 'Unité': 'Unit',
+  'Prix total payé ({cur})': 'Total price paid ({cur})', 'Prix calculé / {u}': 'Computed price / {u}',
   'Fournisseur / note': 'Supplier / note', 'Total facture': 'Invoice total',
   'Transport, loyer atelier…': 'Transport, workshop rent…', 'Montant ({cur})': 'Amount ({cur})',
   'Produit fabriqué': 'Product made', 'Unités à produire': 'Units to produce',
