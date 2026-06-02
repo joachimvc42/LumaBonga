@@ -39,6 +39,8 @@ const BUY_UNITS = {
   ml: MASS_VOL_UNITS,
   m:  [{ u: 'm', f: 1 }, { u: 'cm', f: 0.01 }],
   'pièce': [{ u: 'pièce', f: 1 }],
+  // Essential oils: base unit is the drop. 15 drops = 1 ml (buy in ml/l, store drops).
+  'goutte': [{ u: 'goutte', f: 1 }, { u: 'ml', f: 15 }, { u: 'l', f: 15000 }],
 };
 const buyUnitsFor = (base) => BUY_UNITS[base] || [{ u: base || 'pièce', f: 1 }];
 const buyFactor = (base, u) => (buyUnitsFor(base).find((x) => x.u === u) || { f: 1 }).f;
@@ -900,7 +902,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={labelStyle}>{tr('Unité de mesure')}</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {['g', 'ml', 'm', 'pièce'].map((u) => (
+                {['g', 'ml', 'goutte', 'm', 'pièce'].map((u) => (
                   <button key={u} onClick={() => setMUnit(u)} style={pill(mUnit === u)}>{u}</button>
                 ))}
               </div>

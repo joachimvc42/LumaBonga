@@ -66,7 +66,7 @@ function ProdCostChart({ series, c }) {
 function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
   const c = prodTheme(dark, t.accent);
   const groups = groupedMaterials(store.materials);
-  const defaultQty = (m) => m.unit === 'pièce' ? 1 : m.unit === 'm' ? 1 : 10;
+  const defaultQty = (m) => m.unit === 'pièce' ? 1 : m.unit === 'm' ? 1 : m.unit === 'goutte' ? 4 : 10;
   return (
     <ProdSheet title={tr('Ajouter un composant')} c={c} onClose={onClose}>
       {groups.map((g) => (
@@ -187,7 +187,7 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
   const first = series[0]?.total || 0;
   const trend = first > 0 ? ((cost.total - first) / first) * 100 : 0;
   const usedIds = new Set(recipe.ingredients.map((i) => i.materialId));
-  const stepFor = (unit) => unit === 'pièce' ? 1 : unit === 'm' ? 0.5 : 5;
+  const stepFor = (unit) => unit === 'pièce' ? 1 : unit === 'm' ? 0.5 : unit === 'goutte' ? 1 : 5;
   const stock = store.finishedStock[product.id] ?? 0;
   const can = store.producibleFor(product.id);
   const bn = store.bottleneckFor(product.id);
