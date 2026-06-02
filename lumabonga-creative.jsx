@@ -756,11 +756,16 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
               {store.materials.length === 0 && (
                 <span style={{ fontFamily: creaSans, fontSize: 12, color: c.muted }}>{tr("Crée d’abord une matière (onglet Matière).")}</span>
               )}
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {store.materials.map((m) => (
-                  <CreaMatChip key={m.id} m={m} c={c} selected={materialId === m.id} onClick={() => setMaterialId(m.id)} />
-                ))}
-              </div>
+              {groupedMaterials(store.materials).map((g) => (
+                <div key={g.cat} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans }}>{tr(g.label)}</span>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {g.items.map((m) => (
+                      <CreaMatChip key={m.id} m={m} c={c} selected={materialId === m.id} onClick={() => setMaterialId(m.id)} />
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
               <div>
@@ -769,8 +774,11 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
               </div>
               <div>
                 <div style={labelStyle}>{tr('Unité')}</div>
-                <select value={buyUnit} onChange={(e) => setBuyUnit(e.target.value)} style={{ ...inputStyle, paddingRight: 4 }}>
-                  {buyUnitsFor(selMatBase).map((x) => <option key={x.u} value={x.u}>{x.u}</option>)}
+                <select value={buyUnit} onChange={(e) => setBuyUnit(e.target.value)}
+                  style={{ ...inputStyle, paddingRight: 4, background: c.panel, color: c.text }}>
+                  {buyUnitsFor(selMatBase).map((x) => (
+                    <option key={x.u} value={x.u} style={{ background: c.panel, color: c.text }}>{x.u}</option>
+                  ))}
                 </select>
               </div>
             </div>

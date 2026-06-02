@@ -65,18 +65,15 @@ function ProdCostChart({ series, c }) {
 // ── Add-material bottom sheet ────────────────────────────────
 function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
   const c = prodTheme(dark, t.accent);
-  const groups = [
-    { kind: 'matière', title: tr('Matières premières') },
-    { kind: 'emballage', title: tr('Emballage') },
-  ];
+  const groups = groupedMaterials(store.materials);
   const defaultQty = (m) => m.unit === 'pièce' ? 1 : m.unit === 'm' ? 1 : 10;
   return (
     <ProdSheet title={tr('Ajouter un composant')} c={c} onClose={onClose}>
       {groups.map((g) => (
-        <div key={g.kind} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{g.title}</div>
+        <div key={g.cat} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr(g.label)}</div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {store.materials.filter((m) => m.kind === g.kind).map((m) => {
+            {g.items.map((m) => {
               const isUsed = used.has(m.id);
               return (
                 <button key={m.id} disabled={isUsed}

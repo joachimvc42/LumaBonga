@@ -362,6 +362,26 @@ const SEED_RECIPES = {
 
 const LABOR_PRESETS = ['Mélange', 'Chauffe & mélange', 'Coulage', 'Conditionnement', 'Étiquetage', 'Teinture', 'Impression cire', 'Contrôle qualité', 'Transport'];
 
+// ── Material categories (for grouped pickers) ────────────────
+// Explicit cat wins; else inferred from the name. Order: wax, oil, eo, other.
+const MATERIAL_CATS = ['wax', 'oil', 'eo', 'other'];
+const MATERIAL_CAT_LABELS = { wax: 'Wax', oil: 'Oil', eo: 'EO', other: 'Autre' };
+const materialCat = (m) => {
+  if (m && MATERIAL_CATS.includes(m.cat)) return m.cat;
+  const n = (m?.name || '').toLowerCase();
+  if (/\beo\b|h\.?e\.?\s|essential oil|\babsolute\b|absolue/.test(n)) return 'eo';
+  if (/wax|cire/.test(n)) return 'wax';
+  if (/oil|huile|\bfco\b|butter|beurre|vitamin|vitamine/.test(n)) return 'oil';
+  return 'other';
+};
+// Materials grouped by category, alphabetical within each group.
+const groupedMaterials = (materials) => {
+  const by = { wax: [], oil: [], eo: [], other: [] };
+  for (const m of materials) by[materialCat(m)].push(m);
+  for (const k of MATERIAL_CATS) by[k].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+  return MATERIAL_CATS.map((k) => ({ cat: k, label: MATERIAL_CAT_LABELS[k], items: by[k] })).filter((g) => g.items.length);
+};
+
 // ── Cost engine ──────────────────────────────────────────────
 // A material's price points = seed history + every purchase of it,
 // sorted by date. Purchases are the real source of truth going forward.
@@ -892,4 +912,5 @@ Object.assign(window, {
   materialPricePoints, materialPriceAt, materialCurrentPrice, recipeCost, costSeries,
   useLumaStore, Icon, AnimatedNumber,
   tr, setLbLang,
+  materialCat, groupedMaterials, MATERIAL_CAT_LABELS,
 });
