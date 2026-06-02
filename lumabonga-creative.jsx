@@ -843,7 +843,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
-                <div style={labelStyle}>{tr('Unités à produire')}</div>
+                <div style={labelStyle}>{tr('Unités produites')}</div>
                 <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               <div>
@@ -851,17 +851,16 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Atelier')} />
               </div>
             </div>
+            {/* Informational only — production is never blocked; material stock may go negative. */}
             <div style={{
               padding: '12px 16px', borderRadius: 14,
-              background: c.panel2, border: `1px solid ${Number(qty) > canProduce ? c.rose : c.border}`,
+              background: c.panel2, border: `1px solid ${c.border}`,
               display: 'flex', alignItems: 'center', gap: 10,
             }}>
-              <span style={{ color: Number(qty) > canProduce ? c.rose : c.accent, display: 'flex' }}>
-                {Number(qty) > canProduce ? <Icon.alert /> : <Icon.check />}
-              </span>
-              <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.text, flex: 1 }}>
-                {tr('Stock matières : {n} unités produisibles', { n: canProduce })}
-                {bottleneck && canProduce >= 0 ? tr(' · limité par {name}', { name: store.materialById[bottleneck.materialId]?.name }) : ''}
+              <span style={{ color: c.muted, display: 'flex' }}><Icon.box width={18} height={18} /></span>
+              <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.muted, flex: 1 }}>
+                {tr('Info : {n} unités produisibles avec le stock actuel', { n: canProduce })}
+                {Number(qty) > canProduce ? tr(' · le stock matières passera en négatif', {}) : ''}
               </span>
             </div>
           </React.Fragment>
