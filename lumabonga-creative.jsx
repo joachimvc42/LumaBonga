@@ -52,56 +52,48 @@ function CreaTopBar({ store, dark, t, onAdd }) {
 }
 
 // ── Profit vessels (two columns filling) ─────────────────────
-function CreaVessels({ profit, share, t, dark }) {
+// Partner account balances. Negative = is owed money (must receive from the other).
+function CreaVessels({ balance, t, dark, onSettle }) {
   const c = creaTheme(dark, t.accent);
-  const lumaya = Math.max(0, Math.round(profit * share / 100));
-  const gawah = Math.max(0, profit - lumaya);
-  const max = Math.max(lumaya, gawah, 1);
-  // height percentages
-  const hL = Math.max(8, (lumaya / max) * 100);
-  const hG = Math.max(8, (gawah / max) * 100);
+  const max = Math.max(Math.abs(balance.lumaya), Math.abs(balance.gawah), 1);
 
-  const Vessel = ({ amount, pct, color, name, h }) => (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-      <div style={{
-        fontFamily: creaMono, fontSize: 10, color: c.muted,
-        letterSpacing: 0.6, textTransform: 'uppercase',
-      }}>{name}</div>
-      <div style={{
-        position: 'relative', width: '100%', height: 120,
-        borderRadius: 14, overflow: 'hidden',
-        background: c.panel2, border: `1px solid ${c.border}`,
-      }}>
-        <div style={{
-          position: 'absolute', bottom: 0, left: 0, right: 0,
-          height: `${h}%`,
-          background: `linear-gradient(180deg, ${color}88, ${color})`,
-          transition: 'height .8s cubic-bezier(.2,.8,.2,1)',
-        }}>
-          {/* moving shimmer */}
+  const Card = ({ bal, color, name }) => {
+    const owed = bal < -0.5;              // this org should receive money
+    const owes = bal > 0.5;               // this org should pay
+    const h = Math.max(8, (Math.abs(bal) / max) * 100);
+    const tone = owed ? c.rose : owes ? color : c.muted;
+    const label = owed ? tr('à recevoir') : owes ? tr('à reverser') : tr('équilibré');
+    return (
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+        <div style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, letterSpacing: 0.6, textTransform: 'uppercase' }}>{name}</div>
+        <div style={{ position: 'relative', width: '100%', height: 120, borderRadius: 14, overflow: 'hidden', background: c.panel2, border: `1px solid ${c.border}` }}>
           <div style={{
-            position: 'absolute', top: -8, left: 0, right: 0, height: 16,
-            background: `linear-gradient(180deg, ${color}, ${color}00)`,
-            opacity: 0.5, filter: 'blur(4px)',
+            position: 'absolute', bottom: 0, left: 0, right: 0, height: `${h}%`,
+            background: `linear-gradient(180deg, ${tone}88, ${tone})`,
+            transition: 'height .8s cubic-bezier(.2,.8,.2,1)',
           }} />
+          <div style={{ position: 'absolute', top: 8, left: 0, right: 0, textAlign: 'center', fontFamily: creaSans, fontSize: 9, color: c.muted, letterSpacing: 0.5, textTransform: 'uppercase' }}>{label}</div>
         </div>
-        {/* pct label */}
-        <div style={{
-          position: 'absolute', top: 8, right: 10,
-          fontFamily: creaMono, fontSize: 11, color: c.ink, opacity: 0.7,
-        }}>{pct}%</div>
+        <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 20, color: tone }}>
+          {bal < -0.5 ? '−' : ''}<AnimatedNumber value={Math.round(Math.abs(bal))} format={fmtShort} />
+          <span style={{ fontSize: 10, color: c.muted, marginLeft: 3, fontWeight: 500, fontFamily: creaSans, fontStyle: 'normal' }}>{t.currency}</span>
+        </div>
       </div>
-      <div style={{ fontFamily: creaSans, fontSize: 14, fontWeight: 600, color: c.text }}>
-        <AnimatedNumber value={amount} format={fmtShort} />
-        <span style={{ fontSize: 10, color: c.muted, marginLeft: 2, fontWeight: 500 }}>{t.currency}</span>
-      </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div style={{ display: 'flex', gap: 12, padding: '0 22px' }}>
-      <Vessel amount={lumaya} pct={share} color={c.accent} name="Lumaya" h={hL} />
-      <Vessel amount={gawah} pct={100 - share} color={c.purple} name="GawahBonga" h={hG} />
+    <div style={{ padding: '0 22px' }}>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <Card bal={balance.lumaya} color={c.accent} name="Lumaya" />
+        <Card bal={balance.gawah} color={c.purple} name="GawahBonga" />
+      </div>
+      <button onClick={onSettle} style={{
+        width: '100%', marginTop: 12, padding: '11px', borderRadius: 12, cursor: 'pointer',
+        background: 'transparent', color: c.muted, border: `1px dashed ${c.border}`,
+        fontFamily: creaSans, fontSize: 13, fontWeight: 600,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      }}><Icon.plus width={16} height={16} /> {tr('Règlement entre associés')}</button>
     </div>
   );
 }
@@ -219,7 +211,7 @@ function CreaBead({ item, store, dark, t, isLast }) {
 }
 
 // ── Screen: Dashboard ────────────────────────────────────────
-function CreaDashboard({ store, dark, t }) {
+function CreaDashboard({ store, dark, t, onAdd }) {
   const c = creaTheme(dark, t.accent);
   const { totals } = store;
   const recent = React.useMemo(() => {
@@ -241,8 +233,20 @@ function CreaDashboard({ store, dark, t }) {
 
   return (
     <div>
-      <CreaHero label={tr('Profit net')} value={totals.profit} sub={tr('marge {p}%', { p: Math.round(totals.marge) })} t={t} dark={dark} />
-      <CreaVessels profit={totals.profit} share={t.lumayaShare} t={t} dark={dark} />
+      <CreaHero label={tr('Profit ce mois')} value={totals.profitMonth} sub={tr('marge {p}%', { p: Math.round(totals.margeMonth) })} t={t} dark={dark} />
+      <div style={{ padding: '0 22px', marginTop: -6, marginBottom: 4 }}>
+        <div style={{
+          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+          padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}`,
+        }}>
+          <span style={{ fontSize: 10, color: c.muted, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{tr('Profit total')}</span>
+          <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 22, color: c.text }}>
+            <AnimatedNumber value={totals.profit} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
+          </span>
+        </div>
+      </div>
+      <CreaSection title={tr('Balance des comptes')} dark={dark} t={t} />
+      <CreaVessels balance={totals.balance} t={t} dark={dark} onSettle={() => onAdd && onAdd('settlement')} />
 
       <div style={{
         display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10,
@@ -546,6 +550,8 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   const [mPrice, setMPrice] = React.useState('');
   // which organisation paid / cashed in this transaction
   const [org, setOrg] = React.useState(ed?.org || 'lumaya');
+  // settlement: who pays whom
+  const [settleFrom, setSettleFrom] = React.useState(ed?.from || 'gawah');
 
   // default price from selected product/material when creating
   React.useEffect(() => {
@@ -584,6 +590,11 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
       const base = { name: mName, unit: mUnit, kind: mKind, stock0: Number(mStock) || 0 };
       if (isEdit) store.updateMaterial(ed.id, base);
       else store.addMaterial({ ...base, price: Number(mPrice) || 0 });
+    } else if (kind === 'settlement') {
+      if (!amount) return;
+      const to = settleFrom === 'lumaya' ? 'gawah' : 'lumaya';
+      const payload = { from: settleFrom, to, amount: Number(amount), note };
+      isEdit ? store.updateSettlement(ed.id, payload) : store.addSettlement(payload);
     }
     onClose();
   };
@@ -646,7 +657,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
           <div>
             <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 600 }}>{isEdit ? tr('Modifier') : tr('Nouvelle entrée')}</div>
             <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 30, color: c.text, lineHeight: 1, marginTop: 2 }}>
-              {tr(kinds.find((k) => k.id === kind)?.label)}
+              {tr(kind === 'settlement' ? 'Règlement' : kinds.find((k) => k.id === kind)?.label)}
             </div>
           </div>
           <button onClick={onClose} style={{
@@ -656,7 +667,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
           }}><Icon.close /></button>
         </div>
 
-        {!isEdit && (
+        {!isEdit && kind !== 'settlement' && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
             {kinds.map((k) => (
               <button key={k.id} onClick={() => setKind(k.id)} style={pill(kind === k.id)}>{tr(k.label)}</button>
@@ -858,6 +869,30 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
           </React.Fragment>
         )}
 
+        {kind === 'settlement' && (
+          <React.Fragment>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <span style={labelStyle}>{tr('Qui paie')}</span>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[['gawah', 'GawahBonga', c.purple], ['lumaya', 'Lumaya', c.accent]].map(([id, lab, tone]) => (
+                  <button key={id} onClick={() => setSettleFrom(id)} style={pill(settleFrom === id, tone)}>{lab}</button>
+                ))}
+              </div>
+              <div style={{ fontFamily: creaSans, fontSize: 12, color: c.muted }}>
+                {tr('→ reçu par {name}', { name: settleFrom === 'lumaya' ? 'GawahBonga' : 'Lumaya' })}
+              </div>
+            </div>
+            <div>
+              <div style={labelStyle}>{tr('Montant ({cur})', { cur: t.currency })}</div>
+              <input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} style={inputStyle} placeholder="0" autoFocus />
+            </div>
+            <div>
+              <div style={labelStyle}>{tr('Note')}</div>
+              <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Optionnel')} />
+            </div>
+          </React.Fragment>
+        )}
+
         <button onClick={submit} style={{
           marginTop: 6, padding: '15px 18px',
           background: c.ink, color: c.inkContrast, border: 'none',
@@ -903,7 +938,7 @@ const ALLOWED_TABS = {
 };
 function CreaApp({ t, dark, role }) {
   const c = creaTheme(dark, t.accent);
-  const store = useLumaStore();
+  const store = useLumaStore(undefined, t.lumayaShare);
   const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
   const [tab, setTab] = React.useState(allowed[0]);
   // If the role can't see the current tab, snap to its first allowed tab.
@@ -943,7 +978,7 @@ function CreaApp({ t, dark, role }) {
     }}>
       <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 56, paddingBottom: 120 }}>
         <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} />
-        {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} />}
+        {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} />}
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={setOpenProduct} />}

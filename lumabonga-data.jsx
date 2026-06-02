@@ -54,6 +54,11 @@ const LB_EN = {
   'Profit': 'Profit', 'Ventes': 'Sales', 'Achats': 'Purchases', 'Stock': 'Stock', 'Produits': 'Products',
   // dashboard
   'Profit net': 'Net profit', 'marge {p}%': 'margin {p}%',
+  'Profit ce mois': 'Profit this month', 'Profit total': 'Total profit',
+  'Balance des comptes': 'Account balance',
+  'à recevoir': 'to receive', 'à reverser': 'to pay', 'équilibré': 'settled',
+  'Règlement entre associés': 'Partner settlement', 'Règlement': 'Settlement',
+  'Qui paie': 'Who pays', '→ reçu par {name}': '→ received by {name}',
   'Coût prod.': 'Prod. cost', 'Valeur stock': 'Stock value',
   'Stock faible': 'Low stock', 'à produire': 'to produce',
   '{n} produisibles': '{n} producible', 'rupture matières': 'out of materials',
@@ -92,6 +97,9 @@ const LB_EN = {
   'au coût de revient': 'at cost', 'Produits finis': 'Finished goods',
   'Stock matières': 'Materials stock', 'restant': 'remaining', 'en stock': 'in stock',
   'Nouvelle matière': 'New material', '{n} lots': '{n} batches', 'Lancer une production': 'Start a production',
+  'Stock réel pour {name} ({u})': 'Actual stock for {name} ({u})',
+  'Stock réel pour {name} (u)': 'Actual stock for {name} (units)',
+  'Corriger le stock': 'Correct stock',
   // product detail
   'Ajouter un composant': 'Add a component', 'Ajouter de la main d’œuvre': 'Add labor',
   'Une tâche par défaut à 5 min · 1 000 {cur}/h. Ajuste ensuite la durée et le taux.':
@@ -437,7 +445,7 @@ const savePersisted = (snapshot) => {
 };
 
 // ── Store hook ───────────────────────────────────────────────
-function useLumaStore(seed) {
+function useLumaStore(seed, shareLumaya) {
   const saved = React.useMemo(loadPersisted, []);
   // When a backend snapshot exists (Supabase, or prior local save) it is
   // authoritative — empty means empty. Demo seeds load only on a true first run.
@@ -451,6 +459,13 @@ function useLumaStore(seed) {
   const [activeUser, setActiveUser] = React.useState(saved?.activeUser || 'lumaya'); // 'lumaya' | 'gawah'
   const [materials, setMaterials] = React.useState(() =>
     saved?.materials || seed?.materials || []);
+  // Settlements: cash transfers between the two partners to balance accounts.
+  // { id, date, from:'lumaya'|'gawah', to, amount, note }
+  const [settlements, setSettlements] = React.useState(saved?.settlements || []);
+  // Manual stock overrides (id -> target qty). When set, the displayed stock is
+  // forced to this value instead of the derived one (used to match reality).
+  const [materialAdj, setMaterialAdj] = React.useState(saved?.materialAdj || {});
+  const [productAdj, setProductAdj] = React.useState(saved?.productAdj || {});
 
   // recipes: give every ingredient/labor line a stable id for editing & keys
   const withIds = (recipes) => {
@@ -469,8 +484,8 @@ function useLumaStore(seed) {
 
   // Persist on any change. Recipes already carry stable ids, so they round-trip.
   React.useEffect(() => {
-    savePersisted({ products, sales, purchases, costs, production, materials, recipes, activeUser });
-  }, [products, sales, purchases, costs, production, materials, recipes, activeUser]);
+    savePersisted({ products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj });
+  }, [products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj]);
 
   const recipeFor = (pid) => recipes[pid] || { ingredients: [], labor: [] };
   const editRecipe = (pid, fn) => setRecipes((rs) => {
@@ -533,6 +548,19 @@ function useLumaStore(seed) {
     const id = 'pr_' + Math.random().toString(36).slice(2, 8);
     setProduction((xs) => [{ id, date: todayISO(), ...p }, ...xs]);
   };
+  const addSettlement = (s) => {
+    const id = 'st_' + Math.random().toString(36).slice(2, 8);
+    setSettlements((xs) => [{ id, date: todayISO(), ...s }, ...xs]);
+  };
+  const updateSettlement = (id, patch) => setSettlements((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
+  const removeSettlement = (id) => setSettlements((xs) => xs.filter((x) => x.id !== id));
+
+  // Manual stock override: set/clear a forced quantity for a material or product.
+  const setMaterialStockManual = (id, qty) => setMaterialAdj((m) => ({ ...m, [id]: Number(qty) }));
+  const clearMaterialStockManual = (id) => setMaterialAdj((m) => { const n = { ...m }; delete n[id]; return n; });
+  const setProductStockManual = (id, qty) => setProductAdj((m) => ({ ...m, [id]: Number(qty) }));
+  const clearProductStockManual = (id) => setProductAdj((m) => { const n = { ...m }; delete n[id]; return n; });
+
   const removeSale = (id) => setSales((xs) => xs.filter((x) => x.id !== id));
   const removePurchase = (id) => setPurchases((xs) => xs.filter((x) => x.id !== id));
   const removeCost = (id) => setCosts((xs) => xs.filter((x) => x.id !== id));
@@ -553,6 +581,9 @@ function useLumaStore(seed) {
     setMaterials([]);
     setRecipes({});
     setActiveUser('lumaya');
+    setSettlements([]);
+    setMaterialAdj({});
+    setProductAdj({});
   };
 
   const productById = React.useMemo(() => {
@@ -593,17 +624,20 @@ function useLumaStore(seed) {
         if (s[ing.materialId] != null) s[ing.materialId] -= (Number(pr.qty) || 0) * (Number(ing.qty) || 0);
       }
     }
+    // Manual override wins (corrects stock to match reality).
+    for (const id of Object.keys(materialAdj)) if (s[id] != null) s[id] = Number(materialAdj[id]);
     return s;
-  }, [materials, purchases, production, recipes]);
+  }, [materials, purchases, production, recipes, materialAdj]);
 
-  // Finished-goods stock = opening + produced − sold.
+  // Finished-goods stock = opening + produced − sold (manual override wins).
   const finishedStock = React.useMemo(() => {
     const s = {};
     for (const p of products) s[p.id] = p.stock0 || 0;
     for (const pr of production) if (s[pr.productId] != null) s[pr.productId] += Number(pr.qty) || 0;
     for (const sa of sales) if (s[sa.productId] != null) s[sa.productId] -= Number(sa.qty) || 0;
+    for (const id of Object.keys(productAdj)) if (s[id] != null) s[id] = Number(productAdj[id]);
     return s;
-  }, [products, production, sales]);
+  }, [products, production, sales, productAdj]);
 
   // How many more units of a product can be produced with current material stock.
   const producibleFor = React.useCallback((pid) => {
@@ -634,29 +668,70 @@ function useLumaStore(seed) {
     return best;
   }, [recipes, materialStock]);
 
+  const cogsOf = React.useCallback((s) => {
+    const r = recipes[s.productId];
+    const unit = r ? recipeCost(r, materialById, purchases, s.date).total : 0;
+    return unit * (Number(s.qty) || 0);
+  }, [recipes, materialById, purchases]);
+
   const totals = React.useMemo(() => {
     const ventes = sales.reduce((a, s) => a + s.qty * s.price, 0);
     const achats = purchases.reduce((a, s) => a + (Number(s.qty) || 0) * (Number(s.price) || 0), 0);
     const charges = costs.reduce((a, c) => a + c.amount, 0);
-    // Cost of goods sold = units sold × unit production cost (at sale date)
     let cogs = 0;
-    for (const s of sales) {
-      const r = recipes[s.productId];
-      const unit = r ? recipeCost(r, materialById, purchases, s.date).total : 0;
-      cogs += unit * (Number(s.qty) || 0);
-    }
-    const profit = ventes - cogs - charges; // net profit
+    for (const s of sales) cogs += cogsOf(s);
+    const profit = ventes - cogs - charges; // net profit (all time)
     const marge = ventes > 0 ? (profit / ventes) * 100 : 0;
+
+    // This-month profit (sales/costs dated in the current calendar month).
+    const ym = todayISO().slice(0, 7);
+    const inMonth = (d) => (d || '').slice(0, 7) === ym;
+    let ventesM = 0, cogsM = 0, chargesM = 0;
+    for (const s of sales) if (inMonth(s.date)) { ventesM += s.qty * s.price; cogsM += cogsOf(s); }
+    for (const c of costs) if (inMonth(c.date)) chargesM += c.amount;
+    const profitMonth = ventesM - cogsM - chargesM;
+    const margeMonth = ventesM > 0 ? (profitMonth / ventesM) * 100 : 0;
+
     // Inventory value at cost
     let valMatieres = 0;
     for (const m of materials) valMatieres += (materialStock[m.id] || 0) * (materialPrices[m.id] || 0);
     let valProduits = 0;
     for (const p of products) valProduits += (finishedStock[p.id] || 0) * unitCostFor(p.id);
-    return { ventes, achats, charges, cogs, profit, marge, valMatieres, valProduits, valStock: valMatieres + valProduits };
-  }, [sales, purchases, costs, recipes, materialById, materials, products, materialStock, finishedStock, materialPrices, unitCostFor]);
+
+    // ── Partner balances (cash settlement, sums to zero) ────────
+    // entitled = each org's share of distributable cash (ventes − achats − charges).
+    // held     = cash actually in each org's hands (its own sales − its purchases
+    //            − its charges + settlements received − settlements paid).
+    // balance  = held − entitled. NEGATIVE = is owed money (must receive).
+    const share = { lumaya: 0, gawah: 0 };
+    const distributable = ventes - achats - charges;
+    // share split from tweaks isn't here; balances use 50/50 of entitlement? No —
+    // entitlement uses the configured lumayaShare, passed in via `shareLumaya`.
+    const sl = (typeof shareLumaya === 'number' ? shareLumaya : 70) / 100;
+    const entitled = { lumaya: distributable * sl, gawah: distributable * (1 - sl) };
+    const held = { lumaya: 0, gawah: 0 };
+    const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
+    for (const s of sales) held[orgOf(s)] += s.qty * s.price;
+    for (const p of purchases) held[orgOf(p)] -= (Number(p.qty) || 0) * (Number(p.price) || 0);
+    for (const c of costs) held[orgOf(c)] -= Number(c.amount) || 0;
+    for (const st of settlements) {
+      const amt = Number(st.amount) || 0;
+      if (st.from === 'lumaya') held.lumaya -= amt; else if (st.from === 'gawah') held.gawah -= amt;
+      if (st.to === 'lumaya') held.lumaya += amt; else if (st.to === 'gawah') held.gawah += amt;
+    }
+    const balance = { lumaya: held.lumaya - entitled.lumaya, gawah: held.gawah - entitled.gawah };
+
+    return {
+      ventes, achats, charges, cogs, profit, marge,
+      profitMonth, margeMonth, ventesM,
+      valMatieres, valProduits, valStock: valMatieres + valProduits,
+      entitled, held, balance,
+    };
+  }, [sales, purchases, costs, settlements, recipes, materialById, materials, products, materialStock, finishedStock, materialPrices, unitCostFor, cogsOf, shareLumaya]);
 
   return {
-    products, sales, purchases, costs, production, activeUser, materials,
+    products, sales, purchases, costs, production, activeUser, materials, settlements,
+    materialAdj, productAdj,
     setActiveUser,
     addProduct, updateProduct, removeProduct,
     addMaterial, updateMaterial, removeMaterial,
@@ -664,6 +739,9 @@ function useLumaStore(seed) {
     addPurchase, updatePurchase, removePurchase,
     addCost, updateCost, removeCost,
     addProductionLot, updateProduction, removeProduction,
+    addSettlement, updateSettlement, removeSettlement,
+    setMaterialStockManual, clearMaterialStockManual,
+    setProductStockManual, clearProductStockManual,
     resetStore,
     productById, materialById, materialPrices, totals,
     recipes, recipeFor, unitCostFor,

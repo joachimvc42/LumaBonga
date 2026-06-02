@@ -190,11 +190,21 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                       {fmtNum(price)} {t.currency}/{m.unit} · {tr(m.kind)}
                     </div>
                   </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: low ? c.amber : c.text }}>
+                  <button onClick={() => {
+                    const cur = store.materialStock[m.id] ?? 0;
+                    const v = window.prompt(tr('Stock réel pour {name} ({u})', { name: m.name, u: m.unit }), String(cur));
+                    if (v === null) return;
+                    if (v.trim() === '') store.clearMaterialStockManual(m.id);
+                    else store.setMaterialStockManual(m.id, Number(v));
+                  }} title={tr('Corriger le stock')} style={{
+                    textAlign: 'right', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}>
+                    <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
                       {fmtNum(stock)} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>{m.unit}</span>
-                    </div>
-                  </div>
+                    </span>
+                    <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={14} height={14} /></span>
+                  </button>
                   <StkRowActions c={c} onEdit={() => onEdit('material', m)} onDelete={() => store.removeMaterial(m.id)} />
                 </div>
               );
@@ -231,9 +241,21 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                       {tr('{n} produisibles', { n: can })}
                     </div>
                   </div>
-                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 20, color: stock <= 5 ? c.amber : c.text }}>
-                    {stock} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>u</span>
-                  </div>
+                  <button onClick={() => {
+                    const cur = store.finishedStock[p.id] ?? 0;
+                    const v = window.prompt(tr('Stock réel pour {name} (u)', { name: p.name }), String(cur));
+                    if (v === null) return;
+                    if (v.trim() === '') store.clearProductStockManual(p.id);
+                    else store.setProductStockManual(p.id, Number(v));
+                  }} title={tr('Corriger le stock')} style={{
+                    background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                    display: 'flex', alignItems: 'center', gap: 5,
+                  }}>
+                    <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 20, color: store.productAdj[p.id] != null ? c.accent : (stock <= 5 ? c.amber : c.text) }}>
+                      {stock} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>u</span>
+                    </span>
+                    <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={14} height={14} /></span>
+                  </button>
                   <button onClick={() => onEdit('production', { productId: p.id, qty: '', who: '' })} style={{
                     padding: '8px 12px', borderRadius: 999, border: 'none',
                     background: c.ink, color: c.inkContrast, cursor: 'pointer',
