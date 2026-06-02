@@ -67,6 +67,54 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
   const c = prodTheme(dark, t.accent);
   const groups = groupedMaterials(store.materials);
   const defaultQty = (m) => m.unit === 'pièce' ? 1 : m.unit === 'm' ? 1 : m.unit === 'goutte' ? 4 : 10;
+  // Two-step: pick a material, then enter the quantity needed per unit produced.
+  const [pick, setPick] = React.useState(null);
+  const [qty, setQty] = React.useState('');
+
+  const choose = (m) => { setPick(m); setQty(String(defaultQty(m))); };
+  const confirm = () => {
+    if (!pick) return;
+    const q = Number(qty);
+    if (!(q > 0)) return;
+    store.addIngredient(productId, pick.id, q);
+    onClose();
+  };
+
+  if (pick) {
+    return (
+      <ProdSheet title={tr('Quantité du composant')} c={c} onClose={onClose}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            width: 28, height: 28, borderRadius: 999, background: `oklch(0.6 0.15 ${pick.hue})`, color: '#0c0c10',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: prodMono, fontSize: 12, fontWeight: 700,
+          }}>{pick.name.slice(0, 1)}</span>
+          <span style={{ fontFamily: prodSans, fontSize: 15, color: c.text, fontWeight: 500 }}>{pick.name}</span>
+        </div>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>
+            {tr('Quantité par unité produite ({u})', { u: pick.unit })}
+          </div>
+          <input type="number" inputMode="decimal" value={qty} autoFocus
+            onChange={(e) => setQty(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') confirm(); }}
+            style={{ width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none', borderBottom: `1px solid ${c.border}`, padding: '10px 0', color: c.text, fontFamily: prodSans, fontSize: 18, outline: 'none' }}
+            placeholder="0" />
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setPick(null)} style={{
+            flex: 1, padding: '13px', borderRadius: 999, cursor: 'pointer',
+            background: 'transparent', color: c.muted, border: `1px solid ${c.border}`,
+            fontFamily: prodSans, fontSize: 14, fontWeight: 600,
+          }}>{tr('Retour')}</button>
+          <button onClick={confirm} style={{
+            flex: 2, padding: '13px', borderRadius: 999, cursor: 'pointer', border: 'none',
+            background: c.ink, color: c.inkContrast, fontFamily: prodSans, fontSize: 14, fontWeight: 600,
+          }}>{tr('Ajouter')} →</button>
+        </div>
+      </ProdSheet>
+    );
+  }
+
   return (
     <ProdSheet title={tr('Ajouter un composant')} c={c} onClose={onClose}>
       {groups.map((g) => (
@@ -77,7 +125,7 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
               const isUsed = used.has(m.id);
               return (
                 <button key={m.id} disabled={isUsed}
-                  onClick={() => { store.addIngredient(productId, m.id, defaultQty(m)); onClose(); }}
+                  onClick={() => choose(m)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px 7px 7px',
                     borderRadius: 999, border: `1px solid ${c.border}`,

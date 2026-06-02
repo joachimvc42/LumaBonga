@@ -107,6 +107,8 @@ const LB_EN = {
   'Corriger le stock': 'Correct stock',
   // product detail
   'Ajouter un composant': 'Add a component', 'Ajouter de la main d’œuvre': 'Add labor',
+  'Quantité du composant': 'Component quantity', 'Quantité par unité produite ({u})': 'Quantity per unit produced ({u})',
+  'Retour': 'Back', 'Ajouter': 'Add',
   'Une tâche par défaut à 5 min · 1 000 {cur}/h. Ajuste ensuite la durée et le taux.':
     'A default task at 5 min · 1,000 {cur}/h. Adjust the duration and rate afterwards.',
   'Fiche produit': 'Product sheet', 'Vente {x} {cur}': 'Sell {x} {cur}',
