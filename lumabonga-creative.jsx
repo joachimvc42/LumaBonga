@@ -353,10 +353,33 @@ function CreaProductChip({ p, dark, t, onClick, selected }) {
   );
 }
 
+// Org filter (Tous / Lumaya / GawahBonga) — shared by Sales & Purchases.
+function OrgFilter({ value, onChange, c }) {
+  const opts = [['all', tr('Tous'), c.ink], ['lumaya', 'Lumaya', c.accent], ['gawah', 'GawahBonga', c.purple]];
+  return (
+    <div style={{ display: 'flex', gap: 6, padding: '6px 22px 0' }}>
+      {opts.map(([id, lab, tone]) => {
+        const sel = value === id;
+        return (
+          <button key={id} onClick={() => onChange(id)} style={{
+            padding: '6px 12px', borderRadius: 999, cursor: 'pointer',
+            background: sel ? tone : 'transparent',
+            color: sel ? c.inkContrast : c.text,
+            border: `1px solid ${sel ? tone : c.border}`,
+            fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+          }}>{lab}</button>
+        );
+      })}
+    </div>
+  );
+}
+const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
+
 // ── Screen: Ventes ───────────────────────────────────────────
 function CreaTxScreen({ store, dark, t, kind, onEdit }) {
   const c = creaTheme(dark, t.accent);
-  const items = store.sales;
+  const [orgFilter, setOrgFilter] = React.useState('all');
+  const items = orgFilter === 'all' ? store.sales : store.sales.filter((s) => orgOf(s) === orgFilter);
   const remove = store.removeSale;
   const total = items.reduce((a, s) => a + s.qty * s.price, 0);
   const color = c.accent;
@@ -374,6 +397,8 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
   return (
     <div>
       <CreaHero label={tr('Total ventes')} value={total} sub={tr('{n} transactions', { n: items.length })} color={color} t={t} dark={dark} />
+
+      <OrgFilter value={orgFilter} onChange={setOrgFilter} c={c} />
 
       <div style={{ padding: '6px 22px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {topProducts.map((tp) => (
@@ -1042,4 +1067,4 @@ function CreaApp({ t, dark, role }) {
   );
 }
 
-Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip });
+Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip, OrgFilter });

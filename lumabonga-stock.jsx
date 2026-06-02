@@ -55,25 +55,31 @@ function StkRowActions({ onEdit, onDelete, c }) {
 function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
   const c = creaTheme(dark, t.accent);
   const [seg, setSeg] = React.useState('mat');
-  const matTotal = store.purchases.reduce((a, p) => a + (Number(p.qty) || 0) * (Number(p.price) || 0), 0);
-  const chTotal = store.costs.reduce((a, x) => a + x.amount, 0);
+  const [orgF, setOrgF] = React.useState('all');
+  const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
+  const purchases = orgF === 'all' ? store.purchases : store.purchases.filter((p) => orgOf(p) === orgF);
+  const costs = orgF === 'all' ? store.costs : store.costs.filter((x) => orgOf(x) === orgF);
+  const matTotal = purchases.reduce((a, p) => a + (Number(p.qty) || 0) * (Number(p.price) || 0), 0);
+  const chTotal = costs.reduce((a, x) => a + x.amount, 0);
 
   return (
     <div>
       <CreaHero label={seg === 'mat' ? tr('Achats matières') : tr('Charges')} value={seg === 'mat' ? matTotal : chTotal}
-        sub={seg === 'mat' ? tr('{n} factures', { n: store.purchases.length }) : tr('{n} charges', { n: store.costs.length })}
+        sub={seg === 'mat' ? tr('{n} factures', { n: purchases.length }) : tr('{n} charges', { n: costs.length })}
         color={seg === 'mat' ? c.purple : c.amber} t={t} dark={dark} />
 
       <StkSegment value={seg} onChange={setSeg} c={c} options={[
-        { id: 'mat', label: tr('Matières'), count: store.purchases.length },
-        { id: 'ch', label: tr('Charges'), count: store.costs.length },
+        { id: 'mat', label: tr('Matières'), count: purchases.length },
+        { id: 'ch', label: tr('Charges'), count: costs.length },
       ]} />
+
+      <OrgFilter value={orgF} onChange={setOrgF} c={c} />
 
       {seg === 'mat' && (
         <React.Fragment>
           <CreaSection title={tr('Factures d’achat')} right={tr('matières premières')} dark={dark} t={t} />
           <div style={{ padding: '0 22px' }}>
-            {store.purchases.map((it, i) => {
+            {purchases.map((it, i) => {
               const m = store.materialById[it.materialId];
               return (
                 <div key={it.id} style={{
@@ -110,7 +116,7 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
         <React.Fragment>
           <CreaSection title={tr('Charges')} right={tr('hors matières')} dark={dark} t={t} />
           <div style={{ padding: '0 22px' }}>
-            {store.costs.map((it, i) => (
+            {costs.map((it, i) => (
               <div key={it.id} style={{
                 padding: '14px 0', borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}`,
                 display: 'flex', gap: 14, alignItems: 'center',

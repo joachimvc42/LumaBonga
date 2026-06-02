@@ -67,7 +67,7 @@ const LB_EN = {
   '{n} unités produites': '{n} units produced',
   // sales screen
   'Total ventes': 'Total sales', '{n} transactions': '{n} transactions',
-  '{n} entrées': '{n} entries', 'marge': 'margin',
+  '{n} entrées': '{n} entries', 'marge': 'margin', 'Tous': 'All',
   // products screen
   'Catalogue': 'Catalog', 'produits actifs': 'active products', 'Nouveau produit': 'New product',
   // add sheet
