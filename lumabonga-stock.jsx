@@ -178,44 +178,49 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
       {seg === 'mat' && (
         <React.Fragment>
           <CreaSection title={tr('Stock matières')} right={tr('restant')} dark={dark} t={t} />
-          <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {store.materials.map((m) => {
-              const stock = store.materialStock[m.id] ?? 0;
-              const price = store.materialPrices[m.id] ?? 0;
-              const low = stock <= (m.unit === 'pièce' ? 30 : m.unit === 'm' ? 5 : 800);
-              return (
-                <div key={m.id} style={{
-                  padding: '12px 14px', borderRadius: 14,
-                  background: c.panel, border: `1px solid ${c.border}`,
-                  display: 'flex', alignItems: 'center', gap: 12,
-                }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 999, background: `oklch(0.62 0.16 ${m.hue})`, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                    <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>
-                      {fmtNum(price)} {t.currency}/{m.unit} · {tr(m.kind)}
+          {groupedMaterials(store.materials).map((g) => (
+            <div key={g.cat} style={{ padding: '0 22px', marginBottom: 6 }}>
+              <div style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans, margin: '8px 0 6px' }}>{tr(g.label)}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {g.items.map((m) => {
+                  const stock = store.materialStock[m.id] ?? 0;
+                  const price = store.materialPrices[m.id] ?? 0;
+                  const low = stock <= (m.unit === 'pièce' ? 30 : m.unit === 'm' ? 5 : 800);
+                  return (
+                    <div key={m.id} style={{
+                      padding: '12px 14px', borderRadius: 14,
+                      background: c.panel, border: `1px solid ${c.border}`,
+                      display: 'flex', alignItems: 'center', gap: 12,
+                    }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 999, background: `oklch(0.62 0.16 ${m.hue})`, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                        <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>
+                          {fmtNum(price)} {t.currency}/{m.unit} · {tr(m.kind)}
+                        </div>
+                      </div>
+                      <button onClick={() => {
+                        const cur = store.materialStock[m.id] ?? 0;
+                        const v = window.prompt(tr('Stock réel pour {name} ({u})', { name: m.name, u: m.unit }), String(cur));
+                        if (v === null) return;
+                        if (v.trim() === '') store.clearMaterialStockManual(m.id);
+                        else store.setMaterialStockManual(m.id, Number(v));
+                      }} title={tr('Corriger le stock')} style={{
+                        textAlign: 'right', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                        display: 'flex', alignItems: 'center', gap: 5,
+                      }}>
+                        <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
+                          {fmtNum(stock)} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>{m.unit}</span>
+                        </span>
+                        <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={14} height={14} /></span>
+                      </button>
+                      <StkRowActions c={c} onEdit={() => onEdit('material', m)} onDelete={() => store.removeMaterial(m.id)} />
                     </div>
-                  </div>
-                  <button onClick={() => {
-                    const cur = store.materialStock[m.id] ?? 0;
-                    const v = window.prompt(tr('Stock réel pour {name} ({u})', { name: m.name, u: m.unit }), String(cur));
-                    if (v === null) return;
-                    if (v.trim() === '') store.clearMaterialStockManual(m.id);
-                    else store.setMaterialStockManual(m.id, Number(v));
-                  }} title={tr('Corriger le stock')} style={{
-                    textAlign: 'right', background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
-                    display: 'flex', alignItems: 'center', gap: 5,
-                  }}>
-                    <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
-                      {fmtNum(stock)} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>{m.unit}</span>
-                    </span>
-                    <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={14} height={14} /></span>
-                  </button>
-                  <StkRowActions c={c} onEdit={() => onEdit('material', m)} onDelete={() => store.removeMaterial(m.id)} />
-                </div>
-              );
-            })}
-          </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
           <div style={{ padding: '14px 22px 0' }}>
             <AddRowButton c={c} label={tr('Nouvelle matière')} onClick={() => onAdd('material')} />
           </div>
