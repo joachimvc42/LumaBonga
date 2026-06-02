@@ -93,7 +93,7 @@ function CreaVessels({ balance, t, dark, onSettle }) {
           <div style={{ position: 'absolute', top: 8, left: 0, right: 0, textAlign: 'center', fontFamily: creaSans, fontSize: 9, color: c.muted, letterSpacing: 0.5, textTransform: 'uppercase' }}>{label}</div>
         </div>
         <div style={{ fontFamily: creaMono, fontSize: 15, fontWeight: 600, color: tone }}>
-          {bal < 0 ? '−' : ''}{Math.abs(bal).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace(/ | /g, ' ')}
+          {bal < 0 ? '−' : ''}{(Math.abs(bal) / 1e6).toFixed(3)}M
           <span style={{ fontSize: 10, color: c.muted, marginLeft: 3, fontWeight: 500, fontFamily: creaSans }}>{t.currency}</span>
         </div>
       </div>
