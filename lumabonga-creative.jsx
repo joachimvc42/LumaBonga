@@ -27,13 +27,18 @@ const creaMono = '"JetBrains Mono", "SF Mono", "Geist Mono", ui-monospace, monos
 const creaDisplay = '"Instrument Serif", "Bodoni Moda", Georgia, serif'; // editorial display
 // fallback: this loads from google later but if not loaded, falls back to Georgia. We can also try a strong sans.
 
-// Purchase-unit options grouped by the material's base unit, with a factor to
-// convert the entered quantity INTO that base unit (g, ml, m, pièce).
+// Purchase-unit options with a factor converting the entered quantity INTO the
+// material's base unit. Mass and volume share one list (density ~1 → 1 ml = 1 g),
+// so a g-based material can still be bought in ml/l and vice-versa.
+const MASS_VOL_UNITS = [
+  { u: 'g', f: 1 }, { u: 'kg', f: 1000 },
+  { u: 'ml', f: 1 }, { u: 'l', f: 1000 }, { u: 'cl', f: 10 },
+];
 const BUY_UNITS = {
-  g:      [{ u: 'g', f: 1 }, { u: 'kg', f: 1000 }],
-  ml:     [{ u: 'ml', f: 1 }, { u: 'l', f: 1000 }, { u: 'cl', f: 10 }],
-  m:      [{ u: 'm', f: 1 }, { u: 'cm', f: 0.01 }],
-  'pièce':[{ u: 'pièce', f: 1 }],
+  g:  MASS_VOL_UNITS,
+  ml: MASS_VOL_UNITS,
+  m:  [{ u: 'm', f: 1 }, { u: 'cm', f: 0.01 }],
+  'pièce': [{ u: 'pièce', f: 1 }],
 };
 const buyUnitsFor = (base) => BUY_UNITS[base] || [{ u: base || 'pièce', f: 1 }];
 const buyFactor = (base, u) => (buyUnitsFor(base).find((x) => x.u === u) || { f: 1 }).f;
