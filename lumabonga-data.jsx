@@ -55,6 +55,7 @@ const LB_EN = {
   // dashboard
   'Profit net': 'Net profit', 'marge {p}%': 'margin {p}%',
   'Profit ce mois': 'Profit this month', 'Profit total': 'Total profit',
+  'Δ valeur stock': 'Δ stock value', 'ce mois': 'this month', 'Stock total': 'Total stock',
   'Balance des comptes': 'Account balance',
   'à recevoir': 'to receive', 'à reverser': 'to pay', 'équilibré': 'settled',
   'Règlement entre associés': 'Partner settlement', 'Règlement': 'Settlement',
@@ -707,17 +708,22 @@ function useLumaStore(seed, shareLumaya) {
     const charges = costs.reduce((a, c) => a + c.amount, 0);
     let cogs = 0;
     for (const s of sales) cogs += cogsOf(s);
-    const profit = ventes - cogs - charges; // net profit (all time)
+    // Cash-basis profit: every purchase made is charged against profit (not just
+    // the cost of goods sold). profit = sales − all purchases − charges.
+    const profit = ventes - achats - charges;
     const marge = ventes > 0 ? (profit / ventes) * 100 : 0;
 
-    // This-month profit (sales/costs dated in the current calendar month).
+    // This-month figures (dated in the current calendar month).
     const ym = todayISO().slice(0, 7);
     const inMonth = (d) => (d || '').slice(0, 7) === ym;
-    let ventesM = 0, cogsM = 0, chargesM = 0;
+    let ventesM = 0, cogsM = 0, chargesM = 0, achatsM = 0;
     for (const s of sales) if (inMonth(s.date)) { ventesM += s.qty * s.price; cogsM += cogsOf(s); }
     for (const c of costs) if (inMonth(c.date)) chargesM += c.amount;
-    const profitMonth = ventesM - cogsM - chargesM;
+    for (const p of purchases) if (inMonth(p.date)) achatsM += (Number(p.qty) || 0) * (Number(p.price) || 0);
+    const profitMonth = ventesM - achatsM - chargesM;
     const margeMonth = ventesM > 0 ? (profitMonth / ventesM) * 100 : 0;
+    // Stock value change this month = bought into stock − cost of goods sold out.
+    const deltaStockMonth = achatsM - cogsM;
 
     // Inventory value at cost
     let valMatieres = 0;
@@ -750,7 +756,7 @@ function useLumaStore(seed, shareLumaya) {
 
     return {
       ventes, achats, charges, cogs, profit, marge,
-      profitMonth, margeMonth, ventesM,
+      profitMonth, margeMonth, ventesM, achatsM, deltaStockMonth,
       valMatieres, valProduits, valStock: valMatieres + valProduits,
       entitled, held, balance,
     };

@@ -92,9 +92,9 @@ function CreaVessels({ balance, t, dark, onSettle }) {
           }} />
           <div style={{ position: 'absolute', top: 8, left: 0, right: 0, textAlign: 'center', fontFamily: creaSans, fontSize: 9, color: c.muted, letterSpacing: 0.5, textTransform: 'uppercase' }}>{label}</div>
         </div>
-        <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 20, color: tone }}>
-          {bal < -0.5 ? '−' : ''}<AnimatedNumber value={Math.round(Math.abs(bal))} format={fmtShort} />
-          <span style={{ fontSize: 10, color: c.muted, marginLeft: 3, fontWeight: 500, fontFamily: creaSans, fontStyle: 'normal' }}>{t.currency}</span>
+        <div style={{ fontFamily: creaMono, fontSize: 15, fontWeight: 600, color: tone }}>
+          {bal < 0 ? '−' : ''}{Math.abs(bal).toLocaleString('fr-FR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }).replace(/ | /g, ' ')}
+          <span style={{ fontSize: 10, color: c.muted, marginLeft: 3, fontWeight: 500, fontFamily: creaSans }}>{t.currency}</span>
         </div>
       </div>
     );
@@ -251,29 +251,50 @@ function CreaDashboard({ store, dark, t, onAdd }) {
 
   return (
     <div>
-      <CreaHero label={tr('Profit ce mois')} value={totals.profitMonth} sub={tr('marge {p}%', { p: Math.round(totals.margeMonth) })} t={t} dark={dark} />
-      <div style={{ padding: '0 22px', marginTop: -6, marginBottom: 4 }}>
-        <div style={{
-          display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
-          padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}`,
-        }}>
-          <span style={{ fontSize: 10, color: c.muted, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{tr('Profit total')}</span>
-          <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 22, color: c.text }}>
-            <AnimatedNumber value={totals.profit} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
-          </span>
+      {/* Row 1: month profit + Δ stock value this month */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '8px 22px 0' }}>
+        <div>
+          <div style={{ fontSize: 10, color: c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{tr('Profit ce mois')}</div>
+          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 40, color: c.text, lineHeight: 1.05, letterSpacing: -1 }}>
+            <AnimatedNumber value={totals.profitMonth} format={fmtNum} />
+          </div>
+          <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>{t.currency} · {tr('marge {p}%', { p: Math.round(totals.margeMonth) })}</div>
         </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 10, color: c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{tr('Δ valeur stock')}</div>
+          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 40, color: totals.deltaStockMonth >= 0 ? c.text : c.rose, lineHeight: 1.05, letterSpacing: -1 }}>
+            {totals.deltaStockMonth >= 0 ? '+' : '−'}<AnimatedNumber value={Math.abs(totals.deltaStockMonth)} format={fmtShort} />
+          </div>
+          <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>{t.currency} · {tr('ce mois')}</div>
+        </div>
+      </div>
+      {/* Row 2: total profit + total stock value */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '12px 22px 4px' }}>
+        {[
+          { label: tr('Profit total'), value: totals.profit, align: 'left' },
+          { label: tr('Stock total'), value: totals.valStock, align: 'right' },
+        ].map((k) => (
+          <div key={k.label} style={{
+            padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}`,
+            display: 'flex', flexDirection: 'column', gap: 2, textAlign: k.align,
+          }}>
+            <span style={{ fontSize: 10, color: c.muted, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{k.label}</span>
+            <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 22, color: c.text }}>
+              <AnimatedNumber value={k.value} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
+            </span>
+          </div>
+        ))}
       </div>
       <CreaSection title={tr('Balance des comptes')} dark={dark} t={t} />
       <CreaVessels balance={totals.balance} t={t} dark={dark} onSettle={() => onAdd && onAdd('settlement')} />
 
       <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10,
+        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
         padding: '20px 22px 0',
       }}>
         {[
           { label: tr('Ventes'), value: totals.ventes, color: c.accent },
           { label: tr('Coût prod.'), value: totals.cogs, color: c.amber },
-          { label: tr('Valeur stock'), value: totals.valStock, color: c.purple },
         ].map((k) => (
           <div key={k.label} style={{
             padding: '12px 12px', borderRadius: 14,
