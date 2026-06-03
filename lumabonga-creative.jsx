@@ -508,13 +508,14 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
 function CreaIngredientEdit({ pid, ln, c, store }) {
   // qty is stored in the material's base unit; `ln.unit` is the chosen display unit.
   const base = ln.material?.unit || 'g';
+  const dens = densityFor(ln.material);
   const unit = COMPONENT_UNITS.includes(ln.unit) ? ln.unit : (COMPONENT_UNITS.includes(base) ? base : 'g');
-  const [val, setVal] = React.useState(String(Math.round(convertUnit(ln.qty, base, unit) * 10) / 10));
-  React.useEffect(() => { setVal(String(Math.round(convertUnit(ln.qty, base, unit) * 10) / 10)); }, [ln.qty, unit]);
+  const [val, setVal] = React.useState(String(Math.round(convertUnit(ln.qty, base, unit, dens) * 10) / 10));
+  React.useEffect(() => { setVal(String(Math.round(convertUnit(ln.qty, base, unit, dens) * 10) / 10)); }, [ln.qty, unit]);
   const commit = (raw, u) => {
     const q = Number(raw);
     if (!isFinite(q)) return;
-    store.updateIngredient(pid, ln.id, { qty: convertUnit(q, u, base), unit: u });
+    store.updateIngredient(pid, ln.id, { qty: convertUnit(q, u, base, dens), unit: u });
   };
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: `1px solid ${c.borderSoft}` }}>
@@ -680,7 +681,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                           const du = COMPONENT_UNITS.includes(ln.unit) ? ln.unit : base;
                           return (
                             <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted, flexShrink: 0 }}>
-                              {fmtQty(convertUnit(ln.qty, base, du))} {du} · {fmtNum(ln.cost)} {t.currency}
+                              {fmtQty(convertUnit(ln.qty, base, du, densityFor(ln.material)))} {du} · {fmtNum(ln.cost)} {t.currency}
                             </span>
                           );
                         })()}
@@ -793,11 +794,12 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   // Purchase: user enters quantity (in a chosen unit) + total price paid (IDR).
   // Stored values stay per BASE unit (g/ml/m/pièce); per-unit price is computed.
   const selMatBase = store.materialById[materialId]?.unit || 'g';
-  const [buyUnit, setBuyUnit] = React.useState(ed?.buyUnit || selMatBase);
+  const defBuyUnit = (b) => COMPONENT_UNITS.includes(b) ? b : 'g';
+  const [buyUnit, setBuyUnit] = React.useState(defBuyUnit(ed?.buyUnit || selMatBase));
   const [buyTotal, setBuyTotal] = React.useState(ed && ed.qty != null && ed.price != null ? String(Math.round(ed.qty * ed.price)) : '');
-  // keep buy unit aligned with the selected material's base unit family
+  // keep buy unit aligned when the selected material changes
   React.useEffect(() => {
-    if (kind === 'buy' && !ed) setBuyUnit(store.materialById[materialId]?.unit || 'g');
+    if (kind === 'buy' && !ed) setBuyUnit(defBuyUnit(store.materialById[materialId]?.unit || 'g'));
   }, [materialId, kind]);
   // which organisation paid / cashed in this transaction
   const [org, setOrg] = React.useState(ed?.org || 'lumaya');
@@ -822,8 +824,9 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
       isEdit ? store.updateSale(ed.id, payload) : store.addSale(payload);
     } else if (kind === 'buy') {
       if (!materialId || !qty || !buyTotal) return;
-      const base = store.materialById[materialId]?.unit || 'g';
-      const baseQty = Number(qty) * buyFactor(base, buyUnit);   // qty in base unit
+      const mm = store.materialById[materialId];
+      const base = mm?.unit || 'g';
+      const baseQty = convertUnit(Number(qty), buyUnit, base, densityFor(mm));  // entered unit → base
       if (baseQty <= 0) return;
       const unitPrice = Number(buyTotal) / baseQty;             // computed price per base unit
       const payload = { materialId, qty: baseQty, price: unitPrice, note, org, buyUnit };
@@ -1002,8 +1005,8 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 <div style={labelStyle}>{tr('Unité')}</div>
                 <select value={buyUnit} onChange={(e) => setBuyUnit(e.target.value)}
                   style={{ ...inputStyle, paddingRight: 4, background: c.panel, color: c.text }}>
-                  {buyUnitsFor(selMatBase).map((x) => (
-                    <option key={x.u} value={x.u} style={{ background: c.panel, color: c.text }}>{x.u}</option>
+                  {COMPONENT_UNITS.map((u) => (
+                    <option key={u} value={u} style={{ background: c.panel, color: c.text }}>{u}</option>
                   ))}
                 </select>
               </div>
@@ -1018,7 +1021,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             </div>
             {orgSelector}
             {qty && buyTotal && (() => {
-              const baseQty = Number(qty) * buyFactor(selMatBase, buyUnit);
+              const baseQty = convertUnit(Number(qty), buyUnit, selMatBase, densityFor(selMat));
               const unitPrice = baseQty > 0 ? Number(buyTotal) / baseQty : 0;
               return (
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: c.panel2, border: `1px dashed ${c.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>

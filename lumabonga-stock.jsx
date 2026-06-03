@@ -81,27 +81,30 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
           <div style={{ padding: '0 22px' }}>
             {purchases.map((it, i) => {
               const m = store.materialById[it.materialId];
+              const base = m?.unit || 'g';
+              // Show the quantity in the unit it was bought in (consistency with entry).
+              const du = COMPONENT_UNITS.includes(it.buyUnit) ? it.buyUnit : base;
+              const qtyShown = convertUnit(it.qty, base, du, densityFor(m));
               return (
                 <div key={it.id} style={{
-                  padding: '14px 0', borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}`,
-                  display: 'flex', gap: 14, alignItems: 'center',
+                  padding: '8px 0', borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}`,
+                  display: 'flex', gap: 10, alignItems: 'center',
                 }}>
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 12,
-                    background: `oklch(0.22 0.07 ${m?.hue || 0})`, color: `oklch(0.9 0.13 ${m?.hue || 0})`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: creaMono, fontSize: 15, fontWeight: 700, flexShrink: 0,
-                  }}>{m?.name?.slice(0, 1) || '?'}</div>
+                  <span style={{ width: 8, height: 8, borderRadius: 999, background: `oklch(0.62 0.16 ${m?.hue || 0})`, flexShrink: 0 }} />
+                  {/* Name + total price */}
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{m?.name || tr('Matière supprimée')}</div>
-                    <div style={{ fontSize: 11, color: c.muted, fontFamily: creaSans, marginTop: 2 }}>
-                      <span style={{ fontFamily: creaMono }}>{fmtNum(it.qty)}</span> {m?.unit} × <span style={{ fontFamily: creaMono }}>{fmtNum(it.price)}</span> {t.currency} · {fmtDate(it.date)}{it.note ? ` · ${it.note}` : ''}
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                      <span style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m?.name || tr('Matière supprimée')}</span>
+                      <span style={{ fontFamily: creaMono, fontSize: 13, color: c.purple, fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>−{fmtNum(it.qty * it.price)} {t.currency}</span>
                     </div>
+                    <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 1 }}>{fmtQty(qtyShown)} {du}</div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                    <div style={{ fontFamily: creaDisplay, fontSize: 18, fontStyle: 'italic', color: c.purple }}>−{fmtShort(it.qty * it.price)}</div>
-                    <StkRowActions c={c} onEdit={() => onEdit('buy', it)} onDelete={() => store.removePurchase(it.id)} />
+                  {/* Date cell */}
+                  <div style={{ flexShrink: 0, textAlign: 'center', padding: '2px 8px', borderRadius: 8, background: c.panel2, border: `1px solid ${c.border}` }}>
+                    <span style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted }}>{fmtDate(it.date)}</span>
                   </div>
+                  {/* Actions cell */}
+                  <StkRowActions c={c} onEdit={() => onEdit('buy', it)} onDelete={() => store.removePurchase(it.id)} />
                 </div>
               );
             })}

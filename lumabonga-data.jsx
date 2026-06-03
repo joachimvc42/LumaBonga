@@ -379,14 +379,31 @@ const SEED_RECIPES = {
 
 const LABOR_PRESETS = ['Mélange', 'Chauffe & mélange', 'Coulage', 'Conditionnement', 'Étiquetage', 'Teinture', 'Impression cire', 'Contrôle qualité', 'Transport'];
 
-// ── Units: grams-equivalent scale (density ~1; 15 drops = 1 ml = 1 g) ─────────
-const UNIT_G = { g: 1, kg: 1000, ml: 1, l: 1000, cl: 10, goutte: 1 / 15, 'pièce': 1, m: 1 };
+// ── Units: density-aware conversion (15 drops = 1 ml) ────────────────────────
+// Mass units in grams; volume units in millilitres. Mass↔volume uses density
+// (ml per gram). Oils ≈ 1.1 ml/g; everything else defaults to 1 ml/g.
+const MASS_FACTOR = { g: 1, kg: 1000 };                 // → grams
+const VOL_FACTOR  = { ml: 1, l: 1000, cl: 10, goutte: 1 / 15 }; // → millilitres
+const isMassUnit = (u) => MASS_FACTOR[u] != null;
+const isVolUnit  = (u) => VOL_FACTOR[u] != null;
+const DEFAULT_DENSITY = 1;     // ml per gram
+const OIL_DENSITY = 1.1;       // 1 g oil ≈ 1.1 ml
+const densityFor = (m) => (m && (materialCat(m) === 'oil' || materialCat(m) === 'eo')) ? OIL_DENSITY : DEFAULT_DENSITY;
 // Units every recipe component can be expressed in.
 const COMPONENT_UNITS = ['g', 'cl', 'ml', 'goutte'];
-// Convert a quantity from one unit to another (same physical scale).
-const convertUnit = (qty, fromU, toU) => {
-  const f = UNIT_G[fromU] ?? 1, tg = UNIT_G[toU] ?? 1;
-  return (Number(qty) || 0) * f / tg;
+// Convert a quantity from one unit to another. `density` = ml per gram (oils 1.1).
+const convertUnit = (qty, fromU, toU, density = DEFAULT_DENSITY) => {
+  const q = Number(qty) || 0;
+  if (fromU === toU) return q;
+  // → grams (canonical)
+  let grams;
+  if (isMassUnit(fromU)) grams = q * MASS_FACTOR[fromU];
+  else if (isVolUnit(fromU)) grams = (q * VOL_FACTOR[fromU]) / density;  // ml → g
+  else return q; // pièce/m etc — no conversion
+  // grams → target
+  if (isMassUnit(toU)) return grams / MASS_FACTOR[toU];
+  if (isVolUnit(toU)) return (grams * density) / VOL_FACTOR[toU];        // g → ml
+  return q;
 };
 
 // ── Material categories (for grouped pickers) ────────────────
@@ -948,5 +965,5 @@ Object.assign(window, {
   useLumaStore, Icon, AnimatedNumber,
   tr, setLbLang, fmtQty,
   materialCat, groupedMaterials, MATERIAL_CAT_LABELS,
-  UNIT_G, COMPONENT_UNITS, convertUnit,
+  COMPONENT_UNITS, convertUnit, densityFor, isMassUnit, isVolUnit,
 });
