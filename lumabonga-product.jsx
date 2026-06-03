@@ -363,15 +363,12 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
                   <span style={{ width: 9, height: 9, borderRadius: 999, background: `oklch(0.62 0.16 ${ln.material?.hue || 0})`, flexShrink: 0 }} />
                   <span style={{ fontFamily: prodSans, fontSize: 14, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ln.material?.name || '—'}</span>
                 </div>
-                <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 17, color: c.text, flexShrink: 0 }}>{fmtNum(ln.cost)}</span>
+                <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 17, color: c.text, flexShrink: 0 }}>{fmtNum(ln.cost)} <span style={{ fontFamily: prodMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <ProdStepper value={ln.qty} step={stepFor(ln.material?.unit)} suffix={ln.material?.unit}
                   onChange={(v) => store.updateIngredientQty(product.id, ln.id, v)} c={c} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted }}>{ln.price} {t.currency}/{ln.material?.unit}</span>
-                  <button onClick={() => store.removeIngredient(product.id, ln.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.trash /></button>
-                </div>
+                <button onClick={() => store.removeIngredient(product.id, ln.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.trash /></button>
               </div>
             </div>
           ))}
