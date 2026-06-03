@@ -534,23 +534,34 @@ function CreaIngredientEdit({ pid, ln, c, store }) {
   );
 }
 
-// Tiny inline sparkline of the per-unit cost over time (no axes/labels).
-// A single point renders as a dot; multiple points draw a connecting line.
+// Small framed cost chart with X/Y axes. A single point shows as a dot on the
+// baseline; multiple points draw a connecting line that rises/falls.
 function CreaSparkline({ series, c, title }) {
-  const W = 64, H = 30, pad = 4;
+  const W = 92, H = 48, padL = 8, padR = 6, padT = 6, padB = 8;
   const vals = (series || []).map((p) => p.total);
-  if (!vals.length) return <div style={{ width: W, height: H, flexShrink: 0 }} />;
-  const min = Math.min(...vals), max = Math.max(...vals), span = Math.max(1, max - min);
-  const x = (i) => vals.length === 1 ? W / 2 : pad + (i / (vals.length - 1)) * (W - 2 * pad);
-  const y = (v) => H - pad - ((v - min) / span) * (H - 2 * pad);
+  const min = vals.length ? Math.min(...vals) : 0;
+  const max = vals.length ? Math.max(...vals) : 1;
+  const span = Math.max(1, max - min);
+  const x = (i) => vals.length <= 1 ? padL + (W - padL - padR) / 2 : padL + (i / (vals.length - 1)) * (W - padL - padR);
+  const y = (v) => padT + (1 - (v - min) / span) * (H - padT - padB);
   const line = vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
   const last = vals.length - 1;
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ flexShrink: 0 }}>
-      <title>{title}</title>
-      {vals.length > 1 && <path d={line} fill="none" stroke={c.accent} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />}
-      <circle cx={x(last)} cy={y(vals[last])} r="3" fill={c.accent} />
-    </svg>
+    <div style={{
+      flexShrink: 0, padding: '4px 6px 2px', borderRadius: 10,
+      background: c.panel, border: `1px solid ${c.border}`,
+    }}>
+      <div style={{ fontSize: 7.5, letterSpacing: 0.4, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans, marginBottom: 1 }}>{tr('Coût')}</div>
+      <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
+        <title>{title}</title>
+        {/* axes */}
+        <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke={c.border} strokeWidth="1" />
+        <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke={c.border} strokeWidth="1" />
+        {vals.length > 1 && <path d={line} fill="none" stroke={c.accent} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />}
+        {vals.length === 1 && <circle cx={x(0)} cy={y(vals[0])} r="3.2" fill={c.accent} />}
+        {vals.length > 1 && <circle cx={x(last)} cy={y(vals[last])} r="3" fill={c.accent} />}
+      </svg>
+    </div>
   );
 }
 

@@ -125,7 +125,7 @@ const LB_EN = {
     'A default task at 5 min · 1,000 {cur}/h. Adjust the duration and rate afterwards.',
   'Fiche produit': 'Product sheet', 'Vente {x} {cur}': 'Sell {x} {cur}',
   ' · {n} composants': ' · {n} components',
-  'Coût / unité': 'Cost / unit', 'Marge nette': 'Net margin', 'Marge %': 'Margin %',
+  'Coût / unité': 'Cost / unit', 'Marge nette': 'Net margin', 'Marge %': 'Margin %', 'Coût': 'Cost',
   'En stock': 'In stock', 'Produisibles': 'Producible', 'limité par {name}': 'limited by {name}',
   'Coût de production · 1 unité': 'Production cost · 1 unit', '{x}% / 6 mois': '{x}% / 6 months',
   'Matières & emballage': 'Materials & packaging', 'Main d’œuvre': 'Labor', 'Ajouter une tâche': 'Add a task',
