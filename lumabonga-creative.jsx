@@ -470,32 +470,31 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
           const margin = (it.price - unitCost) * it.qty;
           return (
             <div key={it.id} style={{
-              padding: '14px 0',
+              padding: '8px 0',
               borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}`,
-              display: 'flex', gap: 14, alignItems: 'center',
+              display: 'flex', gap: 10, alignItems: 'center',
             }}>
               <div style={{
-                width: 44, height: 44, borderRadius: 12,
+                width: 30, height: 30, borderRadius: 9,
                 background: `oklch(0.22 0.08 ${p?.hue || 0})`,
                 color: `oklch(0.88 0.14 ${p?.hue || 0})`,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: creaMono, fontSize: 14, fontWeight: 700, flexShrink: 0,
+                fontFamily: creaMono, fontSize: 11, fontWeight: 700, flexShrink: 0,
               }}>{p?.emoji}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{p?.name}</div>
-                <div style={{ fontSize: 11, color: c.muted, fontFamily: creaSans, marginTop: 2 }}>
-                  <span style={{ fontFamily: creaMono }}>{it.qty}</span> × <span style={{ fontFamily: creaMono }}>{fmtNum(it.price)}</span> {t.currency} · {tr('marge')} <span style={{ color: margin >= 0 ? c.accent : c.rose, fontFamily: creaMono }}>{margin >= 0 ? '+' : '−'}{fmtShort(Math.abs(margin))}</span>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                  <span style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
+                  <span style={{ fontFamily: creaMono, fontSize: 13, color, fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>{fmtNum(it.qty * it.price)} {t.currency}</span>
+                </div>
+                <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 1 }}>
+                  {it.qty} × {fmtNum(it.price)} · {tr('marge')} <span style={{ color: margin >= 0 ? c.accent : c.rose }}>{margin >= 0 ? '+' : '−'}{fmtShort(Math.abs(margin))}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                <div style={{ fontFamily: creaDisplay, fontSize: 18, fontStyle: 'italic', color }}>
-                  {fmtShort(it.qty * it.price)}
-                </div>
-                <div style={{ display: 'flex', gap: 12 }}>
-                  <button onClick={() => onEdit && onEdit('sale', it)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.edit /></button>
-                  <button onClick={() => remove(it.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.trash /></button>
-                </div>
+              <div style={{ flexShrink: 0, textAlign: 'center', padding: '2px 8px', borderRadius: 8, background: c.panel2, border: `1px solid ${c.border}` }}>
+                <span style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted }}>{fmtDate(it.date)}</span>
               </div>
+              <button onClick={() => onEdit && onEdit('sale', it)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.edit /></button>
+              <button onClick={() => remove(it.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.trash /></button>
             </div>
           );
         })}

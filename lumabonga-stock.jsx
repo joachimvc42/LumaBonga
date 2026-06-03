@@ -121,24 +121,21 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
           <div style={{ padding: '0 22px' }}>
             {costs.map((it, i) => (
               <div key={it.id} style={{
-                padding: '14px 0', borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}`,
-                display: 'flex', gap: 14, alignItems: 'center',
+                padding: '8px 0', borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}`,
+                display: 'flex', gap: 10, alignItems: 'center',
               }}>
-                <div style={{
-                  width: 44, height: 44, borderRadius: 12,
-                  background: `${c.amber}22`, color: c.amber,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}><Icon.cost /></div>
+                <span style={{ color: c.amber, display: 'flex', flexShrink: 0 }}><Icon.cost width={18} height={18} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{it.label}</div>
-                  <div style={{ fontSize: 11, color: c.muted, fontFamily: creaSans, marginTop: 2 }}>
-                    {fmtDate(it.date)}{it.who ? ` · ${it.who}` : ''}
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                    <span style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{it.label}</span>
+                    <span style={{ fontFamily: creaMono, fontSize: 13, color: c.amber, fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>−{fmtNum(it.amount)} {t.currency}</span>
                   </div>
+                  {it.who && <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 1 }}>{it.who}</div>}
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <div style={{ fontFamily: creaDisplay, fontSize: 18, fontStyle: 'italic', color: c.amber }}>−{fmtShort(it.amount)}</div>
-                  <StkRowActions c={c} onEdit={() => onEdit('cost', it)} onDelete={() => store.removeCost(it.id)} />
+                <div style={{ flexShrink: 0, textAlign: 'center', padding: '2px 8px', borderRadius: 8, background: c.panel2, border: `1px solid ${c.border}` }}>
+                  <span style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted }}>{fmtDate(it.date)}</span>
                 </div>
+                <StkRowActions c={c} onEdit={() => onEdit('cost', it)} onDelete={() => store.removeCost(it.id)} />
               </div>
             ))}
           </div>
