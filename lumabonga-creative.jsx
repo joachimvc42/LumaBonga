@@ -534,6 +534,26 @@ function CreaIngredientEdit({ pid, ln, c, store }) {
   );
 }
 
+// Tiny inline sparkline of the per-unit cost over time (no axes/labels).
+// A single point renders as a dot; multiple points draw a connecting line.
+function CreaSparkline({ series, c, title }) {
+  const W = 64, H = 30, pad = 4;
+  const vals = (series || []).map((p) => p.total);
+  if (!vals.length) return <div style={{ width: W, height: H, flexShrink: 0 }} />;
+  const min = Math.min(...vals), max = Math.max(...vals), span = Math.max(1, max - min);
+  const x = (i) => vals.length === 1 ? W / 2 : pad + (i / (vals.length - 1)) * (W - 2 * pad);
+  const y = (v) => H - pad - ((v - min) / span) * (H - 2 * pad);
+  const line = vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const last = vals.length - 1;
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ flexShrink: 0 }}>
+      <title>{title}</title>
+      {vals.length > 1 && <path d={line} fill="none" stroke={c.accent} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />}
+      <circle cx={x(last)} cy={y(vals[last])} r="3" fill={c.accent} />
+    </svg>
+  );
+}
+
 // ── Screen: Products (per-product edit) ──────────────────────────────────────
 function CreaProducts({ store, dark, t, onAdd, onEdit }) {
   const c = creaTheme(dark, t.accent);
@@ -556,9 +576,8 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
           const can = store.producibleFor(p.id);
           const bn = store.bottleneckFor(p.id);
           const marginPct = (p.unitPrice || 0) > 0 ? (margin / p.unitPrice) * 100 : 0;
-          const series = costSeries(recipe, store.materialById, store.purchases, 6);
-          const first = series[0]?.total || 0;
-          const trend = first > 0 ? ((unitCost - first) / first) * 100 : 0;
+          // Cost history starts this month, so for now there is a single point.
+          const series = costSeries(recipe, store.materialById, store.purchases, 1);
           const edit = editId === p.id;
           return (
             <div key={p.id} style={{
@@ -623,25 +642,13 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                   <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: can === 0 ? c.rose : c.text, lineHeight: 1 }}>{can} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
                   {bn && <div style={{ fontFamily: creaMono, fontSize: 9, color: c.mutedSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tr('limité par {name}', { name: store.materialById[bn.materialId]?.name })}</div>}
                 </div>
+                {/* Mini cost sparkline (no month labels), inline on the producible row */}
+                <CreaSparkline series={series} c={c} title={tr('Coût de production · 1 unité')} />
                 <button onClick={() => onEdit && onEdit('production', { productId: p.id, qty: '', who: '' })} style={{
                   padding: '9px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
                   background: c.accent, color: c.inkContrast, fontFamily: creaSans, fontSize: 12, fontWeight: 700, flexShrink: 0,
                 }}>{tr('Produire')}</button>
               </div>
-
-              {/* Cost trend chart */}
-              {series.length > 1 && (
-                <div style={{ marginTop: 10, padding: '12px 12px 8px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
-                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 2 }}>
-                    <span style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tr('Coût de production · 1 unité')}</span>
-                    <span style={{ fontFamily: creaMono, fontSize: 10, color: trend >= 0 ? c.rose : c.accent, fontWeight: 600 }}>{trend >= 0 ? '↑' : '↓'} {tr('{x}% / 6 mois', { x: Math.abs(Math.round(trend)) })}</span>
-                  </div>
-                  <ProdCostChart series={series} c={c} />
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
-                    {series.map((pt, i) => <span key={i} style={{ fontFamily: creaMono, fontSize: 8.5, color: i === series.length - 1 ? c.text : c.mutedSoft }}>{pt.label}</span>)}
-                  </div>
-                </div>
-              )}
 
               {/* Composition */}
               <div style={{ marginTop: 12 }}>
