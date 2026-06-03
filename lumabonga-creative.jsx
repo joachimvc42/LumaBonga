@@ -536,26 +536,17 @@ function CreaIngredientEdit({ pid, ln, c, store }) {
   );
 }
 
-// ── Screen: Products (composition list + single global Edit toggle) ──────────
+// ── Screen: Products (per-product edit) ──────────────────────────────────────
 function CreaProducts({ store, dark, t, onOpen, onAdd }) {
   const c = creaTheme(dark, t.accent);
-  const [edit, setEdit] = React.useState(false);
+  const [editId, setEditId] = React.useState(null);  // product currently being edited
   const [addFor, setAddFor] = React.useState(null);  // product id awaiting a component
+  const [nameDraft, setNameDraft] = React.useState('');
 
   return (
     <div>
       <CreaHero label={tr('Catalogue')} value={store.products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} />
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px', marginTop: 18, marginBottom: 10 }}>
-        <div style={{ fontFamily: creaDisplay, fontSize: 22, fontStyle: 'italic', color: c.text }}>{tr('Produits')}</div>
-        <button onClick={() => setEdit((v) => !v)} style={{
-          display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 999, cursor: 'pointer',
-          background: edit ? c.accent : 'transparent', color: edit ? c.inkContrast : c.text,
-          border: `1px solid ${edit ? c.accent : c.border}`, fontFamily: creaSans, fontSize: 12, fontWeight: 600,
-        }}>
-          {edit ? <Icon.check width={15} height={15} /> : <Icon.edit width={15} height={15} />}
-          {edit ? tr('Terminé') : tr('Modifier')}
-        </button>
-      </div>
+      <CreaSection title={tr('Produits')} right={`${store.products.length}`} dark={dark} t={t} />
 
       <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
         {store.products.map((p) => {
@@ -565,10 +556,11 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
           const margin = (p.unitPrice || 0) - unitCost;
           const stock = store.finishedStock[p.id] ?? 0;
           const can = store.producibleFor(p.id);
+          const edit = editId === p.id;
           return (
             <div key={p.id} style={{
               position: 'relative', overflow: 'hidden', padding: 16, borderRadius: 18,
-              background: c.panel, border: `1px solid ${c.border}`,
+              background: c.panel, border: `1px solid ${edit ? c.accent : c.border}`,
             }}>
               <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 4, background: `oklch(0.6 0.18 ${p.hue})` }} />
               <div onClick={() => !edit && onOpen && onOpen(p)} style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: edit ? 'default' : 'pointer' }}>
@@ -577,7 +569,14 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaMono, fontSize: 18, fontWeight: 700, flexShrink: 0,
                 }}>{p.emoji}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text }}>{p.name}</div>
+                  {edit ? (
+                    <input value={nameDraft} autoFocus onChange={(e) => setNameDraft(e.target.value)}
+                      onBlur={() => { const n = nameDraft.trim(); if (n && n !== p.name) store.updateProduct(p.id, { name: n }); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+                      style={{ width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 10px', fontFamily: creaSans, fontSize: 16, outline: 'none' }} />
+                  ) : (
+                    <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text }}>{p.name}</div>
+                  )}
                   <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
                     {fmtNum(p.unitPrice)} − {fmtNum(unitCost)} = <span style={{ color: margin >= 0 ? c.accent : c.rose }}>{margin >= 0 ? '+' : '−'}{fmtNum(Math.abs(margin))}</span> {t.currency}
                   </div>
@@ -586,7 +585,17 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
                     <span style={{ fontFamily: creaMono, fontSize: 10, color: can === 0 ? c.rose : c.muted, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${can === 0 ? c.rose : c.border}` }}>{tr('{n} produisibles', { n: can })}</span>
                   </div>
                 </div>
-                {!edit && <span style={{ color: c.mutedSoft, display: 'flex', marginLeft: 2 }}><Icon.arrow /></span>}
+                {/* Per-product edit / done button */}
+                <button onClick={(e) => {
+                  e.stopPropagation();
+                  if (edit) { setEditId(null); }
+                  else { setNameDraft(p.name); setEditId(p.id); }
+                }} style={{
+                  flexShrink: 0, width: 34, height: 34, borderRadius: 999, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: edit ? c.accent : c.panel2, color: edit ? c.inkContrast : c.muted,
+                  border: `1px solid ${edit ? c.accent : c.border}`,
+                }}>{edit ? <Icon.check width={16} height={16} /> : <Icon.edit width={16} height={16} />}</button>
               </div>
 
               {/* Composition */}
