@@ -516,8 +516,8 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
                   {fmtNum(p.unitPrice)} − {fmtNum(unitCost)} = <span style={{ color: margin >= 0 ? c.accent : c.rose }}>{margin >= 0 ? '+' : '−'}{fmtNum(Math.abs(margin))}</span> {t.currency}
                 </div>
                 <div style={{ display: 'flex', gap: 6, marginTop: 7 }}>
-                  <span style={{ fontFamily: creaMono, fontSize: 10, color: c.text, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${c.border}` }}>{stock} en stock</span>
-                  <span style={{ fontFamily: creaMono, fontSize: 10, color: can === 0 ? c.rose : c.muted, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${can === 0 ? c.rose : c.border}` }}>{can} produisibles</span>
+                  <span style={{ fontFamily: creaMono, fontSize: 10, color: c.text, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${c.border}` }}>{tr('{n} en stock', { n: stock })}</span>
+                  <span style={{ fontFamily: creaMono, fontSize: 10, color: can === 0 ? c.rose : c.muted, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${can === 0 ? c.rose : c.border}` }}>{tr('{n} produisibles', { n: can })}</span>
                 </div>
               </div>
               <span style={{ color: c.mutedSoft, display: 'flex', marginLeft: 2 }}><Icon.arrow /></span>
