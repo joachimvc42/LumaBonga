@@ -229,9 +229,10 @@ function CreaBead({ item, store, dark, t, isLast }) {
 }
 
 // ── Screen: Dashboard ────────────────────────────────────────
-function CreaDashboard({ store, dark, t, onAdd }) {
+function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
   const c = creaTheme(dark, t.accent);
   const { totals } = store;
+  const [showSettlements, setShowSettlements] = React.useState(false);
   const recent = React.useMemo(() => {
     const a = store.sales.map((x) => ({ ...x, kind: 'sale' }));
     const b = store.purchases.map((x) => ({ ...x, kind: 'buy' }));
@@ -249,71 +250,95 @@ function CreaDashboard({ store, dark, t, onAdd }) {
       .slice(0, 3);
   }, [store.products, store.producibleFor]);
 
-  return (
-    <div>
-      {/* Row 1: month profit + Δ stock value this month */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '8px 22px 0' }}>
-        <div>
-          <div style={{ fontSize: 10, color: c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{tr('Profit ce mois')}</div>
-          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 40, color: c.text, lineHeight: 1.05, letterSpacing: -1 }}>
-            <AnimatedNumber value={totals.profitMonth} format={fmtNum} />
+  // One metric row = this-month value (left) + total value (right).
+  const MetricRow = ({ label, monthLabel, monthValue, totalLabel, totalValue, accent, prominent }) => (
+    <div style={{ padding: prominent ? '8px 22px 0' : '0 22px' }}>
+      <div style={{ fontSize: 10, color: accent || c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700, fontFamily: creaSans, marginBottom: 4 }}>{label}</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div style={{ padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}` }}>
+          <div style={{ fontSize: 9, color: c.mutedSoft, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{monthLabel}</div>
+          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: prominent ? 30 : 22, color: c.text, lineHeight: 1.1 }}>
+            <AnimatedNumber value={monthValue} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
           </div>
-          <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>{t.currency} · {tr('marge {p}%', { p: Math.round(totals.margeMonth) })}</div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 10, color: c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{tr('Δ valeur stock')}</div>
-          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 40, color: totals.deltaStockMonth >= 0 ? c.text : c.rose, lineHeight: 1.05, letterSpacing: -1 }}>
-            {totals.deltaStockMonth >= 0 ? '+' : '−'}<AnimatedNumber value={Math.abs(totals.deltaStockMonth)} format={fmtShort} />
+        <div style={{ padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}` }}>
+          <div style={{ fontSize: 9, color: c.mutedSoft, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{totalLabel}</div>
+          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: prominent ? 30 : 22, color: c.text, lineHeight: 1.1 }}>
+            <AnimatedNumber value={totalValue} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
           </div>
-          <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>{t.currency} · {tr('ce mois')}</div>
         </div>
       </div>
-      {/* Row 2: total profit + total stock value */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, padding: '12px 22px 4px' }}>
-        {[
-          { label: tr('Profit total'), value: totals.profit, align: 'left' },
-          { label: tr('Stock total'), value: totals.valStock, align: 'right' },
-        ].map((k) => (
-          <div key={k.label} style={{
-            padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}`,
-            display: 'flex', flexDirection: 'column', gap: 2, textAlign: k.align,
-          }}>
-            <span style={{ fontSize: 10, color: c.muted, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{k.label}</span>
-            <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 22, color: c.text }}>
-              <AnimatedNumber value={k.value} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
-            </span>
-          </div>
-        ))}
-      </div>
-      <CreaSection title={tr('Balance des comptes')} dark={dark} t={t} />
-      <CreaVessels balance={totals.balance} t={t} dark={dark} onSettle={() => onAdd && onAdd('settlement')} />
+    </div>
+  );
 
-      <div style={{
-        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10,
-        padding: '20px 22px 0',
-      }}>
-        {[
-          { label: tr('Ventes'), value: totals.ventes, color: c.accent },
-          { label: tr('Coût prod.'), value: totals.cogs, color: c.amber },
-        ].map((k) => (
-          <div key={k.label} style={{
-            padding: '12px 12px', borderRadius: 14,
-            background: c.panel, border: `1px solid ${c.border}`,
-            display: 'flex', flexDirection: 'column', gap: 4,
+  // Balance: who must receive money. balance < 0 means that org is owed.
+  const owedToLumaya = totals.balance.lumaya < -0.5;
+  const owedToGawah = totals.balance.gawah < -0.5;
+  const settled = !owedToLumaya && !owedToGawah;
+  const creditor = owedToLumaya ? 'Lumaya' : owedToGawah ? 'GawahBonga' : null;
+  const debtor = owedToLumaya ? 'GawahBonga' : owedToGawah ? 'Lumaya' : null;
+  const owedAmount = Math.abs(owedToLumaya ? totals.balance.lumaya : totals.balance.gawah);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <MetricRow prominent label={tr('Profit')} accent={c.accent}
+        monthLabel={tr('Ce mois')} monthValue={totals.profitMonth}
+        totalLabel={tr('Total')} totalValue={totals.profit} />
+      <MetricRow label={tr('Ventes')} accent={c.accent}
+        monthLabel={tr('Ce mois')} monthValue={totals.ventesM}
+        totalLabel={tr('Total')} totalValue={totals.ventes} />
+      <MetricRow label={tr('Achats')} accent={c.purple}
+        monthLabel={tr('Ce mois')} monthValue={totals.achatsM}
+        totalLabel={tr('Total')} totalValue={totals.achats} />
+      <MetricRow label={tr('Stock')} accent={c.amber}
+        monthLabel={tr('Δ ce mois')} monthValue={totals.deltaStockMonth}
+        totalLabel={tr('Stock value')} totalValue={totals.valStock} />
+
+      {/* Account balance — single line + settlement history */}
+      <div style={{ padding: '0 22px' }}>
+        <div style={{ fontSize: 10, color: c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700, fontFamily: creaSans, marginBottom: 4 }}>{tr('Balance des comptes')}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}` }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            {settled ? (
+              <span style={{ fontFamily: creaSans, fontSize: 14, color: c.muted }}>{tr('Comptes équilibrés')}</span>
+            ) : (
+              <span style={{ fontFamily: creaSans, fontSize: 14, color: c.text }}>
+                <b style={{ color: creditor === 'Lumaya' ? c.accent : c.purple }}>{creditor}</b> {tr('doit recevoir')}
+              </span>
+            )}
+            {!settled && (
+              <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 24, color: c.rose, marginTop: 2 }}>
+                {(owedAmount / 1e6).toFixed(3)}M <span style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
+              </div>
+            )}
+          </div>
+          <button onClick={() => onAdd && onAdd('settlement')} style={{
+            padding: '9px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+            background: c.ink, color: c.inkContrast, fontFamily: creaSans, fontSize: 12, fontWeight: 600, flexShrink: 0,
+          }}>{tr('Régler')}</button>
+        </div>
+        {store.settlements.length > 0 && (
+          <button onClick={() => setShowSettlements((v) => !v)} style={{
+            marginTop: 8, background: 'transparent', border: 'none', cursor: 'pointer',
+            color: c.muted, fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 6,
           }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 6,
-              fontSize: 10, color: c.muted, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 600,
-            }}>
-              <span style={{ width: 5, height: 5, borderRadius: 999, background: k.color }} />
-              {k.label}
+            <Icon.clock width={14} height={14} /> {tr('Historique des règlements ({n})', { n: store.settlements.length })}
+          </button>
+        )}
+        {showSettlements && store.settlements.map((s) => (
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: `1px solid ${c.borderSoft}` }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: creaSans, fontSize: 13, color: c.text }}>
+                <b style={{ color: s.from === 'lumaya' ? c.accent : c.purple }}>{s.from === 'lumaya' ? 'Lumaya' : 'GawahBonga'}</b>
+                {' → '}
+                <b style={{ color: s.to === 'lumaya' ? c.accent : c.purple }}>{s.to === 'lumaya' ? 'Lumaya' : 'GawahBonga'}</b>
+              </div>
+              <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.mutedSoft, marginTop: 1 }}>{fmtDate(s.date)}{s.note ? ` · ${s.note}` : ''}</div>
             </div>
-            <div style={{
-              fontFamily: creaDisplay, fontSize: 22, fontStyle: 'italic', color: c.text,
-              letterSpacing: -0.4,
-            }}>
-              <AnimatedNumber value={k.value} format={fmtShort} />
-            </div>
+            <span style={{ fontFamily: creaMono, fontSize: 13, color: c.text }}>{fmtNum(s.amount)} {t.currency}</span>
+            <button onClick={() => onEdit && onEdit('settlement', s)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.edit /></button>
+            <button onClick={() => store.removeSettlement(s.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.trash /></button>
           </div>
         ))}
       </div>
@@ -1153,7 +1178,7 @@ function CreaApp({ t, dark, role }) {
     }}>
       <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 56, paddingBottom: 120 }}>
         <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} />
-        {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} />}
+        {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={setOpenProduct} />}
