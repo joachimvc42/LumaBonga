@@ -447,4 +447,4 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
   );
 }
 
-Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet });
+Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart });

@@ -537,7 +537,7 @@ function CreaIngredientEdit({ pid, ln, c, store }) {
 }
 
 // ── Screen: Products (per-product edit) ──────────────────────────────────────
-function CreaProducts({ store, dark, t, onOpen, onAdd }) {
+function CreaProducts({ store, dark, t, onAdd, onEdit }) {
   const c = creaTheme(dark, t.accent);
   const [editId, setEditId] = React.useState(null);  // product currently being edited
   const [addFor, setAddFor] = React.useState(null);  // product id awaiting a component
@@ -556,6 +556,11 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
           const margin = (p.unitPrice || 0) - unitCost;
           const stock = store.finishedStock[p.id] ?? 0;
           const can = store.producibleFor(p.id);
+          const bn = store.bottleneckFor(p.id);
+          const marginPct = (p.unitPrice || 0) > 0 ? (margin / p.unitPrice) * 100 : 0;
+          const series = costSeries(recipe, store.materialById, store.purchases, 6);
+          const first = series[0]?.total || 0;
+          const trend = first > 0 ? ((unitCost - first) / first) * 100 : 0;
           const edit = editId === p.id;
           return (
             <div key={p.id} style={{
@@ -563,7 +568,7 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
               background: c.panel, border: `1px solid ${edit ? c.accent : c.border}`,
             }}>
               <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 4, background: `oklch(0.6 0.18 ${p.hue})` }} />
-              <div onClick={() => !edit && onOpen && onOpen(p)} style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: edit ? 'default' : 'pointer' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                 <div style={{
                   width: 56, height: 56, borderRadius: 14, background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaMono, fontSize: 18, fontWeight: 700, flexShrink: 0,
@@ -578,11 +583,7 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
                     <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text }}>{p.name}</div>
                   )}
                   <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
-                    {fmtNum(p.unitPrice)} − {fmtNum(unitCost)} = <span style={{ color: margin >= 0 ? c.accent : c.rose }}>{margin >= 0 ? '+' : '−'}{fmtNum(Math.abs(margin))}</span> {t.currency}
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, marginTop: 7 }}>
-                    <span style={{ fontFamily: creaMono, fontSize: 10, color: c.text, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${c.border}` }}>{tr('{n} en stock', { n: stock })}</span>
-                    <span style={{ fontFamily: creaMono, fontSize: 10, color: can === 0 ? c.rose : c.muted, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${can === 0 ? c.rose : c.border}` }}>{tr('{n} produisibles', { n: can })}</span>
+                    {tr('Vente {x} {cur}', { x: fmtNum(p.unitPrice), cur: t.currency })}
                   </div>
                 </div>
                 {/* Per-product edit / done button */}
@@ -597,6 +598,52 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
                   border: `1px solid ${edit ? c.accent : c.border}`,
                 }}>{edit ? <Icon.check width={16} height={16} /> : <Icon.edit width={16} height={16} />}</button>
               </div>
+
+              {/* Margin tiles */}
+              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                {[
+                  { lab: tr('Coût / unité'), val: fmtNum(unitCost), col: c.text },
+                  { lab: tr('Marge nette'), val: `${margin >= 0 ? '+' : '−'}${fmtNum(Math.abs(margin))}`, col: margin >= 0 ? c.accent : c.rose },
+                  { lab: tr('Marge %'), val: `${Math.round(marginPct)}%`, col: margin >= 0 ? c.accent : c.rose },
+                ].map((tile) => (
+                  <div key={tile.lab} style={{ flex: 1, padding: '9px 11px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}`, minWidth: 0 }}>
+                    <div style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tile.lab}</div>
+                    <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 19, color: tile.col, lineHeight: 1.1, whiteSpace: 'nowrap' }}>{tile.val}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Stock + produce strip */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, padding: '10px 13px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
+                <div>
+                  <div style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tr('En stock')}</div>
+                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text, lineHeight: 1 }}>{stock} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
+                </div>
+                <div style={{ width: 1, alignSelf: 'stretch', background: c.border }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tr('Produisibles')}</div>
+                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: can === 0 ? c.rose : c.text, lineHeight: 1 }}>{can} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
+                  {bn && <div style={{ fontFamily: creaMono, fontSize: 9, color: c.mutedSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tr('limité par {name}', { name: store.materialById[bn.materialId]?.name })}</div>}
+                </div>
+                <button onClick={() => onEdit && onEdit('production', { productId: p.id, qty: '', who: '' })} style={{
+                  padding: '9px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
+                  background: c.accent, color: c.inkContrast, fontFamily: creaSans, fontSize: 12, fontWeight: 700, flexShrink: 0,
+                }}>{tr('Produire')}</button>
+              </div>
+
+              {/* Cost trend chart */}
+              {series.length > 1 && (
+                <div style={{ marginTop: 10, padding: '12px 12px 8px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 2 }}>
+                    <span style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tr('Coût de production · 1 unité')}</span>
+                    <span style={{ fontFamily: creaMono, fontSize: 10, color: trend >= 0 ? c.rose : c.accent, fontWeight: 600 }}>{trend >= 0 ? '↑' : '↓'} {tr('{x}% / 6 mois', { x: Math.abs(Math.round(trend)) })}</span>
+                  </div>
+                  <ProdCostChart series={series} c={c} />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 2 }}>
+                    {series.map((pt, i) => <span key={i} style={{ fontFamily: creaMono, fontSize: 8.5, color: i === series.length - 1 ? c.text : c.mutedSoft }}>{pt.label}</span>)}
+                  </div>
+                </div>
+              )}
 
               {/* Composition */}
               <div style={{ marginTop: 12 }}>
@@ -1154,30 +1201,12 @@ function CreaApp({ t, dark, role }) {
   if (!allowed.includes(tab)) { setTab(allowed[0]); }
   const [adding, setAdding] = React.useState(null);      // kind string
   const [editing, setEditing] = React.useState(null);    // entry data being edited
-  const [openProduct, setOpenProduct] = React.useState(null);
 
   const defaultKind = (tb) => ({ sales: 'sale', buys: 'buy', stock: 'production', prods: 'product' }[tb] || 'sale');
   const openAdd = (k) => { setEditing(null); setAdding(typeof k === 'string' ? k : defaultKind(tab)); };
   const openEdit = (k, data) => { setEditing(data); setAdding(k); };
   const closeSheet = () => { setAdding(null); setEditing(null); };
-  const goTab = (id) => { setOpenProduct(null); setTab(id); };
-
-  if (openProduct) {
-    const live = store.productById[openProduct.id] || openProduct;
-    return (
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: c.bg, color: c.text, fontFamily: creaSans, overflow: 'hidden',
-      }}>
-        <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 56 }}>
-          <CreaProductDetail store={store} dark={dark} t={t} product={live}
-            onBack={() => setOpenProduct(null)}
-            onProduce={() => openEdit('production', { productId: live.id, qty: '', who: '' })} />
-        </div>
-        {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} />}
-      </div>
-    );
-  }
+  const goTab = (id) => { setTab(id); };
 
   return (
     <div style={{
@@ -1190,8 +1219,8 @@ function CreaApp({ t, dark, role }) {
         {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
-        {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={setOpenProduct} />}
-        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onOpen={setOpenProduct} onAdd={openAdd} />}
+        {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} />}
+        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
       </div>
       <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} />
       {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} />}

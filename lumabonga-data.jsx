@@ -445,7 +445,7 @@ const costSeries = (recipe, materialById, purchases, months = 6) => {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const iso = d.toISOString().slice(0, 10);
     const { total, materials, labor } = recipeCost(recipe, materialById, purchases, iso);
-    pts.push({ date: iso, total, materials, labor, label: d.toLocaleDateString('fr-FR', { month: 'short' }).replace('.', '') });
+    pts.push({ date: iso, total, materials, labor, label: d.toLocaleDateString(LB_LOCALE, { month: 'short' }).replace('.', '') });
   }
   return pts;
 };
