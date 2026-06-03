@@ -479,52 +479,124 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
   );
 }
 
-// ── Screen: Products ─────────────────────────────────────────
+// One editable ingredient line: type the quantity + pick the unit (no steppers).
+function CreaIngredientEdit({ pid, ln, c, store }) {
+  const base = ln.material?.unit || 'g';
+  const units = buyUnitsFor(base);
+  const [unit, setUnit] = React.useState(base);
+  // Displayed value = stored base qty expressed in the chosen unit.
+  const shown = (Number(ln.qty) || 0) / buyFactor(base, unit);
+  const [val, setVal] = React.useState(String(shown));
+  React.useEffect(() => { setVal(String((Number(ln.qty) || 0) / buyFactor(base, unit))); }, [ln.qty, unit]);
+  const commit = (raw, u) => {
+    const q = Number(raw);
+    if (!isFinite(q)) return;
+    store.updateIngredientQty(pid, ln.id, q * buyFactor(base, u));
+  };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: `1px solid ${c.borderSoft}` }}>
+      <span style={{ width: 8, height: 8, borderRadius: 999, background: `oklch(0.62 0.16 ${ln.material?.hue || 0})`, flexShrink: 0 }} />
+      <span style={{ flex: 1, minWidth: 0, fontFamily: creaSans, fontSize: 13, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ln.material?.name || '—'}</span>
+      <input type="number" inputMode="decimal" value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={(e) => commit(e.target.value, unit)}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+        style={{ width: 64, textAlign: 'right', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 8px', fontFamily: creaMono, fontSize: 13, outline: 'none' }} />
+      <select value={unit} onChange={(e) => { setUnit(e.target.value); commit(val, e.target.value); }}
+        style={{ background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 4px', fontFamily: creaMono, fontSize: 12, cursor: 'pointer' }}>
+        {units.map((x) => <option key={x.u} value={x.u} style={{ background: c.panel, color: c.text }}>{x.u}</option>)}
+      </select>
+      <button onClick={() => store.removeIngredient(pid, ln.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.trash /></button>
+    </div>
+  );
+}
+
+// ── Screen: Products (composition list + single global Edit toggle) ──────────
 function CreaProducts({ store, dark, t, onOpen, onAdd }) {
   const c = creaTheme(dark, t.accent);
+  const [edit, setEdit] = React.useState(false);
+  const [addFor, setAddFor] = React.useState(null);  // product id awaiting a component
+
   return (
     <div>
       <CreaHero label={tr('Catalogue')} value={store.products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} />
-      <CreaSection title={tr('Produits')} right={`${store.products.length}`} dark={dark} t={t} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 22px', marginTop: 18, marginBottom: 10 }}>
+        <div style={{ fontFamily: creaDisplay, fontSize: 22, fontStyle: 'italic', color: c.text }}>{tr('Produits')}</div>
+        <button onClick={() => setEdit((v) => !v)} style={{
+          display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 999, cursor: 'pointer',
+          background: edit ? c.accent : 'transparent', color: edit ? c.inkContrast : c.text,
+          border: `1px solid ${edit ? c.accent : c.border}`, fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+        }}>
+          {edit ? <Icon.check width={15} height={15} /> : <Icon.edit width={15} height={15} />}
+          {edit ? tr('Terminé') : tr('Modifier')}
+        </button>
+      </div>
+
       <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
         {store.products.map((p) => {
-          const unitCost = store.unitCostFor(p.id);
+          const recipe = store.recipeFor(p.id);
+          const cost = recipeCost(recipe, store.materialById, store.purchases);
+          const unitCost = cost.total;
           const margin = (p.unitPrice || 0) - unitCost;
           const stock = store.finishedStock[p.id] ?? 0;
           const can = store.producibleFor(p.id);
           return (
-            <div key={p.id} onClick={() => onOpen && onOpen(p)} style={{
-              position: 'relative', overflow: 'hidden',
-              padding: 16, borderRadius: 18,
+            <div key={p.id} style={{
+              position: 'relative', overflow: 'hidden', padding: 16, borderRadius: 18,
               background: c.panel, border: `1px solid ${c.border}`,
-              display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer',
             }}>
-              <div style={{
-                position: 'absolute', top: 0, bottom: 0, left: 0, width: 4,
-                background: `oklch(0.6 0.18 ${p.hue})`,
-              }} />
-              <div style={{
-                width: 56, height: 56, borderRadius: 14,
-                background: `oklch(0.22 0.08 ${p.hue})`,
-                color: `oklch(0.92 0.14 ${p.hue})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: creaMono, fontSize: 18, fontWeight: 700,
-              }}>{p.emoji}</div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text }}>{p.name}</div>
-                <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
-                  {fmtNum(p.unitPrice)} − {fmtNum(unitCost)} = <span style={{ color: margin >= 0 ? c.accent : c.rose }}>{margin >= 0 ? '+' : '−'}{fmtNum(Math.abs(margin))}</span> {t.currency}
+              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 4, background: `oklch(0.6 0.18 ${p.hue})` }} />
+              <div onClick={() => !edit && onOpen && onOpen(p)} style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: edit ? 'default' : 'pointer' }}>
+                <div style={{
+                  width: 56, height: 56, borderRadius: 14, background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaMono, fontSize: 18, fontWeight: 700, flexShrink: 0,
+                }}>{p.emoji}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text }}>{p.name}</div>
+                  <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
+                    {fmtNum(p.unitPrice)} − {fmtNum(unitCost)} = <span style={{ color: margin >= 0 ? c.accent : c.rose }}>{margin >= 0 ? '+' : '−'}{fmtNum(Math.abs(margin))}</span> {t.currency}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, marginTop: 7 }}>
+                    <span style={{ fontFamily: creaMono, fontSize: 10, color: c.text, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${c.border}` }}>{tr('{n} en stock', { n: stock })}</span>
+                    <span style={{ fontFamily: creaMono, fontSize: 10, color: can === 0 ? c.rose : c.muted, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${can === 0 ? c.rose : c.border}` }}>{tr('{n} produisibles', { n: can })}</span>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, marginTop: 7 }}>
-                  <span style={{ fontFamily: creaMono, fontSize: 10, color: c.text, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${c.border}` }}>{tr('{n} en stock', { n: stock })}</span>
-                  <span style={{ fontFamily: creaMono, fontSize: 10, color: can === 0 ? c.rose : c.muted, padding: '3px 7px', borderRadius: 999, background: c.panel2, border: `1px solid ${can === 0 ? c.rose : c.border}` }}>{tr('{n} produisibles', { n: can })}</span>
-                </div>
+                {!edit && <span style={{ color: c.mutedSoft, display: 'flex', marginLeft: 2 }}><Icon.arrow /></span>}
               </div>
-              <span style={{ color: c.mutedSoft, display: 'flex', marginLeft: 2 }}><Icon.arrow /></span>
+
+              {/* Composition */}
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans, marginBottom: 4 }}>{tr('Composition')}</div>
+                {cost.ingredientLines.length === 0 && (
+                  <div style={{ fontFamily: creaSans, fontSize: 12, color: c.muted, padding: '6px 0' }}>{tr('Aucun composant')}</div>
+                )}
+                {edit
+                  ? cost.ingredientLines.map((ln) => <CreaIngredientEdit key={ln.id} pid={p.id} ln={ln} c={c} store={store} />)
+                  : cost.ingredientLines.map((ln) => (
+                      <div key={ln.id} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, padding: '4px 0' }}>
+                        <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.text, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 999, background: `oklch(0.62 0.16 ${ln.material?.hue || 0})`, marginRight: 7 }} />
+                          {ln.material?.name || '—'}
+                        </span>
+                        <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted, flexShrink: 0 }}>
+                          {fmtNum(ln.qty)} {ln.material?.unit} · {fmtNum(ln.cost)} {t.currency}
+                        </span>
+                      </div>
+                    ))}
+                {edit && (
+                  <button onClick={() => setAddFor(p.id)} style={{
+                    width: '100%', marginTop: 8, padding: '9px', borderRadius: 10, cursor: 'pointer',
+                    border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
+                    fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}><Icon.plus width={15} height={15} /> {tr('Ajouter un composant')}</button>
+                )}
+              </div>
             </div>
           );
         })}
       </div>
+
       <div style={{ padding: '14px 22px 0' }}>
         <button onClick={() => onAdd && onAdd('product')} style={{
           width: '100%', padding: '13px', borderRadius: 14,
@@ -533,6 +605,9 @@ function CreaProducts({ store, dark, t, onOpen, onAdd }) {
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
         }}><Icon.plus width={16} height={16} /> {tr('Nouveau produit')}</button>
       </div>
+
+      {addFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addFor}
+        used={new Set(store.recipeFor(addFor).ingredients.map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
     </div>
   );
 }

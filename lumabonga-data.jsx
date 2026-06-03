@@ -71,6 +71,7 @@ const LB_EN = {
   '{n} entrées': '{n} entries', 'marge': 'margin', 'Tous': 'All',
   // products screen
   'Catalogue': 'Catalog', 'produits actifs': 'active products', 'Nouveau produit': 'New product',
+  'Composition': 'Composition', 'Aucun composant': 'No components', 'Terminé': 'Done', 'Modifier': 'Edit',
   // add sheet
   'Unités vendues': 'Units sold', 'Prix unité ({cur})': 'Unit price ({cur})',
   'Total vente': 'Sale total', 'Marge ({c}/u de coût)': 'Margin ({c}/u cost)',
