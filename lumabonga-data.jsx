@@ -17,6 +17,12 @@ const fmtNum = (n) => {
   return v.toLocaleString('fr-FR').replace(/\u202f|\u00a0/g, ' ');
 };
 const fmtMoney = (n, cur = 'IDR') => `${fmtNum(n)} ${cur}`;
+// Quantity with up to 1 decimal (so small amounts don't round to 0).
+const fmtQty = (n) => {
+  const v = Number(n) || 0;
+  const s = (Math.round(v * 10) / 10).toLocaleString('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+  return s.replace(/ | /g, ' ');
+};
 const fmtShort = (n) => {
   const v = Math.round(Number(n) || 0);
   if (Math.abs(v) >= 1_000_000) return (v / 1_000_000).toFixed(1).replace('.0', '') + 'M';
@@ -373,6 +379,16 @@ const SEED_RECIPES = {
 
 const LABOR_PRESETS = ['Mélange', 'Chauffe & mélange', 'Coulage', 'Conditionnement', 'Étiquetage', 'Teinture', 'Impression cire', 'Contrôle qualité', 'Transport'];
 
+// ── Units: grams-equivalent scale (density ~1; 15 drops = 1 ml = 1 g) ─────────
+const UNIT_G = { g: 1, kg: 1000, ml: 1, l: 1000, cl: 10, goutte: 1 / 15, 'pièce': 1, m: 1 };
+// Units every recipe component can be expressed in.
+const COMPONENT_UNITS = ['g', 'cl', 'ml', 'goutte'];
+// Convert a quantity from one unit to another (same physical scale).
+const convertUnit = (qty, fromU, toU) => {
+  const f = UNIT_G[fromU] ?? 1, tg = UNIT_G[toU] ?? 1;
+  return (Number(qty) || 0) * f / tg;
+};
+
 // ── Material categories (for grouped pickers) ────────────────
 // Explicit cat wins; else inferred from the name. Order: wax, oil, eo, other.
 const MATERIAL_CATS = ['wax', 'oil', 'eo', 'other'];
@@ -529,6 +545,9 @@ function useLumaStore(seed, shareLumaya) {
     ({ ...r, ingredients: [...r.ingredients, { id: rid('i_'), materialId, qty }] }));
   const updateIngredientQty = (pid, id, qty) => editRecipe(pid, (r) =>
     ({ ...r, ingredients: r.ingredients.map((i) => i.id === id ? { ...i, qty: Math.max(0, qty) } : i) }));
+  // Patch a recipe line (qty stored in base unit; `unit` = display unit only).
+  const updateIngredient = (pid, id, patch) => editRecipe(pid, (r) =>
+    ({ ...r, ingredients: r.ingredients.map((i) => i.id === id ? { ...i, ...patch } : i) }));
   const removeIngredient = (pid, id) => editRecipe(pid, (r) =>
     ({ ...r, ingredients: r.ingredients.filter((i) => i.id !== id) }));
   const addLabor = (pid, labor) => editRecipe(pid, (r) =>
@@ -784,7 +803,7 @@ function useLumaStore(seed, shareLumaya) {
     productById, materialById, materialPrices, totals,
     recipes, recipeFor, unitCostFor,
     materialStock, finishedStock, producibleFor, bottleneckFor,
-    addIngredient, updateIngredientQty, removeIngredient,
+    addIngredient, updateIngredientQty, updateIngredient, removeIngredient,
     addLabor, updateLabor, removeLabor,
   };
 }
@@ -927,6 +946,7 @@ Object.assign(window, {
   SEED_MATERIALS, SEED_RECIPES, SEED_PRODUCTION, STOCK0_BY_UNIT, LABOR_PRESETS,
   materialPricePoints, materialPriceAt, materialCurrentPrice, recipeCost, costSeries,
   useLumaStore, Icon, AnimatedNumber,
-  tr, setLbLang,
+  tr, setLbLang, fmtQty,
   materialCat, groupedMaterials, MATERIAL_CAT_LABELS,
+  UNIT_G, COMPONENT_UNITS, convertUnit,
 });

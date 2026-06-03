@@ -506,17 +506,15 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
 
 // One editable ingredient line: type the quantity + pick the unit (no steppers).
 function CreaIngredientEdit({ pid, ln, c, store }) {
+  // qty is stored in the material's base unit; `ln.unit` is the chosen display unit.
   const base = ln.material?.unit || 'g';
-  const units = buyUnitsFor(base);
-  const [unit, setUnit] = React.useState(base);
-  // Displayed value = stored base qty expressed in the chosen unit.
-  const shown = (Number(ln.qty) || 0) / buyFactor(base, unit);
-  const [val, setVal] = React.useState(String(shown));
-  React.useEffect(() => { setVal(String((Number(ln.qty) || 0) / buyFactor(base, unit))); }, [ln.qty, unit]);
+  const unit = COMPONENT_UNITS.includes(ln.unit) ? ln.unit : (COMPONENT_UNITS.includes(base) ? base : 'g');
+  const [val, setVal] = React.useState(String(Math.round(convertUnit(ln.qty, base, unit) * 10) / 10));
+  React.useEffect(() => { setVal(String(Math.round(convertUnit(ln.qty, base, unit) * 10) / 10)); }, [ln.qty, unit]);
   const commit = (raw, u) => {
     const q = Number(raw);
     if (!isFinite(q)) return;
-    store.updateIngredientQty(pid, ln.id, q * buyFactor(base, u));
+    store.updateIngredient(pid, ln.id, { qty: convertUnit(q, u, base), unit: u });
   };
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderTop: `1px solid ${c.borderSoft}` }}>
@@ -527,9 +525,9 @@ function CreaIngredientEdit({ pid, ln, c, store }) {
         onBlur={(e) => commit(e.target.value, unit)}
         onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
         style={{ width: 64, textAlign: 'right', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 8px', fontFamily: creaMono, fontSize: 13, outline: 'none' }} />
-      <select value={unit} onChange={(e) => { setUnit(e.target.value); commit(val, e.target.value); }}
+      <select value={unit} onChange={(e) => commit(val, e.target.value)}
         style={{ background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 4px', fontFamily: creaMono, fontSize: 12, cursor: 'pointer' }}>
-        {units.map((x) => <option key={x.u} value={x.u} style={{ background: c.panel, color: c.text }}>{x.u}</option>)}
+        {COMPONENT_UNITS.map((u) => <option key={u} value={u} style={{ background: c.panel, color: c.text }}>{u}</option>)}
       </select>
       <button onClick={() => store.removeIngredient(pid, ln.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex' }}><Icon.trash /></button>
     </div>
@@ -659,9 +657,15 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                           <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 999, background: `oklch(0.62 0.16 ${ln.material?.hue || 0})`, marginRight: 7 }} />
                           {ln.material?.name || '—'}
                         </span>
-                        <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted, flexShrink: 0 }}>
-                          {fmtNum(ln.qty)} {ln.material?.unit} · {fmtNum(ln.cost)} {t.currency}
-                        </span>
+                        {(() => {
+                          const base = ln.material?.unit || 'g';
+                          const du = COMPONENT_UNITS.includes(ln.unit) ? ln.unit : base;
+                          return (
+                            <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted, flexShrink: 0 }}>
+                              {fmtQty(convertUnit(ln.qty, base, du))} {du} · {fmtNum(ln.cost)} {t.currency}
+                            </span>
+                          );
+                        })()}
                       </div>
                     ))}
                 {edit && (
