@@ -57,8 +57,10 @@ function CreaPurchases({ store, dark, t, onEdit, onAdd }) {
   const [seg, setSeg] = React.useState('mat');
   const [orgF, setOrgF] = React.useState('all');
   const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
-  const purchases = orgF === 'all' ? store.purchases : store.purchases.filter((p) => orgOf(p) === orgF);
-  const costs = orgF === 'all' ? store.costs : store.costs.filter((x) => orgOf(x) === orgF);
+  const periodScoped = store.period && store.period !== 'all';
+  const inPeriod = (d) => !periodScoped || (d || '').slice(0, 7) === store.period;
+  const purchases = store.purchases.filter((p) => inPeriod(p.date)).filter((p) => orgF === 'all' || orgOf(p) === orgF);
+  const costs = store.costs.filter((x) => inPeriod(x.date)).filter((x) => orgF === 'all' || orgOf(x) === orgF);
   const matTotal = purchases.reduce((a, p) => a + (Number(p.qty) || 0) * (Number(p.price) || 0), 0);
   const chTotal = costs.reduce((a, x) => a + x.amount, 0);
 
@@ -200,7 +202,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
+                        <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
                           {fmtNum(stock)} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>{m.unit}</span>
                         </span>
                       </div>
@@ -252,7 +254,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
                     display: 'flex', alignItems: 'center', gap: 5,
                   }}>
-                    <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 20, color: store.productAdj[p.id] != null ? c.accent : (stock <= 5 ? c.amber : c.text) }}>
+                    <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 20, color: store.productAdj[p.id] != null ? c.accent : (stock <= 5 ? c.amber : c.text) }}>
                       {stock} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>u</span>
                     </span>
                     <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={14} height={14} /></span>
@@ -281,7 +283,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
                     <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500 }}>{p?.name || '—'}</div>
                     <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>{fmtDate(it.date)}{it.who ? ` · ${it.who}` : ''}</div>
                   </div>
-                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 17, color: c.rose }}>+{it.qty} u</div>
+                  <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 17, color: c.rose }}>+{it.qty} u</div>
                   <StkRowActions c={c} onEdit={() => onEdit('production', it)} onDelete={() => store.removeProduction(it.id)} />
                 </div>
               );

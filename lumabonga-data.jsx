@@ -2,7 +2,7 @@
 // Shared state, formatters and seed data for the LumaBonga prototype.
 
 const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
-  "dark": true,
+  "dark": false,
   "lumayaShare": 70,
   "currency": "IDR",
   "accent": "#7dd3a0",
@@ -532,6 +532,8 @@ function useLumaStore(seed, shareLumaya) {
   // forced to this value instead of the derived one (used to match reality).
   const [materialAdj, setMaterialAdj] = React.useState(saved?.materialAdj || {});
   const [productAdj, setProductAdj] = React.useState(saved?.productAdj || {});
+  // Selected reporting period: 'YYYY-MM' (a month) or 'all'. Default = current month.
+  const [period, setPeriod] = React.useState(() => todayISO().slice(0, 7));
 
   // recipes: give every ingredient/labor line a stable id for editing & keys
   const withIds = (recipes) => {
@@ -755,8 +757,8 @@ function useLumaStore(seed, shareLumaya) {
     const marge = ventes > 0 ? (profit / ventes) * 100 : 0;
 
     // This-month figures (dated in the current calendar month).
-    const ym = todayISO().slice(0, 7);
-    const inMonth = (d) => (d || '').slice(0, 7) === ym;
+    const ym = (period && period !== 'all') ? period : null;
+    const inMonth = (d) => ym ? ((d || '').slice(0, 7) === ym) : true;
     let ventesM = 0, cogsM = 0, chargesM = 0, achatsM = 0;
     for (const s of sales) if (inMonth(s.date)) { ventesM += s.qty * s.price; cogsM += cogsOf(s); }
     for (const c of costs) if (inMonth(c.date)) chargesM += c.amount;
@@ -797,15 +799,24 @@ function useLumaStore(seed, shareLumaya) {
 
     return {
       ventes, achats, charges, cogs, profit, marge,
-      profitMonth, margeMonth, ventesM, achatsM, deltaStockMonth,
+      profitMonth, margeMonth, ventesM, achatsM, chargesM, cogsM, deltaStockMonth,
       valMatieres, valProduits, valStock: valMatieres + valProduits,
       entitled, held, balance,
     };
-  }, [sales, purchases, costs, settlements, recipes, materialById, materials, products, materialStock, finishedStock, materialPrices, unitCostFor, cogsOf, shareLumaya]);
+  }, [sales, purchases, costs, settlements, recipes, materialById, materials, products, materialStock, finishedStock, materialPrices, unitCostFor, cogsOf, shareLumaya, period]);
+
+  // Distinct months present in the ledger (newest first); current month always included.
+  const availableMonths = React.useMemo(() => {
+    const set = new Set([todayISO().slice(0, 7)]);
+    for (const arr of [sales, purchases, costs, production, settlements])
+      for (const x of arr) if (x && x.date) set.add(String(x.date).slice(0, 7));
+    return Array.from(set).sort((a, b) => (a < b ? 1 : -1));
+  }, [sales, purchases, costs, production, settlements]);
 
   return {
     products, sales, purchases, costs, production, activeUser, materials, settlements,
     materialAdj, productAdj,
+    period, setPeriod, availableMonths,
     setActiveUser,
     addProduct, updateProduct, removeProduct,
     addMaterial, updateMaterial, removeMaterial,

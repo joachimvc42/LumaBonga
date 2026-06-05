@@ -195,7 +195,7 @@ function ProdSheet({ title, c, onClose, children }) {
       }}>
         <div style={{ width: 36, height: 4, background: c.border, borderRadius: 2, margin: '0 auto' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 26, color: c.text }}>{title}</div>
+          <div style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 26, color: c.text }}>{title}</div>
           <button onClick={onClose} style={{
             background: c.panel2, border: `1px solid ${c.border}`, color: c.muted,
             width: 32, height: 32, borderRadius: 999, cursor: 'pointer',
@@ -215,7 +215,7 @@ function ProdRowSection({ title, total, t, c, onAdd }) {
       display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
       marginTop: 22, marginBottom: 6,
     }}>
-      <div style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 20, color: c.text }}>{title}</div>
+      <div style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 20, color: c.text }}>{title}</div>
       <div style={{ fontFamily: prodMono, fontSize: 12, color: c.muted }}>{fmtNum(total)} {t.currency}</div>
     </div>
   );
@@ -247,7 +247,7 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
       display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0,
     }}>
       <div style={{ fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{label}</div>
-      <div style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: big ? 26 : 22, color: color || c.text, letterSpacing: -0.4, lineHeight: 1 }}>
+      <div style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: big ? 26 : 22, color: color || c.text, letterSpacing: -0.4, lineHeight: 1 }}>
         <AnimatedNumber value={value} format={fmtNum} />{suffix}
       </div>
     </div>
@@ -278,7 +278,7 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
           fontFamily: prodMono, fontSize: 20, fontWeight: 700,
         }}>{product.emoji}</div>
         <div style={{ minWidth: 0 }}>
-          <div style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 30, color: c.text, lineHeight: 1.05, letterSpacing: -0.5 }}>{product.name}</div>
+          <div style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 30, color: c.text, lineHeight: 1.05, letterSpacing: -0.5 }}>{product.name}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 3 }}>
             {editPrice ? (
               <input autoFocus type="number" inputMode="decimal" defaultValue={sell}
@@ -315,12 +315,12 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
       }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <span style={{ fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr('En stock')}</span>
-          <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: c.text, lineHeight: 1 }}>{stock} <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>u</span></span>
+          <span style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 22, color: c.text, lineHeight: 1 }}>{stock} <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>u</span></span>
         </div>
         <div style={{ width: 1, alignSelf: 'stretch', background: c.border }} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minWidth: 0 }}>
           <span style={{ fontSize: 9.5, letterSpacing: 0.6, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr('Produisibles')}</span>
-          <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: can === 0 ? c.rose : c.text, lineHeight: 1 }}>{can} <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>u</span></span>
+          <span style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 22, color: can === 0 ? c.rose : c.text, lineHeight: 1 }}>{can} <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>u</span></span>
           {bn && <span style={{ fontFamily: prodMono, fontSize: 9.5, color: c.mutedSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tr('limité par {name}', { name: store.materialById[bn.materialId]?.name })}</span>}
         </div>
         <button onClick={onProduce} style={{
@@ -363,7 +363,7 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
                   <span style={{ width: 9, height: 9, borderRadius: 999, background: `oklch(0.62 0.16 ${ln.material?.hue || 0})`, flexShrink: 0 }} />
                   <span style={{ fontFamily: prodSans, fontSize: 14, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ln.material?.name || '—'}</span>
                 </div>
-                <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 17, color: c.text, flexShrink: 0 }}>{fmtNum(ln.cost)} <span style={{ fontFamily: prodMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span></span>
+                <span style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 17, color: c.text, flexShrink: 0 }}>{fmtNum(ln.cost)} <span style={{ fontFamily: prodMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span></span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <ProdStepper value={ln.qty} step={stepFor(ln.material?.unit)} suffix={ln.material?.unit}
@@ -396,7 +396,7 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
                   <span style={{ color: c.amber, display: 'flex', flexShrink: 0 }}><Icon.clock width={16} height={16} /></span>
                   <span style={{ fontFamily: prodSans, fontSize: 14, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ln.task}</span>
                 </div>
-                <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 17, color: c.amber, flexShrink: 0 }}>{fmtNum(ln.cost)}</span>
+                <span style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 17, color: c.amber, flexShrink: 0 }}>{fmtNum(ln.cost)}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                 <ProdStepper value={ln.minutes} step={1} suffix="min"
@@ -431,11 +431,11 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
         <div style={{ height: 1, background: c.border, margin: '4px 0 12px' }} />
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
           <span style={{ fontFamily: prodSans, fontSize: 13, color: c.text, fontWeight: 600 }}>{tr('Coût total / unité')}</span>
-          <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: c.text }}>{fmtNum(cost.total)} <span style={{ fontFamily: prodMono, fontSize: 12, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span></span>
+          <span style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 22, color: c.text }}>{fmtNum(cost.total)} <span style={{ fontFamily: prodMono, fontSize: 12, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span></span>
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
           <span style={{ fontFamily: prodSans, fontSize: 13, color: c.text, fontWeight: 600 }}>{tr('Marge par unité')}</span>
-          <span style={{ fontFamily: prodDisplay, fontStyle: 'italic', fontSize: 22, color: margin >= 0 ? c.accent : c.rose }}>
+          <span style={{ fontFamily: prodDisplay, fontStyle: 'normal', fontSize: 22, color: margin >= 0 ? c.accent : c.rose }}>
             {margin >= 0 ? '+' : '−'}{fmtNum(Math.abs(margin))} <span style={{ fontFamily: prodMono, fontSize: 12, color: c.muted, fontStyle: 'normal' }}>{t.currency} · {Math.round(marginPct)}%</span>
           </span>
         </div>

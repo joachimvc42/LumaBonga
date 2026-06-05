@@ -1,31 +1,46 @@
 // lumabonga-creative.jsx
 // Variation B — Créatif: sculptural mobile UI with display type, vessels, and beads.
 
-const creaTheme = (dark, accent) => ({
-  bg: dark ? '#08080b' : '#f6f4ef',
-  bg2: dark ? '#0e0f14' : '#ffffff',
-  panel: dark ? '#13141b' : '#ffffff',
-  panel2: dark ? '#1a1c25' : '#f0eee6',
-  border: dark ? '#23252f' : '#e2dfd4',
-  borderSoft: dark ? '#1a1c25' : '#ece9df',
-  text: dark ? '#f3f1ea' : '#15171c',
-  muted: dark ? '#8c8f9a' : '#5a5e68',
-  mutedSoft: dark ? '#5d6068' : '#9aa0a8',
-  accent: accent || '#7dd3a0',
-  purple: '#c4a8ff',
-  amber: '#f5c451',
-  rose: '#f48fb1',
-  ink: dark ? '#f3f1ea' : '#15171c',
-  inkContrast: dark ? '#08080b' : '#f6f4ef',
-});
+// ── Ledger theme ─────────────────────────────────────────────
+// Clean light fintech palette (default), with a refined dark variant kept for
+// the dark-mode toggle. All token keys preserved so every screen keeps working.
+// The accent picker stores light pastels (great on dark); on the light theme we
+// map each to a deeper, readable shade.
+const ACCENT_LIGHT = {
+  '#7dd3a0': '#1f7a5a', // sage → forest green
+  '#8db4ff': '#2563c9', // blue
+  '#f5c451': '#b5811d', // amber
+  '#c4a8ff': '#5b54c9', // lavender
+  '#f48fb1': '#c2456a', // pink
+};
+const creaTheme = (dark, accent) => {
+  const acc = dark ? (accent || '#7dd3a0') : (ACCENT_LIGHT[accent] || accent || '#1f7a5a');
+  return {
+    bg:         dark ? '#0e0f13' : '#f4f5f7',
+    bg2:        dark ? '#16181f' : '#ffffff',
+    panel:      dark ? '#16181f' : '#ffffff',
+    panel2:     dark ? '#1e212a' : '#f0f2f5',
+    border:     dark ? '#262a35' : '#e7e9ee',
+    borderSoft: dark ? '#1e212a' : '#eef0f3',
+    text:       dark ? '#f3f4f7' : '#10131a',
+    muted:      dark ? '#8b91a0' : '#5b6472',
+    mutedSoft:  dark ? '#5b6170' : '#9aa3b2',
+    accent:     acc,
+    purple:     dark ? '#c4a8ff' : '#5b54c9',
+    amber:      dark ? '#f5c451' : '#b5811d',
+    rose:       dark ? '#f48fb1' : '#d2483f',
+    pos:        dark ? '#7dd3a0' : '#138a5e',
+    ink:        dark ? '#f3f4f7' : '#10131a',
+    inkContrast: dark ? '#0e0f13' : '#ffffff',
+  };
+};
 
 const creaSerif = '"Fraunces", "Playfair Display", "Source Serif Pro", Georgia, serif';
-const creaSans = '-apple-system, "Inter", "SF Pro Text", system-ui, sans-serif';
+const creaSans = '"Hanken Grotesk", "Inter", -apple-system, system-ui, sans-serif';
 const creaMono = '"JetBrains Mono", "SF Mono", "Geist Mono", ui-monospace, monospace';
 
-// Actually per default-aesthetic guidance avoid Fraunces. Switch hero to a clean grotesque.
-const creaDisplay = '"Instrument Serif", "Bodoni Moda", Georgia, serif'; // editorial display
-// fallback: this loads from google later but if not loaded, falls back to Georgia. We can also try a strong sans.
+// Ledger display face: a clean grotesque for headings + big figures (no italic).
+const creaDisplay = '"Schibsted Grotesk", "Hanken Grotesk", "Inter", system-ui, sans-serif';
 
 // Purchase-unit options with a factor converting the entered quantity INTO the
 // material's base unit. Mass and volume share one list (density ~1 → 1 ml = 1 g),
@@ -45,26 +60,84 @@ const BUY_UNITS = {
 const buyUnitsFor = (base) => BUY_UNITS[base] || [{ u: base || 'pièce', f: 1 }];
 const buyFactor = (base, u) => (buyUnitsFor(base).find((x) => x.u === u) || { f: 1 }).f;
 
+// ── Month / period picker ────────────────────────────────────
+function periodLabel(p) {
+  if (!p || p === 'all') return tr('Tout');
+  const [y, m] = p.split('-').map(Number);
+  const s = new Date(y, m - 1, 1).toLocaleDateString(LB_LOCALE, { month: 'long', year: 'numeric' });
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+function CreaMonthPicker({ store, dark, t }) {
+  const c = creaTheme(dark, t.accent);
+  const [open, setOpen] = React.useState(false);
+  const opts = [...(store.availableMonths || []), 'all'];
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setOpen((v) => !v)} style={{
+        display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
+        background: c.panel, border: `1px solid ${c.border}`, borderRadius: 999,
+        color: c.text, cursor: 'pointer', fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
+      }}>
+        {periodLabel(store.period)}
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke={c.mutedSoft} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform .2s' }}><path d="M6 9l6 6 6-6"/></svg>
+      </button>
+      {open && (
+        <React.Fragment>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 41,
+            background: c.bg2, border: `1px solid ${c.border}`, borderRadius: 14,
+            boxShadow: dark ? '0 12px 32px rgba(0,0,0,.5)' : '0 12px 32px rgba(16,19,26,.12)',
+            padding: 6, minWidth: 168, maxHeight: 280, overflowY: 'auto',
+          }}>
+            {opts.map((p) => {
+              const sel = store.period === p;
+              return (
+                <button key={p} onClick={() => { store.setPeriod(p); setOpen(false); }} style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                  padding: '9px 11px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                  background: sel ? c.panel2 : 'transparent', color: c.text,
+                  fontFamily: creaSans, fontSize: 13, fontWeight: sel ? 700 : 500, textAlign: 'left',
+                }}>
+                  {periodLabel(p)}
+                  {sel && <span style={{ color: c.accent, display: 'flex' }}><Icon.check width={15} height={15} /></span>}
+                </button>
+              );
+            })}
+          </div>
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
 // ── Top bar ──────────────────────────────────────────────────
 function CreaTopBar({ store, dark, t, onAdd }) {
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '6px 20px 14px',
+      padding: '6px 20px 14px', gap: 10,
     }}>
-      {/* spacer to keep the title centred (mirrors the + button width) */}
-      <div style={{ width: 34, height: 34 }} />
-      <div style={{ fontFamily: creaSans, fontSize: 11, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase' }}>
-        Luma · Bonga
+      <div style={{ display: 'flex', alignItems: 'center', gap: 9, minWidth: 0 }}>
+        <div style={{
+          width: 28, height: 28, borderRadius: 8, flexShrink: 0,
+          background: c.accent, color: '#fff',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontFamily: creaDisplay, fontSize: 12, fontWeight: 700, letterSpacing: -0.5,
+        }}>LB</div>
+        <span style={{ fontFamily: creaDisplay, fontSize: 17, fontWeight: 700, color: c.text, letterSpacing: -0.3 }}>LumaBonga</span>
       </div>
-      <button onClick={onAdd} style={{
-        width: 34, height: 34, borderRadius: 999,
-        background: c.ink, color: c.inkContrast, border: 'none', cursor: 'pointer',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <Icon.plus />
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+        <CreaMonthPicker store={store} dark={dark} t={t} />
+        <button onClick={onAdd} aria-label="+" style={{
+          width: 34, height: 34, borderRadius: 999,
+          background: c.ink, color: c.inkContrast, border: 'none', cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Icon.plus />
+        </button>
+      </div>
     </div>
   );
 }
@@ -116,39 +189,26 @@ function CreaVessels({ balance, t, dark, onSettle }) {
   );
 }
 
-// ── Hero (display number with halo) ──────────────────────────
-function CreaHero({ label, value, sub, t, dark, color }) {
+// ── Hero (clean Ledger header block) ─────────────────────────
+function CreaHero({ label, value, sub, t, dark, color, unit }) {
   const c = creaTheme(dark, t.accent);
   const k = color || c.accent;
+  const u = unit != null ? unit : t.currency;
   return (
-    <div style={{
-      position: 'relative', padding: '14px 22px 14px',
-      display: 'flex', flexDirection: 'column', gap: 8,
-    }}>
-      {/* halo */}
-      <div style={{
-        position: 'absolute', inset: 0, pointerEvents: 'none',
-        background: `radial-gradient(ellipse 80% 60% at 30% 50%, ${k}22, transparent 70%)`,
-        filter: 'blur(6px)',
-      }} />
-      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 8 }}>
+    <div style={{ padding: '6px 22px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
         <span style={{ width: 6, height: 6, borderRadius: 999, background: k }} />
-        <span style={{ fontFamily: creaSans, fontSize: 11, color: c.muted, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 600 }}>
+        <span style={{ fontFamily: creaSans, fontSize: 11, color: c.muted, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 600 }}>
           {label}
         </span>
       </div>
-      <div style={{
-        position: 'relative',
-        fontFamily: creaDisplay,
-        fontSize: 56, lineHeight: 0.95, color: c.text,
-        letterSpacing: -2, fontWeight: 400, fontStyle: 'italic',
-      }}>
-        <AnimatedNumber value={value} format={fmtNum} />
-      </div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-        <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted, letterSpacing: 0.5 }}>{t.currency}</span>
-        {sub && <span style={{ fontFamily: creaSans, fontSize: 12, color: c.muted }}>{sub}</span>}
+        <span style={{ fontFamily: creaDisplay, fontSize: 40, fontWeight: 700, color: c.text, letterSpacing: -1.2, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+          <AnimatedNumber value={value} format={fmtNum} />
+        </span>
+        {u ? <span style={{ fontFamily: creaMono, fontSize: 12, color: c.mutedSoft }}>{u}</span> : null}
       </div>
+      {sub && <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.muted, fontWeight: 500 }}>{sub}</span>}
     </div>
   );
 }
@@ -158,14 +218,11 @@ function CreaSection({ title, right, dark, t }) {
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      padding: '0 22px', marginTop: 24, marginBottom: 10,
+      display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+      padding: '0 22px', marginTop: 22, marginBottom: 10,
     }}>
-      <div style={{
-        fontFamily: creaDisplay, fontSize: 22, fontStyle: 'italic',
-        color: c.text, letterSpacing: -0.4,
-      }}>{title}</div>
-      {right && <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted }}>{right}</div>}
+      <div style={{ fontFamily: creaDisplay, fontSize: 17, fontWeight: 700, color: c.text, letterSpacing: -0.3 }}>{title}</div>
+      {right && <div style={{ fontFamily: creaSans, fontSize: 12, color: c.mutedSoft, fontWeight: 500 }}>{right}</div>}
     </div>
   );
 }
@@ -213,7 +270,7 @@ function CreaBead({ item, store, dark, t, isLast }) {
           <span style={{ fontFamily: creaSans, fontSize: 15, color: c.text, fontWeight: 500 }}>
             {title}
           </span>
-          <span style={{ fontFamily: creaDisplay, fontSize: 18, fontStyle: 'italic', color }}>
+          <span style={{ fontFamily: creaDisplay, fontSize: 18, fontStyle: 'normal', color }}>
             {isProd ? `${item.qty} u` : `${sign}${fmtShort(amount)}`}
           </span>
         </div>
@@ -228,20 +285,63 @@ function CreaBead({ item, store, dark, t, isLast }) {
   );
 }
 
+// ── Area trend chart (monthly) ───────────────────────────────
+function CreaAreaTrend({ data, color, c, w = 326, h = 56 }) {
+  if (!data || data.length < 2) return <div style={{ height: h }} />;
+  const vals = data.map((d) => d.v);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const span = Math.max(1, max - min);
+  const lo = min - span * 0.25, hi = max + span * 0.25;
+  const X = (i) => (i / (data.length - 1)) * w;
+  const Y = (v) => h - 4 - ((v - lo) / (hi - lo)) * (h - 8);
+  const line = data.map((d, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)},${Y(d.v).toFixed(1)}`).join(' ');
+  const area = `${line} L${w},${h} L0,${h} Z`;
+  const gid = 'tr' + Math.round(w) + Math.round(color.charCodeAt(1) || 0);
+  return (
+    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" style={{ display: 'block' }}>
+      <defs><linearGradient id={gid} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stopColor={color} stopOpacity="0.34" />
+        <stop offset="100%" stopColor={color} stopOpacity="0" />
+      </linearGradient></defs>
+      <path d={area} fill={`url(#${gid})`} />
+      <path d={line} fill="none" stroke={color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={X(data.length - 1)} cy={Y(vals[vals.length - 1])} r="3.4" fill={color} />
+    </svg>
+  );
+}
+
 // ── Screen: Dashboard ────────────────────────────────────────
 function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
   const c = creaTheme(dark, t.accent);
   const { totals } = store;
   const [showSettlements, setShowSettlements] = React.useState(false);
+  const periodScoped = store.period && store.period !== 'all';
+  const inPeriod = (d) => !periodScoped || (d || '').slice(0, 7) === store.period;
+
   const recent = React.useMemo(() => {
     const a = store.sales.map((x) => ({ ...x, kind: 'sale' }));
     const b = store.purchases.map((x) => ({ ...x, kind: 'buy' }));
     const d = store.costs.map((x) => ({ ...x, kind: 'cost' }));
     const e = store.production.map((x) => ({ ...x, kind: 'prod' }));
-    return [...a, ...b, ...d, ...e].sort((x, y) => (y.date > x.date ? 1 : -1)).slice(0, 7);
-  }, [store.sales, store.purchases, store.costs, store.production]);
+    return [...a, ...b, ...d, ...e].filter((x) => inPeriod(x.date)).sort((x, y) => (y.date > x.date ? 1 : -1)).slice(0, 7);
+  }, [store.sales, store.purchases, store.costs, store.production, store.period]);
 
-  // low-stock alerts: products that can no longer be produced much
+  // Last 6 calendar months of cash-basis profit (ventes − achats − charges).
+  const trend = React.useMemo(() => {
+    const now = new Date();
+    const out = [];
+    for (let i = 5; i >= 0; i--) {
+      const dt = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const ym = dt.toISOString().slice(0, 7);
+      let v = 0;
+      for (const s of store.sales) if ((s.date || '').slice(0, 7) === ym) v += s.qty * s.price;
+      for (const p of store.purchases) if ((p.date || '').slice(0, 7) === ym) v -= (Number(p.qty) || 0) * (Number(p.price) || 0);
+      for (const x of store.costs) if ((x.date || '').slice(0, 7) === ym) v -= Number(x.amount) || 0;
+      out.push({ ym, v });
+    }
+    return out;
+  }, [store.sales, store.purchases, store.costs]);
+
   const alerts = React.useMemo(() => {
     return store.products
       .map((p) => ({ p, can: store.producibleFor(p.id) }))
@@ -250,71 +350,81 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
       .slice(0, 3);
   }, [store.products, store.producibleFor]);
 
-  // One metric row = this-month value (left) + total value (right).
-  const MetricRow = ({ label, monthLabel, monthValue, totalLabel, totalValue, accent, prominent }) => (
-    <div style={{ padding: prominent ? '8px 22px 0' : '0 22px' }}>
-      <div style={{ fontSize: 10, color: accent || c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700, fontFamily: creaSans, marginBottom: 4 }}>{label}</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-        <div style={{ padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}` }}>
-          <div style={{ fontSize: 9, color: c.mutedSoft, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{monthLabel}</div>
-          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: prominent ? 30 : 22, color: c.text, lineHeight: 1.1 }}>
-            <AnimatedNumber value={monthValue} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
-          </div>
-        </div>
-        <div style={{ padding: '10px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}` }}>
-          <div style={{ fontSize: 9, color: c.mutedSoft, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 600, fontFamily: creaSans }}>{totalLabel}</div>
-          <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: prominent ? 30 : 22, color: c.text, lineHeight: 1.1 }}>
-            <AnimatedNumber value={totalValue} format={fmtNum} /> <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   // Balance: who must receive money. balance < 0 means that org is owed.
   const owedToLumaya = totals.balance.lumaya < -0.5;
   const owedToGawah = totals.balance.gawah < -0.5;
   const settled = !owedToLumaya && !owedToGawah;
   const creditor = owedToLumaya ? 'Lumaya' : owedToGawah ? 'GawahBonga' : null;
-  const debtor = owedToLumaya ? 'GawahBonga' : owedToGawah ? 'Lumaya' : null;
   const owedAmount = Math.abs(owedToLumaya ? totals.balance.lumaya : totals.balance.gawah);
 
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <MetricRow prominent label={tr('Profit')} accent={c.accent}
-        monthLabel={tr('Ce mois')} monthValue={totals.profitMonth}
-        totalLabel={tr('Total')} totalValue={totals.profit} />
-      <MetricRow label={tr('Ventes')} accent={c.accent}
-        monthLabel={tr('Ce mois')} monthValue={totals.ventesM}
-        totalLabel={tr('Total')} totalValue={totals.ventes} />
-      <MetricRow label={tr('Achats')} accent={c.purple}
-        monthLabel={tr('Ce mois')} monthValue={totals.achatsM}
-        totalLabel={tr('Total')} totalValue={totals.achats} />
-      <MetricRow label={tr('Stock')} accent={c.amber}
-        monthLabel={tr('Δ ce mois')} monthValue={totals.deltaStockMonth}
-        totalLabel={tr('Stock value')} totalValue={totals.valStock} />
+  const card = { background: c.panel, border: `1px solid ${c.border}`, borderRadius: 14 };
+  const kpiTiles = [
+    { l: tr('Ventes'), v: totals.ventesM, dot: c.pos },
+    { l: tr('Achats'), v: totals.achatsM, dot: c.purple },
+    { l: tr('Charges'), v: totals.chargesM, dot: c.amber },
+    { l: tr('Valeur stock'), v: totals.valStock, dot: c.mutedSoft },
+  ];
 
-      {/* Account balance — single line + settlement history */}
-      <div style={{ padding: '0 22px' }}>
-        <div style={{ fontSize: 10, color: c.muted, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700, fontFamily: creaSans, marginBottom: 4 }}>{tr('Balance des comptes')}</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', borderRadius: 12, background: c.panel, border: `1px solid ${c.border}` }}>
+  return (
+    <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* hero card */}
+      <div style={{ ...card, padding: '15px 17px 6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <span style={{ width: 6, height: 6, borderRadius: 999, background: c.accent }} />
+          <span style={{ fontFamily: creaSans, fontSize: 11, fontWeight: 600, color: c.muted, letterSpacing: 0.3 }}>
+            {tr('Profit net')} · {periodLabel(store.period)}
+          </span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 6 }}>
+          <span style={{ fontFamily: creaDisplay, fontSize: 34, fontWeight: 700, color: totals.profitMonth >= 0 ? c.text : c.rose, letterSpacing: -1.2, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+            <AnimatedNumber value={totals.profitMonth} format={fmtNum} />
+          </span>
+          <span style={{ fontFamily: creaMono, fontSize: 12, color: c.mutedSoft }}>{t.currency}</span>
+          <span style={{ marginLeft: 'auto', fontFamily: creaSans, fontSize: 12, fontWeight: 600, color: totals.margeMonth >= 0 ? c.pos : c.rose }}>
+            {tr('marge {p}%', { p: Math.round(totals.margeMonth) })}
+          </span>
+        </div>
+        <div style={{ marginTop: 8, marginLeft: -17, marginRight: -17 }}>
+          <CreaAreaTrend data={trend} color={c.accent} c={c} />
+        </div>
+      </div>
+
+      {/* KPI grid (selected period) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        {kpiTiles.map((k) => (
+          <div key={k.l} style={{ ...card, padding: '12px 13px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ width: 5, height: 5, borderRadius: 999, background: k.dot }} />
+              <span style={{ fontFamily: creaSans, fontSize: 11, fontWeight: 600, color: c.muted }}>{k.l}</span>
+            </div>
+            <div style={{ fontFamily: creaDisplay, fontSize: 19, fontWeight: 700, color: c.text, marginTop: 4, letterSpacing: -0.5, fontVariantNumeric: 'tabular-nums' }}>
+              <AnimatedNumber value={k.v} format={fmtNum} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Account balance */}
+      <div>
+        <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: settled ? c.mutedSoft : c.rose, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             {settled ? (
-              <span style={{ fontFamily: creaSans, fontSize: 14, color: c.muted }}>{tr('Comptes équilibrés')}</span>
+              <span style={{ fontFamily: creaSans, fontSize: 13.5, color: c.muted }}>{tr('Comptes équilibrés')}</span>
             ) : (
-              <span style={{ fontFamily: creaSans, fontSize: 14, color: c.text }}>
-                <b style={{ color: creditor === 'Lumaya' ? c.accent : c.purple }}>{creditor}</b> {tr('doit recevoir')}
-              </span>
-            )}
-            {!settled && (
-              <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 24, color: c.rose, marginTop: 2 }}>
-                {(owedAmount / 1e6).toFixed(3)}M <span style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, fontStyle: 'normal' }}>{t.currency}</span>
-              </div>
+              <React.Fragment>
+                <div style={{ fontFamily: creaSans, fontSize: 12.5, color: c.muted }}>
+                  <b style={{ color: creditor === 'Lumaya' ? c.accent : c.purple }}>{creditor}</b> {tr('doit recevoir')}
+                </div>
+                <div style={{ fontFamily: creaDisplay, fontSize: 18, fontWeight: 700, color: c.text, marginTop: 1, fontVariantNumeric: 'tabular-nums' }}>
+                  {fmtNum(owedAmount)} <span style={{ fontFamily: creaMono, fontSize: 11, color: c.mutedSoft, fontWeight: 400 }}>{t.currency}</span>
+                </div>
+              </React.Fragment>
             )}
           </div>
           <button onClick={() => onAdd && onAdd('settlement')} style={{
-            padding: '9px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
-            background: c.ink, color: c.inkContrast, fontFamily: creaSans, fontSize: 12, fontWeight: 600, flexShrink: 0,
+            padding: '9px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
+            background: c.ink, color: c.inkContrast, fontFamily: creaSans, fontSize: 12.5, fontWeight: 600, flexShrink: 0,
           }}>{tr('Régler')}</button>
         </div>
         {store.settlements.length > 0 && (
@@ -327,7 +437,7 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
           </button>
         )}
         {showSettlements && store.settlements.map((s) => (
-          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 0', borderTop: `1px solid ${c.borderSoft}` }}>
+          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 2px', borderBottom: `1px solid ${c.borderSoft}` }}>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: creaSans, fontSize: 13, color: c.text }}>
                 <b style={{ color: s.from === 'lumaya' ? c.accent : c.purple }}>{s.from === 'lumaya' ? 'Lumaya' : 'GawahBonga'}</b>
@@ -343,36 +453,32 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
         ))}
       </div>
 
+      {/* Low stock */}
       {alerts.length > 0 && (
-        <React.Fragment>
-          <CreaSection title={tr('Stock faible')} right={tr('à produire')} dark={dark} t={t} />
-          <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontFamily: creaDisplay, fontSize: 17, fontWeight: 700, color: c.text, letterSpacing: -0.3 }}>{tr('Stock faible')}</span>
+            <span style={{ fontFamily: creaSans, fontSize: 12, color: c.mutedSoft, fontWeight: 500 }}>{tr('à produire')}</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
             {alerts.map(({ p, can }) => (
-              <div key={p.id} style={{
-                display: 'flex', alignItems: 'center', gap: 12,
-                padding: '12px 14px', borderRadius: 14,
-                background: c.panel, border: `1px solid ${can === 0 ? c.rose : c.border}`,
-              }}>
-                <span style={{ color: can === 0 ? c.rose : c.amber, display: 'flex' }}><Icon.alert /></span>
-                <span style={{ flex: 1, fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{p.name}</span>
-                <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted }}>{tr('{n} en stock', { n: store.finishedStock[p.id] ?? 0 })}</span>
-                <span style={{
-                  fontFamily: creaMono, fontSize: 11, fontWeight: 600,
-                  color: can === 0 ? c.rose : c.amber,
-                  padding: '3px 8px', borderRadius: 999,
-                  background: can === 0 ? `${c.rose}22` : `${c.amber}1c`,
-                }}>{can === 0 ? tr('rupture matières') : tr('{n} produisibles', { n: can })}</span>
+              <div key={p.id} style={{ flex: 1, minWidth: 0, ...card, border: `1px solid ${can === 0 ? (dark ? '#5a3530' : '#f3d6d3') : c.border}`, padding: '10px 11px' }}>
+                <div style={{ fontFamily: creaSans, fontSize: 11.5, fontWeight: 600, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                <div style={{ fontFamily: creaMono, fontSize: 13, fontWeight: 700, color: can === 0 ? c.rose : c.amber, marginTop: 3 }}>{can === 0 ? tr('rupture') : `${can} u`}</div>
               </div>
             ))}
           </div>
-        </React.Fragment>
+        </div>
       )}
 
-      <CreaSection title={tr('Mouvements')} right={tr('{n} récents', { n: recent.length })} dark={dark} t={t} />
-      <div>
-        {recent.map((r, i) => (
-          <CreaBead key={r.id} item={r} store={store} dark={dark} t={t} isLast={i === recent.length - 1} />
-        ))}
+      {/* Activity */}
+      <div style={{ marginLeft: -16, marginRight: -16 }}>
+        <CreaSection title={tr('Mouvements')} right={tr('{n} récents', { n: recent.length })} dark={dark} t={t} />
+        <div>
+          {recent.map((r, i) => (
+            <CreaBead key={r.id} item={r} store={store} dark={dark} t={t} isLast={i === recent.length - 1} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -427,7 +533,11 @@ const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
 function CreaTxScreen({ store, dark, t, kind, onEdit }) {
   const c = creaTheme(dark, t.accent);
   const [orgFilter, setOrgFilter] = React.useState('all');
-  const items = orgFilter === 'all' ? store.sales : store.sales.filter((s) => orgOf(s) === orgFilter);
+  const periodScoped = store.period && store.period !== 'all';
+  const inPeriod = (d) => !periodScoped || (d || '').slice(0, 7) === store.period;
+  const items = store.sales
+    .filter((s) => inPeriod(s.date))
+    .filter((s) => orgFilter === 'all' || orgOf(s) === orgFilter);
   const remove = store.removeSale;
   const total = items.reduce((a, s) => a + s.qty * s.price, 0);
   const color = c.accent;
@@ -455,7 +565,7 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
             background: c.panel, border: `1px solid ${c.border}`,
             display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
           }}>
-            <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, fontWeight: 500 }}>{tp.product?.name}</div>
+            <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 92 }}>{tp.product?.name}</div>
             <div style={{ fontFamily: creaMono, fontSize: 13, fontWeight: 600, color }}>{fmtShort(tp.value)}</div>
           </div>
         ))}
@@ -574,7 +684,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
 
   return (
     <div>
-      <CreaHero label={tr('Catalogue')} value={store.products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} />
+      <CreaHero label={tr('Catalogue')} value={store.products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} unit="" />
       <CreaSection title={tr('Produits')} right={`${store.products.length}`} dark={dark} t={t} />
 
       <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
@@ -608,7 +718,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                       onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                       style={{ width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 10px', fontFamily: creaSans, fontSize: 16, outline: 'none' }} />
                   ) : (
-                    <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text }}>{p.name}</div>
+                    <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: c.text }}>{p.name}</div>
                   )}
                   <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
                     {tr('Vente {x} {cur}', { x: fmtNum(p.unitPrice), cur: t.currency })}
@@ -636,7 +746,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                 ].map((tile) => (
                   <div key={tile.lab} style={{ flex: 1, padding: '9px 11px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}`, minWidth: 0 }}>
                     <div style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tile.lab}</div>
-                    <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 19, color: tile.col, lineHeight: 1.1, whiteSpace: 'nowrap' }}>{tile.val}</div>
+                    <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 19, color: tile.col, lineHeight: 1.1, whiteSpace: 'nowrap' }}>{tile.val}</div>
                   </div>
                 ))}
               </div>
@@ -645,12 +755,12 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, padding: '10px 13px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
                 <div>
                   <div style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tr('En stock')}</div>
-                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: c.text, lineHeight: 1 }}>{stock} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
+                  <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: c.text, lineHeight: 1 }}>{stock} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
                 </div>
                 <div style={{ width: 1, alignSelf: 'stretch', background: c.border }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tr('Produisibles')}</div>
-                  <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 18, color: can === 0 ? c.rose : c.text, lineHeight: 1 }}>{can} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
+                  <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: can === 0 ? c.rose : c.text, lineHeight: 1 }}>{can} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
                   {bn && <div style={{ fontFamily: creaMono, fontSize: 9, color: c.mutedSoft, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{tr('limité par {name}', { name: store.materialById[bn.materialId]?.name })}</div>}
                 </div>
                 {/* Mini cost sparkline (no month labels), inline on the producible row */}
@@ -732,19 +842,20 @@ function CreaNav({ value, onChange, dark, t, role }) {
       position: 'absolute', bottom: 0, left: 0, right: 0,
       padding: '8px 14px 28px',
       background: dark
-        ? 'linear-gradient(180deg, transparent 0%, rgba(8,8,11,0.9) 50%, rgba(8,8,11,1) 80%)'
-        : 'linear-gradient(180deg, transparent 0%, rgba(246,244,239,0.95) 50%, rgba(246,244,239,1) 80%)',
+        ? 'linear-gradient(180deg, transparent 0%, rgba(14,15,19,0.9) 50%, rgba(14,15,19,1) 80%)'
+        : 'linear-gradient(180deg, transparent 0%, rgba(244,245,247,0.95) 50%, rgba(244,245,247,1) 80%)',
     }}>
       <div style={{
         position: 'relative',
         display: 'grid', gridTemplateColumns: `repeat(${tabs.length}, 1fr)`,
         background: c.panel, border: `1px solid ${c.border}`,
         borderRadius: 22, padding: 6, gap: 0,
+        boxShadow: dark ? 'none' : '0 2px 10px rgba(16,19,26,0.05)',
       }}>
         <div style={{
           position: 'absolute', top: 6, left: `calc(6px + ${idx} * ((100% - 12px) / ${tabs.length}))`,
           width: `calc((100% - 12px) / ${tabs.length})`, height: 'calc(100% - 12px)',
-          background: c.ink, borderRadius: 16, zIndex: 0,
+          background: c.accent, borderRadius: 14, zIndex: 0,
           transition: 'left .35s cubic-bezier(.4,1.4,.5,1)',
         }} />
         {tabs.map((tab) => {
@@ -755,7 +866,7 @@ function CreaNav({ value, onChange, dark, t, role }) {
               position: 'relative', zIndex: 1,
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
               padding: '7px 0', border: 'none', background: 'transparent',
-              cursor: 'pointer', color: sel ? c.inkContrast : c.muted,
+              cursor: 'pointer', color: sel ? '#ffffff' : c.muted,
               fontFamily: creaSans, fontSize: 10, fontWeight: 600,
               transition: 'color .2s',
             }}>
@@ -913,7 +1024,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <div>
             <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: 600 }}>{isEdit ? tr('Modifier') : tr('Nouvelle entrée')}</div>
-            <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 30, color: c.text, lineHeight: 1, marginTop: 2 }}>
+            <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 30, color: c.text, lineHeight: 1, marginTop: 2 }}>
               {tr(kind === 'settlement' ? 'Règlement' : kinds.find((k) => k.id === kind)?.label)}
             </div>
           </div>
@@ -969,7 +1080,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={labelStyle}>{tr('Marge ({c}/u de coût)', { c: fmtNum(uc) })}</span>
-                    <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 24, color: marg >= 0 ? c.accent : c.rose }}>{marg >= 0 ? '+' : '−'}{fmtNum(Math.abs(marg))}</span>
+                    <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 24, color: marg >= 0 ? c.accent : c.rose }}>{marg >= 0 ? '+' : '−'}{fmtNum(Math.abs(marg))}</span>
                   </div>
                 </div>
               );
@@ -1026,7 +1137,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 <div style={{ padding: '14px 16px', borderRadius: 16, background: c.panel2, border: `1px dashed ${c.border}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={labelStyle}>{tr('Total facture')}</span>
-                    <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 24, color: c.text }}>{fmtNum(Number(buyTotal))} <span style={{ fontSize: 12, color: c.muted, fontFamily: creaMono, fontStyle: 'normal' }}>{t.currency}</span></span>
+                    <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 24, color: c.text }}>{fmtNum(Number(buyTotal))} <span style={{ fontSize: 12, color: c.muted, fontFamily: creaMono, fontStyle: 'normal' }}>{t.currency}</span></span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <span style={labelStyle}>{tr('Prix calculé / {u}', { u: selMatBase })}</span>

@@ -10,7 +10,7 @@
 <title>LumaBonga</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
 <style>
   html, body {
     margin: 0; padding: 0; height: 100%;
@@ -142,7 +142,7 @@ function SettingsButton({ t, set, dark }) {
             borderTop: `1px solid ${c.border}`,
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 26 }}>{tr('Réglages')}</span>
+              <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 26 }}>{tr('Réglages')}</span>
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: c.muted, cursor: 'pointer' }}><Icon.close /></button>
             </div>
 
@@ -308,7 +308,7 @@ function LoginGate({ onAuthed }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       fontFamily: creaSans, padding: 32,
     }}>
-      <div style={{ fontFamily: creaDisplay, fontStyle: 'italic', fontSize: 44, marginBottom: 4 }}>LumaBonga</div>
+      <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 44, marginBottom: 4 }}>LumaBonga</div>
       <div style={{ fontSize: 12, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 32 }}>Luma · Bonga</div>
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 320 }}>
         <label style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>{tr("Code d'accès")}</label>
