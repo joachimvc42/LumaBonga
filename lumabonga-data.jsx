@@ -141,6 +141,7 @@ const LB_EN = {
   'Données mises à jour — toucher pour recharger': 'Data updated — tap to reload',
   "Code d’accès": 'Access code', 'Entrer': 'Enter', 'Connexion…': 'Connecting…',
   'Code incorrect.': 'Wrong code.', 'Chargement du registre…': 'Loading ledger…',
+  'Serveur injoignable. Réessaie dans un instant.': 'Server unreachable. Try again in a moment.',
   // labor presets
   'Mélange': 'Mixing', 'Chauffe & mélange': 'Heating & mixing', 'Coulage': 'Pouring',
   'Conditionnement': 'Packaging', 'Étiquetage': 'Labeling', 'Teinture': 'Dyeing',

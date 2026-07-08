@@ -293,12 +293,20 @@ function LoginGate({ onAuthed }) {
     setBusy(true); setErr('');
     const sb = window.__sb;
     // Try each known account with the entered code; first that works wins.
-    let ok = false;
+    let ok = false, networkDown = false;
     for (const acct of (window.__SB_ACCOUNTS || [{ email: window.__SB_EMAIL }])) {
-      const { error } = await sb.auth.signInWithPassword({ email: acct.email, password: code });
+      let error;
+      try {
+        ({ error } = await sb.auth.signInWithPassword({ email: acct.email, password: code }));
+      } catch (e) { error = e; } // network/DNS failure throws instead of returning error
       if (!error) { ok = true; break; }
+      // A dead Supabase host surfaces as status 0 / "Failed to fetch", not a real auth rejection.
+      if (error.status === 0 || /fetch/i.test(error.message || '')) networkDown = true;
     }
-    if (!ok) { setErr(tr('Code incorrect.')); setBusy(false); return; }
+    if (!ok) {
+      setErr(networkDown ? tr('Serveur injoignable. Réessaie dans un instant.') : tr('Code incorrect.'));
+      setBusy(false); return;
+    }
     onAuthed();
   };
 
