@@ -112,7 +112,7 @@ function CreaMonthPicker({ store, dark, t }) {
 }
 
 // ── Top bar ──────────────────────────────────────────────────
-function CreaTopBar({ store, dark, t, onAdd }) {
+function CreaTopBar({ store, dark, t, onAdd, readonly }) {
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{
@@ -128,16 +128,18 @@ function CreaTopBar({ store, dark, t, onAdd }) {
         }}>LB</div>
         <span style={{ fontFamily: creaDisplay, fontSize: 17, fontWeight: 700, color: c.text, letterSpacing: -0.3 }}>LumaBonga</span>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-        <CreaMonthPicker store={store} dark={dark} t={t} />
-        <button onClick={onAdd} aria-label="+" style={{
-          width: 34, height: 34, borderRadius: 999,
-          background: c.ink, color: c.inkContrast, border: 'none', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
-          <Icon.plus />
-        </button>
-      </div>
+      {!readonly && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <CreaMonthPicker store={store} dark={dark} t={t} />
+          <button onClick={onAdd} aria-label="+" style={{
+            width: 34, height: 34, borderRadius: 999,
+            background: c.ink, color: c.inkContrast, border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <Icon.plus />
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -676,11 +678,13 @@ function CreaSparkline({ series, c, title }) {
 }
 
 // ── Screen: Products (per-product edit) ──────────────────────────────────────
-function CreaProducts({ store, dark, t, onAdd, onEdit }) {
+function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const c = creaTheme(dark, t.accent);
   const [editId, setEditId] = React.useState(null);  // product currently being edited
   const [addFor, setAddFor] = React.useState(null);  // product id awaiting a component
   const [nameDraft, setNameDraft] = React.useState('');
+  const [sopView, setSopView] = React.useState(null);  // product whose SOP is being viewed
+  const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
 
   return (
     <div>
@@ -720,12 +724,14 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                   ) : (
                     <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: c.text }}>{p.name}</div>
                   )}
-                  <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
-                    {tr('Vente {x} {cur}', { x: fmtNum(p.unitPrice), cur: t.currency })}
-                  </div>
+                  {!readonly && (
+                    <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
+                      {tr('Vente {x} {cur}', { x: fmtNum(p.unitPrice), cur: t.currency })}
+                    </div>
+                  )}
                 </div>
                 {/* Per-product edit / done button */}
-                <button onClick={(e) => {
+                {!readonly && <button onClick={(e) => {
                   e.stopPropagation();
                   if (edit) { setEditId(null); }
                   else { setNameDraft(p.name); setEditId(p.id); }
@@ -734,11 +740,11 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: edit ? c.accent : c.panel2, color: edit ? c.inkContrast : c.muted,
                   border: `1px solid ${edit ? c.accent : c.border}`,
-                }}>{edit ? <Icon.check width={16} height={16} /> : <Icon.edit width={16} height={16} />}</button>
+                }}>{edit ? <Icon.check width={16} height={16} /> : <Icon.edit width={16} height={16} />}</button>}
               </div>
 
               {/* Margin tiles */}
-              <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+              {!readonly && <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 {[
                   { lab: tr('Coût / unité'), val: fmtNum(unitCost), col: c.text },
                   { lab: tr('Marge nette'), val: `${margin >= 0 ? '+' : '−'}${fmtNum(Math.abs(margin))}`, col: margin >= 0 ? c.accent : c.rose },
@@ -749,10 +755,10 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                     <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 19, color: tile.col, lineHeight: 1.1, whiteSpace: 'nowrap' }}>{tile.val}</div>
                   </div>
                 ))}
-              </div>
+              </div>}
 
               {/* Stock + produce strip */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, padding: '10px 13px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
+              {!readonly && <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, padding: '10px 13px', borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
                 <div>
                   <div style={{ fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: creaSans }}>{tr('En stock')}</div>
                   <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: c.text, lineHeight: 1 }}>{stock} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.muted, fontStyle: 'normal' }}>u</span></div>
@@ -769,7 +775,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                   padding: '9px 14px', borderRadius: 999, border: 'none', cursor: 'pointer',
                   background: c.accent, color: c.inkContrast, fontFamily: creaSans, fontSize: 12, fontWeight: 700, flexShrink: 0,
                 }}>{tr('Produire')}</button>
-              </div>
+              </div>}
 
               {/* Composition */}
               <div style={{ marginTop: 12 }}>
@@ -790,7 +796,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                           const du = COMPONENT_UNITS.includes(ln.unit) ? ln.unit : base;
                           return (
                             <span style={{ fontFamily: creaMono, fontSize: 12, color: c.muted, flexShrink: 0 }}>
-                              {fmtQty(convertUnit(ln.qty, base, du, densityFor(ln.material)))} {du} · {fmtNum(ln.cost)} {t.currency}
+                              {fmtQty(convertUnit(ln.qty, base, du, densityFor(ln.material)))} {du}{readonly ? '' : ` · ${fmtNum(ln.cost)} ${t.currency}`}
                             </span>
                           );
                         })()}
@@ -805,22 +811,186 @@ function CreaProducts({ store, dark, t, onAdd, onEdit }) {
                   }}><Icon.plus width={15} height={15} /> {tr('Ajouter un composant')}</button>
                 )}
               </div>
+
+              {/* SOP — production procedure */}
+              {(() => {
+                const hasSop = !!(store.sops[p.id]?.steps?.length);
+                if (!hasSop && readonly) return null;
+                const btn = (label, onClick, solid) => (
+                  <button onClick={onClick} style={{
+                    flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
+                    border: solid ? 'none' : `1px solid ${c.border}`,
+                    background: solid ? c.panel2 : 'transparent',
+                    color: solid ? c.text : c.muted,
+                    fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}><Icon.list width={15} height={15} /> {label}</button>
+                );
+                return (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                    {hasSop && btn(tr('Voir la SOP'), () => setSopView(p), true)}
+                    {!readonly && btn(hasSop ? tr('Éditer la SOP') : tr('Créer la SOP'), () => setSopEdit(p), false)}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
       </div>
 
-      <div style={{ padding: '14px 22px 0' }}>
-        <button onClick={() => onAdd && onAdd('product')} style={{
-          width: '100%', padding: '13px', borderRadius: 14,
-          border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
-          cursor: 'pointer', fontFamily: creaSans, fontSize: 13, fontWeight: 600,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        }}><Icon.plus width={16} height={16} /> {tr('Nouveau produit')}</button>
-      </div>
+      {!readonly && (
+        <div style={{ padding: '14px 22px 0' }}>
+          <button onClick={() => onAdd && onAdd('product')} style={{
+            width: '100%', padding: '13px', borderRadius: 14,
+            border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
+            cursor: 'pointer', fontFamily: creaSans, fontSize: 13, fontWeight: 600,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+          }}><Icon.plus width={16} height={16} /> {tr('Nouveau produit')}</button>
+        </div>
+      )}
 
       {addFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addFor}
         used={new Set(store.recipeFor(addFor).ingredients.map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
+      {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} onClose={() => setSopView(null)} />}
+      {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} onClose={() => setSopEdit(null)} />}
+    </div>
+  );
+}
+
+// ── To-do board ──────────────────────────────────────────────
+// Manual tasks assigned to team members + an automatic "to purchase" list of
+// materials whose stock can't cover 10 units of some product.
+function CreaTodos({ store, dark, t }) {
+  const c = creaTheme(dark, t.accent);
+  const [text, setText] = React.useState('');
+  const [assignee, setAssignee] = React.useState(store.team[0] || '');
+  const [addingMember, setAddingMember] = React.useState(false);
+  const [memberDraft, setMemberDraft] = React.useState('');
+
+  const open = store.todos.filter((x) => !x.done);
+  const done = store.todos.filter((x) => x.done);
+
+  const add = () => {
+    const txt = text.trim();
+    if (!txt || !assignee) return;
+    store.addTodo({ text: txt, assignee });
+    setText('');
+  };
+  const confirmMember = () => {
+    const n = memberDraft.trim();
+    if (n) { store.addTeamMember(n); setAssignee(n); }
+    setMemberDraft(''); setAddingMember(false);
+  };
+
+  const card = { background: c.panel, border: `1px solid ${c.border}`, borderRadius: 14 };
+
+  return (
+    <div>
+      <CreaHero label={tr('Tâches')} value={open.length} sub={tr('à faire')} color={c.amber} t={t} dark={dark} unit="" />
+
+      {/* New task */}
+      <div style={{ padding: '0 22px' }}>
+        <div style={{ ...card, padding: 14 }}>
+          <input value={text} onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') add(); }}
+            placeholder={tr('Nouvelle tâche…')}
+            style={{
+              width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text,
+              border: `1px solid ${c.border}`, borderRadius: 10, padding: '11px 13px',
+              fontFamily: creaSans, fontSize: 14, outline: 'none',
+            }} />
+          <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
+            {tr('Assigner à')}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
+            {store.team.map((name) => {
+              const sel = assignee === name;
+              return (
+                <button key={name} onClick={() => setAssignee(name)} style={{
+                  padding: '6px 13px', borderRadius: 999, cursor: 'pointer',
+                  border: `1px solid ${sel ? c.accent : c.border}`,
+                  background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.text,
+                  fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
+                }}>{name}</button>
+              );
+            })}
+            {addingMember ? (
+              <input value={memberDraft} autoFocus onChange={(e) => setMemberDraft(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') confirmMember(); if (e.key === 'Escape') { setAddingMember(false); setMemberDraft(''); } }}
+                onBlur={confirmMember}
+                placeholder={tr('Nouveau membre…')}
+                style={{
+                  width: 130, background: c.panel2, color: c.text, border: `1px dashed ${c.accent}`,
+                  borderRadius: 999, padding: '6px 13px', fontFamily: creaSans, fontSize: 12.5, outline: 'none',
+                }} />
+            ) : (
+              <button onClick={() => setAddingMember(true)} aria-label={tr('Nouveau membre…')} style={{
+                padding: '6px 11px', borderRadius: 999, cursor: 'pointer',
+                border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
+                fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
+                display: 'flex', alignItems: 'center', gap: 4,
+              }}><Icon.plus width={13} height={13} /></button>
+            )}
+          </div>
+          <button onClick={add} disabled={!text.trim()} style={{
+            width: '100%', marginTop: 12, padding: '12px', borderRadius: 999,
+            cursor: text.trim() ? 'pointer' : 'default', border: 'none',
+            background: c.accent, color: c.inkContrast, opacity: text.trim() ? 1 : 0.45,
+            fontFamily: creaSans, fontSize: 14, fontWeight: 700,
+          }}>{tr('Ajouter')}</button>
+        </div>
+      </div>
+
+      {/* Task list */}
+      <CreaSection title={tr('Tâches')} right={`${open.length}`} dark={dark} t={t} />
+      <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {store.todos.length === 0 && (
+          <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, padding: '4px 0' }}>{tr('Aucune tâche. Ajoute la première !')}</div>
+        )}
+        {[...open, ...done].map((td) => (
+          <div key={td.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
+            <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
+              width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
+              border: `1.5px solid ${td.done ? c.accent : c.border}`,
+              background: td.done ? c.accent : 'transparent',
+              color: c.inkContrast, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>{td.done && <Icon.check width={13} height={13} />}</button>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
+              <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>{td.assignee} · {fmtDate(td.date)}</div>
+            </div>
+            <button onClick={() => store.removeTodo(td.id)} aria-label="delete" style={{
+              background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 4, display: 'flex', flexShrink: 0,
+            }}><Icon.trash width={15} height={15} /></button>
+          </div>
+        ))}
+      </div>
+
+      {/* To purchase — auto shopping list */}
+      <CreaSection title={tr('À acheter')} right={`${store.toPurchase.length}`} dark={dark} t={t} />
+      <div style={{ padding: '0 22px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft, marginTop: -6 }}>{tr('Stock insuffisant pour produire 10 unités')}</div>
+        {store.toPurchase.length === 0 && (
+          <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted }}>{tr('Rien à acheter — les stocks couvrent 10 unités de chaque produit.')}</div>
+        )}
+        {store.toPurchase.map((x) => {
+          const mat = store.materialById[x.materialId];
+          const prod = store.productById[x.productId];
+          if (!mat) return null;
+          return (
+            <div key={x.materialId} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px' }}>
+              <span style={{ width: 9, height: 9, borderRadius: 999, background: `oklch(0.62 0.16 ${mat.hue || 0})`, flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500 }}>{mat.name}</div>
+                <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>{prod ? tr('pour 10× {name}', { name: prod.name }) : ''}</div>
+              </div>
+              <div style={{ fontFamily: creaDisplay, fontSize: 16, color: c.amber, flexShrink: 0, fontWeight: 600 }}>
+                {fmtQty(x.missing)} <span style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted }}>{mat.unit} {tr('manquant')}</span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -835,7 +1005,9 @@ function CreaNav({ value, onChange, dark, t, role }) {
     { id: 'buys', label: 'Achats', icon: Icon.buy },
     { id: 'stock', label: 'Stock', icon: Icon.box },
     { id: 'prods', label: 'Produits', icon: Icon.prod },
+    { id: 'todos', label: 'To do', icon: Icon.todo },
   ].filter((tab) => allowed.includes(tab.id));
+  if (tabs.length < 2) return null;   // public: single tab — no nav needed
   const idx = tabs.findIndex((tab) => tab.id === value);
   return (
     <div style={{
@@ -1324,8 +1496,9 @@ function CreaMatChip({ m, c, selected, onClick }) {
 // ── Creative App root ────────────────────────────────────────
 // Tabs each role may see. Staff: restricted to sales / stock / products.
 const ALLOWED_TABS = {
-  admin: ['dash', 'sales', 'buys', 'stock', 'prods'],
-  staff: ['sales', 'stock', 'prods'],
+  admin: ['dash', 'sales', 'buys', 'stock', 'prods', 'todos'],
+  staff: ['sales', 'stock', 'prods', 'todos'],
+  public: ['prods'],   // anonymous visitors: catalog + SOPs only, read-only
 };
 function CreaApp({ t, dark, role }) {
   const c = creaTheme(dark, t.accent);
@@ -1350,12 +1523,13 @@ function CreaApp({ t, dark, role }) {
       overflow: 'hidden',
     }}>
       <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 56, paddingBottom: 120 }}>
-        <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} />
+        <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} readonly={role === 'public'} />
         {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} />}
-        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
+        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} />}
+        {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>
       <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} />
       {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} />}

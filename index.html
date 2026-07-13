@@ -221,7 +221,7 @@ function SettingsButton({ t, set, dark }) {
   );
 }
 
-function LumaBongaApp({ role }) {
+function LumaBongaApp({ role, onSignIn }) {
   const [t, set] = useAppTweaks();
   const dark = t.dark;
   setLbLang(t.lang);   // keep global translator in sync before children render
@@ -229,7 +229,16 @@ function LumaBongaApp({ role }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
       <CreaApp t={t} dark={dark} role={role} />
-      <SettingsButton t={t} set={set} dark={dark} />
+      {role !== 'public' && <SettingsButton t={t} set={set} dark={dark} />}
+      {role === 'public' && (
+        <button onClick={onSignIn} style={{
+          position: 'absolute', top: 12, right: 20, zIndex: 150,
+          padding: '8px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
+          background: c.accent, color: c.inkContrast,
+          fontFamily: creaSans, fontSize: 12.5, fontWeight: 700,
+          boxShadow: '0 2px 10px rgba(0,0,0,.15)',
+        }}>{tr('Se connecter')}</button>
+      )}
     </div>
   );
 }
@@ -281,7 +290,7 @@ async function bootData(sb, onRemoteChange) {
 }
 
 // ── Login gate ───────────────────────────────────────────────────────────────
-function LoginGate({ onAuthed }) {
+function LoginGate({ onAuthed, onBack }) {
   const c = creaTheme(true, '#7dd3a0');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -332,6 +341,13 @@ function LoginGate({ onAuthed }) {
           background: c.accent, color: c.inkContrast, border: 'none', fontFamily: creaSans, fontSize: 15, fontWeight: 700,
           opacity: busy ? .6 : 1,
         }}>{busy ? tr('Connexion…') : tr('Entrer')}</button>
+        {onBack && (
+          <button type="button" onClick={onBack} style={{
+            width: '100%', marginTop: 14, padding: '10px', borderRadius: 14, cursor: 'pointer',
+            background: 'transparent', color: c.muted, border: 'none',
+            fontFamily: creaSans, fontSize: 13, fontWeight: 600,
+          }}>← {tr('Catalogue')}</button>
+        )}
       </form>
     </div>
   );
@@ -369,6 +385,7 @@ function Root() {
   const load = React.useCallback(async () => {
     setPhase('loading');
     try {
+      window.__LUMA_READONLY = false;
       const { data: u } = await window.__sb.auth.getUser();
       setRole(roleForEmail(u && u.user ? u.user.email : null));
       await bootData(window.__sb, () => setRemote(true));
@@ -376,6 +393,23 @@ function Root() {
     } catch (e) {
       // Member check / RLS failure or network — back to login.
       try { await window.__sb.auth.signOut(); } catch (_) {}
+      setPhase('login');
+    }
+  }, []);
+
+  // Anonymous visitors get the public catalog: products, compositions and SOPs
+  // only (served by the `public_catalog` view — no finances, no transactions).
+  const loadPublic = React.useCallback(async () => {
+    setPhase('loading');
+    try {
+      const { data, error } = await window.__sb.from('public_catalog').select('data').maybeSingle();
+      if (error || !data) throw error || new Error('no catalog');
+      window.__LUMA_READONLY = true;
+      window.__LUMA_INITIAL = data.data || {};
+      setRole('public');
+      setPhase('ready');
+    } catch (e) {
+      // View not installed / network issue — fall back to the login gate.
       setPhase('login');
     }
   }, []);
@@ -392,15 +426,15 @@ function Root() {
         if (data && data.session) { load(); return; }
         await new Promise((r) => setTimeout(r, 350));
       }
-      if (alive) setPhase('login');
+      if (alive) loadPublic();
     })();
     return () => { alive = false; };
-  }, [load]);
+  }, [load, loadPublic]);
 
   if (phase === 'connecting') return <Splash label={tr('Connexion…')} />;
-  if (phase === 'login') return <LoginGate onAuthed={load} />;
+  if (phase === 'login') return <LoginGate onAuthed={load} onBack={loadPublic} />;
   if (phase === 'loading') return <Splash label={tr('Chargement du registre…')} />;
-  return (<><LumaBongaApp role={role} />{remote && <UpdateBanner />}</>);
+  return (<><LumaBongaApp role={role} onSignIn={() => setPhase('login')} />{remote && <UpdateBanner />}</>);
 }
 
 // Pre-login screens (login/splash) use the stored language; the app keeps it in sync afterwards.

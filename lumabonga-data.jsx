@@ -142,6 +142,28 @@ const LB_EN = {
   "Code d’accès": 'Access code', 'Entrer': 'Enter', 'Connexion…': 'Connecting…',
   'Code incorrect.': 'Wrong code.', 'Chargement du registre…': 'Loading ledger…',
   'Serveur injoignable. Réessaie dans un instant.': 'Server unreachable. Try again in a moment.',
+  // SOP
+  'Procédure (SOP)': 'Procedure (SOP)', 'Voir la SOP': 'View SOP',
+  'Créer la SOP': 'Create SOP', 'Éditer la SOP': 'Edit SOP',
+  'Étape {n}': 'Step {n}', 'Décris cette étape…': 'Describe this step…',
+  'Ingrédients concernés (optionnel)': 'Ingredients involved (optional)',
+  'Ajouter une étape': 'Add next step',
+  'Chaque étape doit avoir une description.': 'Each step needs a description.',
+  'Combien d’unités veux-tu produire ?': 'How many units do you want to make?',
+  'Les quantités de la SOP s’adaptent automatiquement.': 'SOP quantities adapt automatically.',
+  'Continuer': 'Continue', 'Pour {n} unité(s)': 'For {n} unit(s)',
+  'Aucune SOP pour ce produit.': 'No SOP for this product yet.',
+  'Supprimer cette étape': 'Delete this step',
+  // To-do
+  'Tâches': 'Tasks', 'à faire': 'open', 'Nouvelle tâche…': 'New task…', 'Assigner à': 'Assign to',
+  'Nouveau membre…': 'New member…', 'Équipe': 'Team',
+  'Aucune tâche. Ajoute la première !': 'No tasks yet. Add the first one!',
+  'À acheter': 'To purchase',
+  'Stock insuffisant pour produire 10 unités': 'Not enough stock to make 10 units',
+  'manquant': 'missing', 'pour 10× {name}': 'for 10× {name}',
+  'Rien à acheter — les stocks couvrent 10 unités de chaque produit.': 'Nothing to buy — stock covers 10 units of every product.',
+  // Public mode
+  'Se connecter': 'Sign in',
   // labor presets
   'Mélange': 'Mixing', 'Chauffe & mélange': 'Heating & mixing', 'Coulage': 'Pouring',
   'Conditionnement': 'Packaging', 'Étiquetage': 'Labeling', 'Teinture': 'Dyeing',
@@ -501,6 +523,9 @@ const loadPersisted = () => {
   } catch (e) { return null; }
 };
 const savePersisted = (snapshot) => {
+  // Public (read-only) viewers never write: not to the backend, and not to
+  // localStorage either — a partial public catalog must not shadow real data.
+  if (typeof window !== 'undefined' && window.__LUMA_READONLY) return;
   // Always keep a local backup (offline / refresh safety).
   try {
     if (typeof localStorage !== 'undefined') localStorage.setItem(LUMA_STORE_KEY, JSON.stringify(snapshot));
@@ -535,6 +560,13 @@ function useLumaStore(seed, shareLumaya) {
   const [productAdj, setProductAdj] = React.useState(saved?.productAdj || {});
   // Selected reporting period: 'YYYY-MM' (a month) or 'all'. Default = current month.
   const [period, setPeriod] = React.useState(() => todayISO().slice(0, 7));
+  // SOPs — production procedure per product.
+  // { [productId]: { steps: [{ id, text, items: [{ materialId, pct }] }] } }
+  // `pct` = share of the recipe quantity handled in this step (default 100).
+  const [sops, setSops] = React.useState(saved?.sops || {});
+  // Team task board. { id, date, text, assignee, done }
+  const [todos, setTodos] = React.useState(saved?.todos || []);
+  const [team, setTeam] = React.useState(saved?.team || ['Pawung', 'Gani', 'Burhan', 'Joachim']);
 
   // recipes: give every ingredient/labor line a stable id for editing & keys
   const withIds = (recipes) => {
@@ -553,8 +585,8 @@ function useLumaStore(seed, shareLumaya) {
 
   // Persist on any change. Recipes already carry stable ids, so they round-trip.
   React.useEffect(() => {
-    savePersisted({ products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj });
-  }, [products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj]);
+    savePersisted({ products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj, sops, todos, team });
+  }, [products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj, sops, todos, team]);
 
   const recipeFor = (pid) => recipes[pid] || { ingredients: [], labor: [] };
   const editRecipe = (pid, fn) => setRecipes((rs) => {
@@ -656,6 +688,9 @@ function useLumaStore(seed, shareLumaya) {
     setSettlements([]);
     setMaterialAdj({});
     setProductAdj({});
+    setSops({});
+    setTodos([]);
+    setTeam(['Pawung', 'Gani', 'Burhan', 'Joachim']);
   };
 
   const productById = React.useMemo(() => {
@@ -806,6 +841,47 @@ function useLumaStore(seed, shareLumaya) {
     };
   }, [sales, purchases, costs, settlements, recipes, materialById, materials, products, materialStock, finishedStock, materialPrices, unitCostFor, cogsOf, shareLumaya, period]);
 
+  // ── SOP actions ────────────────────────────────────────────
+  // Steps are saved as a whole from the editor (validated there: text required).
+  const setSop = (pid, steps) => setSops((s) => ({ ...s, [pid]: { steps } }));
+  const removeSop = (pid) => setSops((s) => { const n = { ...s }; delete n[pid]; return n; });
+
+  // ── To-do actions ──────────────────────────────────────────
+  const addTodo = (td) => {
+    const id = 'td_' + Math.random().toString(36).slice(2, 8);
+    setTodos((xs) => [{ id, date: todayISO(), done: false, ...td }, ...xs]);
+  };
+  const updateTodo = (id, patch) => setTodos((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
+  const toggleTodo = (id) => setTodos((xs) => xs.map((x) => x.id === id ? { ...x, done: !x.done } : x));
+  const removeTodo = (id) => setTodos((xs) => xs.filter((x) => x.id !== id));
+  const addTeamMember = (name) => {
+    const n = String(name || '').trim();
+    if (!n) return;
+    setTeam((xs) => xs.some((x) => x.toLowerCase() === n.toLowerCase()) ? xs : [...xs, n]);
+  };
+  const removeTeamMember = (name) => setTeam((xs) => xs.filter((x) => x !== name));
+
+  // Shopping list: materials whose stock can't cover 10 units of some product.
+  // For each product×ingredient, need = 10 × recipe qty; keep the worst shortfall
+  // per material along with the product that drives it.
+  const toPurchase = React.useMemo(() => {
+    const out = {};
+    for (const p of products) {
+      const r = recipes[p.id];
+      if (!r) continue;
+      for (const ing of (r.ingredients || [])) {
+        const need = 10 * (Number(ing.qty) || 0);
+        if (need <= 0) continue;
+        const have = materialStock[ing.materialId] ?? 0;
+        const missing = need - have;
+        if (missing <= 0) continue;
+        const cur = out[ing.materialId];
+        if (!cur || missing > cur.missing) out[ing.materialId] = { materialId: ing.materialId, missing, need, have, productId: p.id };
+      }
+    }
+    return Object.values(out).sort((a, b) => b.missing - a.missing);
+  }, [products, recipes, materialStock]);
+
   // Distinct months present in the ledger (newest first); current month always included.
   const availableMonths = React.useMemo(() => {
     const set = new Set([todayISO().slice(0, 7)]);
@@ -831,6 +907,9 @@ function useLumaStore(seed, shareLumaya) {
     resetStore,
     productById, materialById, materialPrices, totals,
     recipes, recipeFor, unitCostFor,
+    sops, setSop, removeSop,
+    todos, addTodo, updateTodo, toggleTodo, removeTodo,
+    team, addTeamMember, removeTeamMember, toPurchase,
     materialStock, finishedStock, producibleFor, bottleneckFor,
     addIngredient, updateIngredientQty, updateIngredient, removeIngredient,
     addLabor, updateLabor, removeLabor,
@@ -932,6 +1011,19 @@ const Icon = {
   arrow: (p) => (
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M5 12h14M13 6l6 6-6 6"/>
+    </svg>
+  ),
+  list: (p) => (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M9 6h11M9 12h11M9 18h11"/>
+      <circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>
+    </svg>
+  ),
+  todo: (p) => (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <rect x="3" y="4" width="18" height="17" rx="3"/>
+      <path d="M8 10.5l2.5 2.5L16 8.5"/>
+      <path d="M8 16h8"/>
     </svg>
   ),
   spark: (p) => (

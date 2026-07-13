@@ -447,4 +447,207 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
   );
 }
 
-Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart });
+// ── SOP: helpers ─────────────────────────────────────────────
+// Display quantity of one SOP item: recipe qty × pct × batch, in the display unit.
+function sopItemQty(store, pid, item, batch) {
+  const ing = (store.recipeFor(pid).ingredients || []).find((i) => i.materialId === item.materialId);
+  const mat = store.materialById[item.materialId];
+  if (!ing || !mat) return null;
+  const base = mat.unit || 'g';
+  const du = (typeof COMPONENT_UNITS !== 'undefined' && COMPONENT_UNITS.includes(ing.unit)) ? ing.unit : base;
+  const pct = (item.pct == null ? 100 : Number(item.pct)) / 100;
+  const qty = (Number(ing.qty) || 0) * pct * (batch || 1);
+  return { name: mat.name, hue: mat.hue, qty: convertUnit(qty, base, du, densityFor(mat)), unit: du, pct: Math.round(pct * 100) };
+}
+
+// ── SOP: editor bottom sheet ─────────────────────────────────
+// One or more steps; each step = required text + optional multi-select of the
+// product's recipe ingredients, each with a % of the recipe quantity (default 100).
+function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
+  const c = prodTheme(dark, t.accent);
+  const pid = product.id;
+  const ingredients = store.recipeFor(pid).ingredients || [];
+  const newStep = () => ({ id: 'ss_' + Math.random().toString(36).slice(2, 8), text: '', items: [] });
+  const [steps, setSteps] = React.useState(() => {
+    const cur = store.sops[pid]?.steps;
+    return (cur && cur.length) ? cur.map((s) => ({ ...s, items: (s.items || []).map((i) => ({ ...i })) })) : [newStep()];
+  });
+  const [err, setErr] = React.useState('');
+
+  const patchStep = (id, patch) => setSteps((xs) => xs.map((s) => s.id === id ? { ...s, ...patch } : s));
+  const toggleItem = (sid, materialId) => setSteps((xs) => xs.map((s) => {
+    if (s.id !== sid) return s;
+    const has = s.items.some((i) => i.materialId === materialId);
+    return { ...s, items: has ? s.items.filter((i) => i.materialId !== materialId) : [...s.items, { materialId, pct: 100 }] };
+  }));
+  const setPct = (sid, materialId, pct) => setSteps((xs) => xs.map((s) => s.id === sid
+    ? { ...s, items: s.items.map((i) => i.materialId === materialId ? { ...i, pct: Math.max(0, Math.min(100, Number(pct) || 0)) } : i) }
+    : s));
+  const removeStep = (id) => setSteps((xs) => xs.length > 1 ? xs.filter((s) => s.id !== id) : xs);
+
+  const save = () => {
+    if (steps.some((s) => !s.text.trim())) { setErr(tr('Chaque étape doit avoir une description.')); return; }
+    store.setSop(pid, steps.map((s) => ({ id: s.id, text: s.text.trim(), items: s.items })));
+    onClose();
+  };
+
+  return (
+    <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
+      <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
+      {steps.map((s, i) => (
+        <div key={s.id} style={{ padding: 14, borderRadius: 14, background: c.panel, border: `1px solid ${c.border}` }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <span style={{ fontFamily: prodSans, fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: c.accent }}>
+              {tr('Étape {n}', { n: i + 1 })}
+            </span>
+            {steps.length > 1 && (
+              <button onClick={() => removeStep(s.id)} aria-label={tr('Supprimer cette étape')} style={{
+                background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 2, display: 'flex',
+              }}><Icon.close width={15} height={15} /></button>
+            )}
+          </div>
+          <textarea value={s.text} onChange={(e) => patchStep(s.id, { text: e.target.value })}
+            placeholder={tr('Décris cette étape…')} rows={2}
+            style={{
+              width: '100%', boxSizing: 'border-box', resize: 'vertical', minHeight: 48,
+              background: c.panel2, color: c.text, border: `1px solid ${(!s.text.trim() && err) ? c.rose : c.border}`,
+              borderRadius: 10, padding: '10px 12px', fontFamily: prodSans, fontSize: 14, outline: 'none', lineHeight: 1.45,
+            }} />
+          {ingredients.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: prodSans, marginBottom: 6 }}>
+                {tr('Ingrédients concernés (optionnel)')}
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                {ingredients.map((ing) => {
+                  const mat = store.materialById[ing.materialId];
+                  if (!mat) return null;
+                  const sel = s.items.find((it) => it.materialId === ing.materialId);
+                  return (
+                    <span key={ing.materialId} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                      <button onClick={() => toggleItem(s.id, ing.materialId)} style={{
+                        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px',
+                        borderRadius: sel ? '999px 0 0 999px' : 999,
+                        border: `1px solid ${sel ? c.accent : c.border}`,
+                        background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.text,
+                        cursor: 'pointer', fontFamily: prodSans, fontSize: 12.5, fontWeight: 600,
+                      }}>
+                        <span style={{ width: 8, height: 8, borderRadius: 999, background: `oklch(0.62 0.16 ${mat.hue || 0})`, flexShrink: 0 }} />
+                        {mat.name}
+                      </button>
+                      {sel && (
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          border: `1px solid ${c.accent}`, borderLeft: 'none', borderRadius: '0 999px 999px 0',
+                          background: c.panel2, padding: '4px 9px 4px 6px', gap: 1,
+                        }}>
+                          <input type="number" inputMode="numeric" min="0" max="100" value={sel.pct}
+                            onChange={(e) => setPct(s.id, ing.materialId, e.target.value)}
+                            style={{
+                              width: 34, background: 'transparent', border: 'none', outline: 'none',
+                              color: c.text, fontFamily: prodMono, fontSize: 12.5, fontWeight: 600, textAlign: 'right',
+                            }} />
+                          <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted }}>%</span>
+                        </span>
+                      )}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      ))}
+      {err && <div style={{ color: c.rose, fontSize: 12.5, fontFamily: prodSans }}>{err}</div>}
+      <button onClick={() => { setErr(''); setSteps((xs) => [...xs, newStep()]); }} style={{
+        width: '100%', padding: '11px', borderRadius: 12, cursor: 'pointer',
+        border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
+        fontFamily: prodSans, fontSize: 13, fontWeight: 600,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      }}><Icon.plus width={15} height={15} /> {tr('Ajouter une étape')}</button>
+      <button onClick={save} style={{
+        width: '100%', padding: '14px', borderRadius: 999, cursor: 'pointer', border: 'none',
+        background: c.accent, color: c.inkContrast, fontFamily: prodSans, fontSize: 15, fontWeight: 700,
+      }}>{tr('Enregistrer')}</button>
+    </ProdSheet>
+  );
+}
+
+// ── SOP: viewer bottom sheet ─────────────────────────────────
+// Opens with a batch-size prompt, then shows every step with quantities scaled
+// to the requested number of units.
+function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
+  const c = prodTheme(dark, t.accent);
+  const pid = product.id;
+  const steps = store.sops[pid]?.steps || [];
+  const [batchDraft, setBatchDraft] = React.useState('1');
+  const [batch, setBatch] = React.useState(null);   // null until confirmed
+
+  if (batch == null) {
+    const go = () => { const n = Number(batchDraft); if (n > 0) setBatch(n); };
+    return (
+      <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
+        <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>
+            {tr('Combien d’unités veux-tu produire ?')}
+          </div>
+          <input type="number" inputMode="numeric" min="1" value={batchDraft} autoFocus
+            onChange={(e) => setBatchDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') go(); }}
+            style={{
+              width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none',
+              borderBottom: `1px solid ${c.border}`, padding: '10px 0', color: c.text,
+              fontFamily: prodDisplay, fontSize: 30, outline: 'none',
+            }} />
+          <div style={{ fontFamily: prodSans, fontSize: 12, color: c.mutedSoft, marginTop: 8 }}>
+            {tr('Les quantités de la SOP s’adaptent automatiquement.')}
+          </div>
+        </div>
+        <button onClick={go} style={{
+          width: '100%', padding: '14px', borderRadius: 999, cursor: 'pointer', border: 'none',
+          background: c.accent, color: c.inkContrast, fontFamily: prodSans, fontSize: 15, fontWeight: 700,
+        }}>{tr('Continuer')} →</button>
+      </ProdSheet>
+    );
+  }
+
+  return (
+    <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
+      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: -8 }}>
+        <span style={{ fontFamily: prodSans, fontSize: 13, color: c.muted }}>{product.name}</span>
+        <span style={{ fontFamily: prodMono, fontSize: 12, color: c.accent, fontWeight: 600 }}>{tr('Pour {n} unité(s)', { n: batch })}</span>
+      </div>
+      {steps.map((s, i) => (
+        <div key={s.id} style={{ padding: 14, borderRadius: 14, background: c.panel, border: `1px solid ${c.border}` }}>
+          <div style={{ fontFamily: prodSans, fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: c.accent, marginBottom: 6 }}>
+            {tr('Étape {n}', { n: i + 1 })}
+          </div>
+          <div style={{ fontFamily: prodSans, fontSize: 14.5, color: c.text, lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>{s.text}</div>
+          {(s.items || []).length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
+              {s.items.map((it) => {
+                const q = sopItemQty(store, pid, it, batch);
+                if (!q) return null;
+                return (
+                  <span key={it.materialId} style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px',
+                    borderRadius: 999, border: `1px solid ${c.border}`, background: c.panel2,
+                    fontFamily: prodSans, fontSize: 12.5, fontWeight: 600, color: c.text,
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: `oklch(0.62 0.16 ${q.hue || 0})`, flexShrink: 0 }} />
+                    {q.name}
+                    <span style={{ fontFamily: prodMono, fontSize: 12, color: c.accent }}>{fmtQty(q.qty)} {q.unit}</span>
+                    {q.pct !== 100 && <span style={{ fontFamily: prodMono, fontSize: 10.5, color: c.mutedSoft }}>({q.pct}%)</span>}
+                  </span>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      ))}
+    </ProdSheet>
+  );
+}
+
+Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart, ProdSopEditorSheet, ProdSopViewerSheet });
