@@ -1394,7 +1394,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 <input type="number" inputMode="decimal" value={qty} onChange={(e) => setQty(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
               <div>
-                <div style={labelStyle}>{tr('Responsable')}</div>
+                <div style={labelStyle}>{tr('Produit par')}</div>
                 <input value={note} onChange={(e) => setNote(e.target.value)} style={inputStyle} placeholder={tr('Atelier')} />
               </div>
             </div>

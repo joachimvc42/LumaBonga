@@ -50,7 +50,7 @@ const LB_EN = {
   'Optionnel': 'Optional', 'Note': 'Note', 'Description': 'Description',
   'Enregistrer': 'Save', 'Enregistrer les modifications': 'Save changes',
   'Modifier': 'Edit', 'Nouvelle entrée': 'New entry', 'Produire': 'Produce',
-  'Responsable': 'In charge', 'Atelier': 'Workshop', 'Qui / atelier': 'Who / workshop',
+  'Responsable': 'In charge', 'Produit par': 'Produced by', 'Atelier': 'Workshop', 'Qui / atelier': 'Who / workshop',
   'Catégorie': 'Category', 'matière': 'material', 'emballage': 'packaging', 'unité': 'unit',
   'Matière': 'Material', 'Emballage': 'Packaging',
   // transaction kinds / tags
