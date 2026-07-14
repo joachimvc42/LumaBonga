@@ -574,33 +574,68 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
 }
 
 // ── SOP: viewer bottom sheet ─────────────────────────────────
-// Opens with a batch-size prompt, then shows every step with quantities scaled
-// to the requested number of units.
+// Opens with a batch-size prompt (in units OR in grams — one unit's weight is
+// derived from the recipe), then shows every step with quantities scaled.
 function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
   const c = prodTheme(dark, t.accent);
   const pid = product.id;
   const steps = store.sops[pid]?.steps || [];
   const [batchDraft, setBatchDraft] = React.useState('1');
-  const [batch, setBatch] = React.useState(null);   // null until confirmed
+  const [mode, setMode] = React.useState('u');      // 'u' = units | 'g' = grams
+  const [batch, setBatch] = React.useState(null);   // scale factor, null until confirmed
+
+  // Weight of ONE unit: every convertible ingredient of the recipe, in grams.
+  const unitWeight = React.useMemo(() => {
+    let g = 0;
+    for (const ing of (store.recipeFor(pid).ingredients || [])) {
+      const mat = store.materialById[ing.materialId];
+      if (!mat) continue;
+      const base = mat.unit || 'g';
+      if (!isMassUnit(base) && !isVolUnit(base)) continue;   // pièce/m: no mass
+      g += convertUnit(Number(ing.qty) || 0, base, 'g', densityFor(mat));
+    }
+    return g;
+  }, [store, pid]);
 
   if (batch == null) {
-    const go = () => { const n = Number(batchDraft); if (n > 0) setBatch(n); };
+    const go = () => {
+      const n = Number(batchDraft);
+      if (!(n > 0)) return;
+      if (mode === 'g' && !(unitWeight > 0)) return;
+      setBatch(mode === 'g' ? n / unitWeight : n);
+    };
+    const modeBtn = (id, label) => (
+      <button key={id} onClick={() => setMode(id)} style={{
+        flex: 1, padding: '9px 0', borderRadius: 10, cursor: 'pointer',
+        border: `1px solid ${mode === id ? c.accent : c.border}`,
+        background: mode === id ? c.accent : c.panel2,
+        color: mode === id ? c.inkContrast : c.text,
+        fontFamily: prodSans, fontSize: 13, fontWeight: 700,
+      }}>{label}</button>
+    );
     return (
       <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
         <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
         <div>
           <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>
-            {tr('Combien d’unités veux-tu produire ?')}
+            {tr('Quantité à produire')}
           </div>
-          <input type="number" inputMode="numeric" min="1" value={batchDraft} autoFocus
-            onChange={(e) => setBatchDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') go(); }}
-            style={{
-              width: '100%', boxSizing: 'border-box', background: 'transparent', border: 'none',
-              borderBottom: `1px solid ${c.border}`, padding: '10px 0', color: c.text,
-              fontFamily: prodDisplay, fontSize: 30, outline: 'none',
-            }} />
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+            <input type="number" inputMode="decimal" min="1" value={batchDraft} autoFocus
+              onChange={(e) => setBatchDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') go(); }}
+              style={{
+                flex: 1, minWidth: 0, boxSizing: 'border-box', background: 'transparent', border: 'none',
+                borderBottom: `1px solid ${c.border}`, padding: '10px 0', color: c.text,
+                fontFamily: prodDisplay, fontSize: 30, outline: 'none',
+              }} />
+            <div style={{ display: 'flex', gap: 6, width: 148, flexShrink: 0 }}>
+              {modeBtn('u', tr('unités'))}
+              {modeBtn('g', 'g')}
+            </div>
+          </div>
           <div style={{ fontFamily: prodSans, fontSize: 12, color: c.mutedSoft, marginTop: 8 }}>
+            {unitWeight > 0 && <span style={{ color: c.muted, fontWeight: 600 }}>{tr('1 unité ≈ {x} g', { x: fmtQty(unitWeight) })} · </span>}
             {tr('Les quantités de la SOP s’adaptent automatiquement.')}
           </div>
         </div>
@@ -612,11 +647,15 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
     );
   }
 
+  const batchLabel = mode === 'g'
+    ? tr('Pour {x} g (~{n} unités)', { x: fmtQty(Number(batchDraft)), n: fmtQty(batch) })
+    : tr('Pour {n} unité(s)', { n: batch });
+
   return (
     <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: -8 }}>
         <span style={{ fontFamily: prodSans, fontSize: 13, color: c.muted }}>{product.name}</span>
-        <span style={{ fontFamily: prodMono, fontSize: 12, color: c.accent, fontWeight: 600 }}>{tr('Pour {n} unité(s)', { n: batch })}</span>
+        <span style={{ fontFamily: prodMono, fontSize: 12, color: c.accent, fontWeight: 600 }}>{batchLabel}</span>
       </div>
       {steps.map((s, i) => (
         <div key={s.id} style={{ padding: 14, borderRadius: 14, background: c.panel, border: `1px solid ${c.border}` }}>
