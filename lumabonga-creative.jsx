@@ -70,10 +70,22 @@ function periodLabel(p) {
 function CreaMonthPicker({ store, dark, t }) {
   const c = creaTheme(dark, t.accent);
   const [open, setOpen] = React.useState(false);
-  const opts = [...(store.availableMonths || []), 'all'];
+  // Year shown in the panel: the selected period's year, else the current year.
+  const selYM = (store.period && store.period !== 'all') ? store.period : null;
+  const [year, setYear] = React.useState(() => selYM ? Number(selYM.slice(0, 4)) : new Date().getFullYear());
+  const monthName = (m) => {
+    const s = new Date(2000, m, 1).toLocaleDateString(LB_LOCALE, { month: 'short' }).replace('.', '');
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  };
+  const pick = (p) => { store.setPeriod(p); setOpen(false); };
+  const navBtn = {
+    width: 28, height: 28, borderRadius: 9, cursor: 'pointer',
+    border: `1px solid ${c.border}`, background: c.panel2, color: c.text,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+  };
   return (
     <div style={{ position: 'relative' }}>
-      <button onClick={() => setOpen((v) => !v)} style={{
+      <button onClick={() => { setOpen((v) => !v); if (selYM) setYear(Number(selYM.slice(0, 4))); }} style={{
         display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px',
         background: c.panel, border: `1px solid ${c.border}`, borderRadius: 999,
         color: c.text, cursor: 'pointer', fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
@@ -88,22 +100,46 @@ function CreaMonthPicker({ store, dark, t }) {
             position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 41,
             background: c.bg2, border: `1px solid ${c.border}`, borderRadius: 14,
             boxShadow: dark ? '0 12px 32px rgba(0,0,0,.5)' : '0 12px 32px rgba(16,19,26,.12)',
-            padding: 6, minWidth: 168, maxHeight: 280, overflowY: 'auto',
+            padding: 10, width: 232,
           }}>
-            {opts.map((p) => {
-              const sel = store.period === p;
-              return (
-                <button key={p} onClick={() => { store.setPeriod(p); setOpen(false); }} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
-                  padding: '9px 11px', borderRadius: 9, border: 'none', cursor: 'pointer',
-                  background: sel ? c.panel2 : 'transparent', color: c.text,
-                  fontFamily: creaSans, fontSize: 13, fontWeight: sel ? 700 : 500, textAlign: 'left',
-                }}>
-                  {periodLabel(p)}
-                  {sel && <span style={{ color: c.accent, display: 'flex' }}><Icon.check width={15} height={15} /></span>}
-                </button>
-              );
-            })}
+            {/* All time */}
+            <button onClick={() => pick('all')} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+              padding: '9px 11px', borderRadius: 9, border: 'none', cursor: 'pointer',
+              background: store.period === 'all' ? c.panel2 : 'transparent', color: c.text,
+              fontFamily: creaSans, fontSize: 13, fontWeight: store.period === 'all' ? 700 : 500, textAlign: 'left',
+            }}>
+              {periodLabel('all')}
+              {store.period === 'all' && <span style={{ color: c.accent, display: 'flex' }}><Icon.check width={15} height={15} /></span>}
+            </button>
+            <div style={{ height: 1, background: c.borderSoft, margin: '8px 0' }} />
+            {/* Year navigator */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <button onClick={() => setYear((y) => y - 1)} aria-label="prev" style={navBtn}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 6l-6 6 6 6"/></svg>
+              </button>
+              <span style={{ fontFamily: creaDisplay, fontSize: 15, fontWeight: 700, color: c.text }}>{year}</span>
+              <button onClick={() => setYear((y) => y + 1)} aria-label="next" style={navBtn}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+              </button>
+            </div>
+            {/* 12-month grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+              {Array.from({ length: 12 }, (_, m) => {
+                const p = `${year}-${String(m + 1).padStart(2, '0')}`;
+                const sel = store.period === p;
+                const hasData = (store.availableMonths || []).includes(p);
+                return (
+                  <button key={p} onClick={() => pick(p)} style={{
+                    padding: '8px 0', borderRadius: 9, cursor: 'pointer',
+                    border: `1px solid ${sel ? c.accent : 'transparent'}`,
+                    background: sel ? c.accent : 'transparent',
+                    color: sel ? c.inkContrast : (hasData ? c.text : c.mutedSoft),
+                    fontFamily: creaSans, fontSize: 12, fontWeight: sel ? 700 : (hasData ? 600 : 500),
+                  }}>{monthName(m)}</button>
+                );
+              })}
+            </div>
           </div>
         </React.Fragment>
       )}

@@ -154,6 +154,7 @@ const LB_EN = {
   'Continuer': 'Continue', 'Pour {n} unité(s)': 'For {n} unit(s)',
   'Aucune SOP pour ce produit.': 'No SOP for this product yet.',
   'Supprimer cette étape': 'Delete this step',
+  'Tout': 'All time',
   // To-do
   'Tâches': 'Tasks', 'à faire': 'open', 'Nouvelle tâche…': 'New task…', 'Assigner à': 'Assign to',
   'Nouveau membre…': 'New member…', 'Équipe': 'Team',
@@ -558,8 +559,8 @@ function useLumaStore(seed, shareLumaya) {
   // forced to this value instead of the derived one (used to match reality).
   const [materialAdj, setMaterialAdj] = React.useState(saved?.materialAdj || {});
   const [productAdj, setProductAdj] = React.useState(saved?.productAdj || {});
-  // Selected reporting period: 'YYYY-MM' (a month) or 'all'. Default = current month.
-  const [period, setPeriod] = React.useState(() => todayISO().slice(0, 7));
+  // Selected reporting period: 'YYYY-MM' (a month) or 'all'. Default = everything.
+  const [period, setPeriod] = React.useState('all');
   // SOPs — production procedure per product.
   // { [productId]: { steps: [{ id, text, items: [{ materialId, pct }] }] } }
   // `pct` = share of the recipe quantity handled in this step (default 100).
