@@ -159,6 +159,10 @@ const LB_EN = {
   'Supprimer cette étape': 'Delete this step',
   'Tout': 'All time',
   'Ventes · 7 derniers jours': 'Sales · last 7 days',
+  'Télécharger l’app': 'Get the app',
+  'Sur Safari : appuie sur Partager, puis « Sur l’écran d’accueil ».': 'On Safari: tap Share, then "Add to Home Screen".',
+  'Ouvre le menu du navigateur et choisis « Installer l’application » (ou l’icône d’installation dans la barre d’adresse).':
+    'Open your browser menu and choose "Install app" (or look for an install icon in the address bar).',
   // To-do
   'Tâches': 'Tasks', 'à faire': 'open', 'Nouvelle tâche…': 'New task…', 'Assigner à': 'Assign to',
   'Nouveau membre…': 'New member…', 'Équipe': 'Team',
