@@ -487,6 +487,29 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
 
   const save = () => {
     if (steps.some((s) => !s.text.trim())) { setErr(tr('Chaque étape doit avoir une description.')); return; }
+
+    // Guard rail: every recipe ingredient must be fully accounted for across
+    // all steps — the % shares must add up to exactly 100, no more, no less.
+    const totals = {};
+    for (const ing of ingredients) totals[ing.materialId] = 0;
+    for (const s of steps) for (const it of s.items) {
+      if (totals[it.materialId] == null) continue;
+      totals[it.materialId] += Number(it.pct) || 0;
+    }
+    const problems = ingredients
+      .map((ing) => ({ ing, total: Math.round((totals[ing.materialId] || 0) * 10) / 10 }))
+      .filter(({ total }) => Math.abs(total - 100) > 0.5);
+    if (problems.length) {
+      const lines = problems.map(({ ing, total }) => {
+        const name = store.materialById[ing.materialId]?.name || '—';
+        return total <= 0
+          ? tr('{name} : manquant (0%)', { name })
+          : tr('{name} : {pct}% (doit faire 100%)', { name, pct: total });
+      });
+      setErr([tr('Attention : la SOP ne couvre pas 100% de chaque ingrédient.'), ...lines].join('\n'));
+      return;
+    }
+
     store.setSop(pid, steps.map((s) => ({ id: s.id, text: s.text.trim(), items: s.items })));
     onClose();
   };
@@ -558,7 +581,14 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
           )}
         </div>
       ))}
-      {err && <div style={{ color: c.rose, fontSize: 12.5, fontFamily: prodSans }}>{err}</div>}
+      {err && (
+        <div style={{
+          padding: '10px 13px', borderRadius: 12,
+          background: `${c.rose}18`, border: `1px solid ${c.rose}55`,
+          color: c.rose, fontSize: 12.5, fontFamily: prodSans, lineHeight: 1.6,
+          whiteSpace: 'pre-line',
+        }}>{err}</div>
+      )}
       <button onClick={() => { setErr(''); setSteps((xs) => [...xs, newStep()]); }} style={{
         width: '100%', padding: '11px', borderRadius: 12, cursor: 'pointer',
         border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
