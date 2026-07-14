@@ -620,7 +620,9 @@ function useLumaStore(seed, shareLumaya) {
 
   const addProduct = (p) => {
     const id = 'p_' + Math.random().toString(36).slice(2, 8);
-    const next = { id, hue: Math.floor(Math.random() * 360), emoji: (p.name || '?').slice(0, 2), stock0: 0, unitPrice: 0, ...p };
+    // New products start as 'test' — an admin must promote to 'ready' before
+    // level-1 (public) visitors can see them.
+    const next = { id, hue: Math.floor(Math.random() * 360), emoji: (p.name || '?').slice(0, 2), stock0: 0, unitPrice: 0, status: 'test', ...p };
     setProducts((xs) => [next, ...xs]);
     // start with an empty recipe so the fiche opens cleanly
     setRecipes((rs) => ({ ...rs, [id]: { ingredients: [], labor: [] } }));

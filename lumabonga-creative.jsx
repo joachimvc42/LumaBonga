@@ -740,13 +740,19 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const [sopView, setSopView] = React.useState(null);  // product whose SOP is being viewed
   const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
 
+  // Level-1 (public, no password) visitors only ever see "Ready" products.
+  // Missing status = legacy product = treated as Ready (nothing disappears
+  // when this field is introduced).
+  const productStatus = (p) => p.status || 'ready';
+  const products = readonly ? store.products.filter((p) => productStatus(p) === 'ready') : store.products;
+
   return (
     <div>
-      <CreaHero label={tr('Catalogue')} value={store.products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} unit="" />
-      <CreaSection title={tr('Produits')} right={`${store.products.length}`} dark={dark} t={t} />
+      <CreaHero label={tr('Catalogue')} value={products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} unit="" />
+      <CreaSection title={tr('Produits')} right={`${products.length}`} dark={dark} t={t} />
 
       <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-        {store.products.map((p) => {
+        {products.map((p) => {
           const recipe = store.recipeFor(p.id);
           const cost = recipeCost(recipe, store.materialById, store.purchases);
           const unitCost = cost.total;
@@ -795,6 +801,35 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                   border: `1px solid ${edit ? c.accent : c.border}`,
                 }}>{edit ? <Icon.check width={16} height={16} /> : <Icon.edit width={16} height={16} />}</button>}
               </div>
+
+              {/* Status — level 2/3 (staff/admin) only. Only "Ready" products
+                  reach the public catalog (filtered above). */}
+              {!readonly && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
+                  {[
+                    { id: 'ready', label: 'Ready', color: c.pos || c.accent },
+                    { id: 'test', label: 'Test', color: c.amber },
+                    { id: 'correction', label: 'Correction', color: c.rose },
+                  ].map((st) => {
+                    const active = productStatus(p) === st.id;
+                    return (
+                      <button key={st.id} disabled={!edit}
+                        onClick={() => store.updateProduct(p.id, { status: st.id })}
+                        style={{
+                          padding: '4px 10px', borderRadius: 999, cursor: edit ? 'pointer' : 'default',
+                          border: `1px solid ${active ? st.color : c.border}`,
+                          background: active ? `${st.color}22` : 'transparent',
+                          color: active ? st.color : c.mutedSoft,
+                          fontFamily: creaSans, fontSize: 11, fontWeight: 700,
+                          display: 'flex', alignItems: 'center', gap: 5,
+                        }}>
+                        <span style={{ width: 6, height: 6, borderRadius: 999, background: active ? st.color : c.border, flexShrink: 0 }} />
+                        {st.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Margin tiles */}
               {!readonly && <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
