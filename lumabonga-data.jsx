@@ -44,7 +44,8 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 // else the key itself (French). Placeholders: tr('margin {p}%', {p: 12}).
 let LB_LANG = 'en';
 let LB_LOCALE = 'en-US';
-const setLbLang = (l) => { LB_LANG = (l === 'fr') ? 'fr' : 'en'; LB_LOCALE = (LB_LANG === 'fr') ? 'fr-FR' : 'en-US'; };
+const LB_LOCALES = { fr: 'fr-FR', id: 'id-ID', en: 'en-US' };
+const setLbLang = (l) => { LB_LANG = (l === 'fr' || l === 'id') ? l : 'en'; LB_LOCALE = LB_LOCALES[LB_LANG]; };
 const LB_EN = {
   // generic
   'Optionnel': 'Optional', 'Note': 'Note', 'Description': 'Description',
@@ -178,12 +179,38 @@ const LB_EN = {
   'Conditionnement': 'Packaging', 'Étiquetage': 'Labeling', 'Teinture': 'Dyeing',
   'Impression cire': 'Wax printing', 'Contrôle qualité': 'Quality control', 'Transport': 'Transport',
 };
+// Indonesian — level-1 (public, password "Bonga") only needs this + English,
+// so only the strings reachable by that role are translated here (login
+// gate, splash, read-only catalog, SOP viewer). Anything else falls back to
+// the French key, same as a missing English entry would.
+const LB_ID = {
+  "Code d'accès": 'Kode akses', 'Connexion…': 'Menghubungkan…', 'Entrer': 'Masuk',
+  'Code incorrect.': 'Kode salah.',
+  'Serveur injoignable. Réessaie dans un instant.': 'Server tidak dapat dijangkau. Coba lagi sebentar.',
+  'Télécharger l’app': 'Unduh aplikasi',
+  'Sur Safari : appuie sur Partager, puis « Sur l’écran d’accueil ».': 'Di Safari: ketuk Bagikan, lalu "Tambah ke Layar Utama".',
+  'Ouvre le menu du navigateur et choisis « Installer l’application » (ou l’icône d’installation dans la barre d’adresse).':
+    'Buka menu browser dan pilih "Instal aplikasi" (atau ikon instal di bilah alamat).',
+  'Chargement du registre…': 'Memuat data…',
+  'Catalogue': 'Katalog', 'produits actifs': 'produk aktif', 'Produits': 'Produk',
+  'Composition': 'Komposisi', 'Aucun composant': 'Belum ada komponen',
+  'Voir la SOP': 'Lihat SOP', 'Procédure (SOP)': 'Prosedur (SOP)',
+  'Quantité à produire': 'Jumlah yang dibuat', 'unités': 'unit', 'Continuer': 'Lanjutkan',
+  'Pour {n} unité(s)': 'Untuk {n} unit', 'Pour {x} g (~{n} unités)': 'Untuk {x} g (~{n} unit)',
+  '1 unité ≈ {x} g': '1 unit ≈ {x} g',
+  'Les quantités de la SOP s’adaptent automatiquement.': 'Jumlah pada SOP menyesuaikan secara otomatis.',
+  'Étape {n}': 'Langkah {n}',
+};
 // Normalise apostrophes so straight ' and curly ’ in the source both match.
 const _lbNorm = (s) => String(s).replace(/’/g, "'");
 const LB_EN_N = {};
 for (const k of Object.keys(LB_EN)) LB_EN_N[_lbNorm(k)] = LB_EN[k];
+const LB_ID_N = {};
+for (const k of Object.keys(LB_ID)) LB_ID_N[_lbNorm(k)] = LB_ID[k];
 const tr = (key, vars) => {
-  let s = (LB_LANG === 'en') ? (LB_EN_N[_lbNorm(key)] != null ? LB_EN_N[_lbNorm(key)] : key) : key;
+  let s = key;
+  if (LB_LANG === 'en') s = LB_EN_N[_lbNorm(key)] != null ? LB_EN_N[_lbNorm(key)] : key;
+  else if (LB_LANG === 'id') s = LB_ID_N[_lbNorm(key)] != null ? LB_ID_N[_lbNorm(key)] : key;
   if (vars) for (const k of Object.keys(vars)) s = s.split('{' + k + '}').join(vars[k]);
   return s;
 };

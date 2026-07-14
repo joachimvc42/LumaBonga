@@ -89,9 +89,13 @@
   const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2b294aXptY3Frd3pwbGltdnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTA5OTgsImV4cCI6MjA5NTYyNjk5OH0.OZOqwW0LVG4jFUmwRxMb3WK6aoASlf2BeTvdTPsLSIg';
   window.__SB_EMAIL = 'equipe@lumabonga.app';   // compte partagé (caché) — le code = son mot de passe
   // Accounts mapped to a role. Login tries each email with the entered code.
+  // Order matters: the login form tries each account with the entered code
+  // in this order, so a higher password (Kings!) must never accidentally
+  // match a lower account first — kept admin → staff → public.
   window.__SB_ACCOUNTS = [
     { email: 'equipe@lumabonga.app', role: 'admin' },   // full access
     { email: 'staff@lumabonga.app',  role: 'staff' },   // restricted: sales / stock / products
+    { email: 'public@lumabonga.app', role: 'public' },  // read-only catalog + SOPs, no finances
   ];
   window.__sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
     auth: { persistSession: true, autoRefreshToken: true, storageKey: 'lumabonga:auth' },
@@ -301,17 +305,42 @@ function InstallAppButton({ dark, t, style }) {
   );
 }
 
-function LumaBongaApp({ role, onSignIn }) {
-  const [t, set] = useAppTweaks();
+// ── EN/ID language pill — level-1 (public) only; staff/admin keep the
+// existing EN/FR toggle in Settings, unaffected by this. ─────────────────────
+function LangToggle({ t, set, dark, style }) {
+  const c = creaTheme(dark, t.accent);
+  const langs = ['en', 'id'];
+  return (
+    <div style={{
+      display: 'flex', padding: 3, borderRadius: 999,
+      background: c.panel2, border: `1px solid ${c.border}`, ...style,
+    }}>
+      {langs.map((l) => (
+        <button key={l} onClick={() => set('lang', l)} style={{
+          padding: '5px 11px', borderRadius: 999, border: 'none', cursor: 'pointer',
+          background: t.lang === l ? c.accent : 'transparent',
+          color: t.lang === l ? c.inkContrast : c.muted,
+          fontFamily: creaSans, fontSize: 11.5, fontWeight: 700,
+        }}>{l.toUpperCase()}</button>
+      ))}
+    </div>
+  );
+}
+
+function LumaBongaApp({ role, onSignIn, t, set }) {
   const dark = t.dark;
-  setLbLang(t.lang);   // keep global translator in sync before children render
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
       <CreaApp t={t} dark={dark} role={role} />
       {role !== 'public' && <SettingsButton t={t} set={set} dark={dark} />}
       {role !== 'public' && <InstallAppButton dark={dark} t={t} style={{ position: 'absolute', top: 12, right: 54, zIndex: 30 }} />}
-      {role === 'public' && <InstallAppButton dark={dark} t={t} style={{ position: 'absolute', top: 12, left: 14, zIndex: 150 }} />}
+      {role === 'public' && (
+        <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 150, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <InstallAppButton dark={dark} t={t} style={{}} />
+          <LangToggle t={t} set={set} dark={dark} />
+        </div>
+      )}
       {role === 'public' && (
         <button onClick={onSignIn} style={{
           position: 'absolute', top: 12, right: 20, zIndex: 150,
@@ -378,7 +407,7 @@ async function bootData(sb, onRemoteChange) {
 }
 
 // ── Login gate ───────────────────────────────────────────────────────────────
-function LoginGate({ onAuthed, onBack }) {
+function LoginGate({ onAuthed, t, set }) {
   const c = creaTheme(true, '#7dd3a0');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -414,7 +443,8 @@ function LoginGate({ onAuthed, onBack }) {
       fontFamily: creaSans, padding: 32,
     }}>
       <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 44, marginBottom: 4 }}>LumaBonga</div>
-      <div style={{ fontSize: 12, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 32 }}>Luma · Bonga</div>
+      <div style={{ fontSize: 12, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 20 }}>Luma · Bonga</div>
+      <LangToggle t={t} set={set} dark={true} style={{ marginBottom: 20 }} />
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 320 }}>
         <label style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>{tr("Code d'accès")}</label>
         <input type="password" value={code} autoFocus onChange={(e) => setCode(e.target.value)}
@@ -429,13 +459,6 @@ function LoginGate({ onAuthed, onBack }) {
           background: c.accent, color: c.inkContrast, border: 'none', fontFamily: creaSans, fontSize: 15, fontWeight: 700,
           opacity: busy ? .6 : 1,
         }}>{busy ? tr('Connexion…') : tr('Entrer')}</button>
-        {onBack && (
-          <button type="button" onClick={onBack} style={{
-            width: '100%', marginTop: 14, padding: '10px', borderRadius: 14, cursor: 'pointer',
-            background: 'transparent', color: c.muted, border: 'none',
-            fontFamily: creaSans, fontSize: 13, fontWeight: 600,
-          }}>← {tr('Catalogue')}</button>
-        )}
       </form>
     </div>
   );
@@ -469,35 +492,31 @@ function Root() {
   const [phase, setPhase] = useState('connecting'); // connecting | login | loading | ready
   const [remote, setRemote] = useState(false);
   const [role, setRole] = useState('admin');
+  const [t, set] = useAppTweaks();
+  setLbLang(t.lang);   // keep global translator in sync before children render, at every phase
 
+  // Every level requires a password — including level 1 (public, "Bonga"),
+  // which gets a read-only catalog (products/compositions/SOPs, no
+  // finances) via the `public_catalog` view instead of the full ledger.
   const load = React.useCallback(async () => {
     setPhase('loading');
     try {
-      window.__LUMA_READONLY = false;
       const { data: u } = await window.__sb.auth.getUser();
-      setRole(roleForEmail(u && u.user ? u.user.email : null));
-      await bootData(window.__sb, () => setRemote(true));
+      const r = roleForEmail(u && u.user ? u.user.email : null);
+      setRole(r);
+      if (r === 'public') {
+        const { data, error } = await window.__sb.from('public_catalog').select('data').maybeSingle();
+        if (error) throw error;
+        window.__LUMA_READONLY = true;
+        window.__LUMA_INITIAL = data ? (data.data || {}) : {};
+      } else {
+        window.__LUMA_READONLY = false;
+        await bootData(window.__sb, () => setRemote(true));
+      }
       setPhase('ready');
     } catch (e) {
       // Member check / RLS failure or network — back to login.
       try { await window.__sb.auth.signOut(); } catch (_) {}
-      setPhase('login');
-    }
-  }, []);
-
-  // Anonymous visitors get the public catalog: products, compositions and SOPs
-  // only (served by the `public_catalog` view — no finances, no transactions).
-  const loadPublic = React.useCallback(async () => {
-    setPhase('loading');
-    try {
-      const { data, error } = await window.__sb.from('public_catalog').select('data').maybeSingle();
-      if (error || !data) throw error || new Error('no catalog');
-      window.__LUMA_READONLY = true;
-      window.__LUMA_INITIAL = data.data || {};
-      setRole('public');
-      setPhase('ready');
-    } catch (e) {
-      // View not installed / network issue — fall back to the login gate.
       setPhase('login');
     }
   }, []);
@@ -514,19 +533,16 @@ function Root() {
         if (data && data.session) { load(); return; }
         await new Promise((r) => setTimeout(r, 350));
       }
-      if (alive) loadPublic();
+      if (alive) setPhase('login');
     })();
     return () => { alive = false; };
-  }, [load, loadPublic]);
+  }, [load]);
 
   if (phase === 'connecting') return <Splash label={tr('Connexion…')} />;
-  if (phase === 'login') return <LoginGate onAuthed={load} onBack={loadPublic} />;
+  if (phase === 'login') return <LoginGate onAuthed={load} t={t} set={set} />;
   if (phase === 'loading') return <Splash label={tr('Chargement du registre…')} />;
-  return (<><LumaBongaApp role={role} onSignIn={() => setPhase('login')} />{remote && <UpdateBanner />}</>);
+  return (<><LumaBongaApp role={role} onSignIn={() => setPhase('login')} t={t} set={set} />{remote && <UpdateBanner />}</>);
 }
-
-// Pre-login screens (login/splash) use the stored language; the app keeps it in sync afterwards.
-setLbLang((loadTweaks() || {}).lang || 'en');
 ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
 </script>
 </body>
