@@ -695,17 +695,20 @@ function CreaIngredientEdit({ pid, ln, c, store }) {
   );
 }
 
-// Small framed cost chart with X/Y axes. A single point shows as a dot on the
-// baseline; multiple points draw a connecting line that rises/falls.
+// Small framed bar chart, one bar per month. The y-axis starts at 0 and tops
+// out just above the highest value (not min→max), so bar heights stay
+// proportional to the real cost — differences between months read accurately
+// instead of being exaggerated by a zoomed-in scale.
 function CreaSparkline({ series, c, title }) {
-  const W = 92, H = 48, padL = 8, padR = 6, padT = 6, padB = 8;
+  const W = 92, H = 48, padL = 4, padR = 4, padT = 5, padB = 8;
   const vals = (series || []).map((p) => p.total);
-  const min = vals.length ? Math.min(...vals) : 0;
-  const max = vals.length ? Math.max(...vals) : 1;
-  const span = Math.max(1, max - min);
-  const x = (i) => vals.length <= 1 ? padL + (W - padL - padR) / 2 : padL + (i / (vals.length - 1)) * (W - padL - padR);
-  const y = (v) => padT + (1 - (v - min) / span) * (H - padT - padB);
-  const line = vals.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+  const max = vals.length ? Math.max(...vals) : 0;
+  const scaleMax = max > 0 ? max * 1.15 : 1;   // a little headroom above the tallest bar
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = Math.max(vals.length, 1);
+  const slot = innerW / n;
+  const barW = Math.max(2, slot * 0.58);
+  const barH = (v) => (v / scaleMax) * innerH;
   const last = vals.length - 1;
   return (
     <div style={{
@@ -715,12 +718,14 @@ function CreaSparkline({ series, c, title }) {
       <div style={{ fontSize: 7.5, letterSpacing: 0.4, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans, marginBottom: 1 }}>{tr('Coût')}</div>
       <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ display: 'block' }}>
         <title>{title}</title>
-        {/* axes */}
-        <line x1={padL} y1={padT} x2={padL} y2={H - padB} stroke={c.border} strokeWidth="1" />
         <line x1={padL} y1={H - padB} x2={W - padR} y2={H - padB} stroke={c.border} strokeWidth="1" />
-        {vals.length > 1 && <path d={line} fill="none" stroke={c.accent} strokeWidth="1.8" strokeLinejoin="round" strokeLinecap="round" />}
-        {vals.length === 1 && <circle cx={x(0)} cy={y(vals[0])} r="3.2" fill={c.accent} />}
-        {vals.length > 1 && <circle cx={x(last)} cy={y(vals[last])} r="3" fill={c.accent} />}
+        {vals.map((v, i) => {
+          const h = Math.max(1, barH(v));
+          const x = padL + slot * i + (slot - barW) / 2;
+          const y = H - padB - h;
+          return <rect key={i} x={x} y={y} width={barW} height={h} rx="1"
+            fill={i === last ? c.accent : c.accent} opacity={i === last ? 1 : 0.35} />;
+        })}
       </svg>
     </div>
   );
@@ -750,8 +755,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
           const can = store.producibleFor(p.id);
           const bn = store.bottleneckFor(p.id);
           const marginPct = (p.unitPrice || 0) > 0 ? (margin / p.unitPrice) * 100 : 0;
-          // Cost history starts this month, so for now there is a single point.
-          const series = costSeries(recipe, store.materialById, store.purchases, 1);
+          const series = costSeries(recipe, store.materialById, store.purchases, 6);
           const edit = editId === p.id;
           return (
             <div key={p.id} style={{
