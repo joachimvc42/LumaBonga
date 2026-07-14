@@ -148,7 +148,7 @@ function CreaMonthPicker({ store, dark, t }) {
 }
 
 // ── Top bar ──────────────────────────────────────────────────
-function CreaTopBar({ store, dark, t, onAdd, readonly }) {
+function CreaTopBar({ store, dark, t, onAdd, readonly, hidePeriod }) {
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{
@@ -166,7 +166,7 @@ function CreaTopBar({ store, dark, t, onAdd, readonly }) {
       </div>
       {!readonly && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-          <CreaMonthPicker store={store} dark={dark} t={t} />
+          {!hidePeriod && <CreaMonthPicker store={store} dark={dark} t={t} />}
           <button onClick={onAdd} aria-label="+" style={{
             width: 34, height: 34, borderRadius: 999,
             background: c.ink, color: c.inkContrast, border: 'none', cursor: 'pointer',
@@ -568,11 +568,18 @@ function OrgFilter({ value, onChange, c }) {
 const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
 
 // ── Screen: Ventes ───────────────────────────────────────────
-function CreaTxScreen({ store, dark, t, kind, onEdit }) {
+function CreaTxScreen({ store, dark, t, kind, onEdit, role }) {
   const c = creaTheme(dark, t.accent);
   const [orgFilter, setOrgFilter] = React.useState('all');
-  const periodScoped = store.period && store.period !== 'all';
-  const inPeriod = (d) => !periodScoped || (d || '').slice(0, 7) === store.period;
+  // Staff (level-1 pass) gets no financial overview: no period picker, always
+  // the last 7 days, every line still editable — just no totals shown.
+  const restricted = role === 'staff';
+  const last7 = React.useMemo(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  }, []);
+  const periodScoped = !restricted && store.period && store.period !== 'all';
+  const inPeriod = (d) => restricted ? (d || '') >= last7 : (!periodScoped || (d || '').slice(0, 7) === store.period);
   const items = store.sales
     .filter((s) => inPeriod(s.date))
     .filter((s) => orgFilter === 'all' || orgOf(s) === orgFilter);
@@ -592,24 +599,30 @@ function CreaTxScreen({ store, dark, t, kind, onEdit }) {
 
   return (
     <div>
-      <CreaHero label={tr('Total ventes')} value={total} sub={tr('{n} transactions', { n: items.length })} color={color} t={t} dark={dark} />
+      {restricted
+        ? <CreaSection title={tr('Ventes · 7 derniers jours')} right={tr('{n} entrées', { n: items.length })} dark={dark} t={t} />
+        : (
+          <React.Fragment>
+            <CreaHero label={tr('Total ventes')} value={total} sub={tr('{n} transactions', { n: items.length })} color={color} t={t} dark={dark} />
 
-      <OrgFilter value={orgFilter} onChange={setOrgFilter} c={c} />
+            <OrgFilter value={orgFilter} onChange={setOrgFilter} c={c} />
 
-      <div style={{ padding: '6px 22px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {topProducts.map((tp) => (
-          <div key={tp.product?.id} style={{
-            padding: '8px 12px', borderRadius: 12,
-            background: c.panel, border: `1px solid ${c.border}`,
-            display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
-          }}>
-            <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 92 }}>{tp.product?.name}</div>
-            <div style={{ fontFamily: creaMono, fontSize: 13, fontWeight: 600, color }}>{fmtShort(tp.value)}</div>
-          </div>
-        ))}
-      </div>
+            <div style={{ padding: '6px 22px 0', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {topProducts.map((tp) => (
+                <div key={tp.product?.id} style={{
+                  padding: '8px 12px', borderRadius: 12,
+                  background: c.panel, border: `1px solid ${c.border}`,
+                  display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
+                }}>
+                  <div style={{ fontSize: 10, color: c.muted, fontFamily: creaSans, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 92 }}>{tp.product?.name}</div>
+                  <div style={{ fontFamily: creaMono, fontSize: 13, fontWeight: 600, color }}>{fmtShort(tp.value)}</div>
+                </div>
+              ))}
+            </div>
 
-      <CreaSection title={tr('Ventes')} right={tr('{n} entrées', { n: items.length })} dark={dark} t={t} />
+            <CreaSection title={tr('Ventes')} right={tr('{n} entrées', { n: items.length })} dark={dark} t={t} />
+          </React.Fragment>
+        )}
 
       <div style={{ padding: '0 22px' }}>
         {items.map((it, i) => {
@@ -1559,11 +1572,11 @@ function CreaApp({ t, dark, role }) {
       overflow: 'hidden',
     }}>
       <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 56, paddingBottom: 120 }}>
-        <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} readonly={role === 'public'} />
+        <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} readonly={role === 'public'} hidePeriod={role === 'staff'} />
         {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
-        {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} />}
+        {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} role={role} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
-        {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} />}
+        {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} />}
         {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} />}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>

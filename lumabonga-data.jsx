@@ -158,6 +158,7 @@ const LB_EN = {
   'Aucune SOP pour ce produit.': 'No SOP for this product yet.',
   'Supprimer cette étape': 'Delete this step',
   'Tout': 'All time',
+  'Ventes · 7 derniers jours': 'Sales · last 7 days',
   // To-do
   'Tâches': 'Tasks', 'à faire': 'open', 'Nouvelle tâche…': 'New task…', 'Assigner à': 'Assign to',
   'Nouveau membre…': 'New member…', 'Équipe': 'Team',

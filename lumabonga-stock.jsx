@@ -162,15 +162,19 @@ function AddRowButton({ c, label, onClick }) {
 }
 
 // ── Screen: Stock (matières + produits finis) ────────────────
-function CreaStock({ store, dark, t, onEdit, onAdd, onOpen }) {
+function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
   const c = creaTheme(dark, t.accent);
   const [seg, setSeg] = React.useState('mat');
+  // Staff (level-1 pass) sees stock levels to do their job, never the $ value.
+  const restricted = role === 'staff';
 
   return (
     <div>
-      <CreaHero label={seg === 'mat' ? tr('Valeur matières') : tr('Valeur produits finis')}
-        value={seg === 'mat' ? store.totals.valMatieres : store.totals.valProduits}
-        sub={tr('au coût de revient')} color={seg === 'mat' ? c.purple : c.accent} t={t} dark={dark} />
+      {!restricted && (
+        <CreaHero label={seg === 'mat' ? tr('Valeur matières') : tr('Valeur produits finis')}
+          value={seg === 'mat' ? store.totals.valMatieres : store.totals.valProduits}
+          sub={tr('au coût de revient')} color={seg === 'mat' ? c.purple : c.accent} t={t} dark={dark} />
+      )}
 
       <StkSegment value={seg} onChange={setSeg} c={c} options={[
         { id: 'mat', label: tr('Matières'), count: store.materials.length },
