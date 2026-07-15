@@ -217,8 +217,8 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
               </div>
             </div>
           ))}
-          <div style={{ padding: '14px 22px 0' }}>
-            <AddRowButton c={c} label={tr('Nouvelle matière')} onClick={() => onAdd('material')} />
+          <div style={{ padding: '10px 22px 0', fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft }}>
+            {tr('Une nouvelle matière se crée depuis Achats, au moment du premier achat.')}
           </div>
         </React.Fragment>
       )}

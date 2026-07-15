@@ -156,6 +156,10 @@ const LB_EN = {
   'Commentaire (optionnel)…': 'Comment (optional)…',
   'Réduire': 'Collapse', 'Développer': 'Expand',
   'Nouvelle catégorie…': 'New category…', 'Nouvelle': 'New', 'Autre': 'Other',
+  'Une nouvelle matière se crée depuis Achats, au moment du premier achat.':
+    'A new material is created from Purchases, at the time of its first purchase.',
+  'Le prix de cet achat devient le prix de référence de la matière.':
+    'This purchase price becomes the material’s reference price.',
   // Formula suggestions (Test status)
   'Revoir la suggestion': 'Review suggestion', 'Suggérer une correction': 'Suggest a correction',
   'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':

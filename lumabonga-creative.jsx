@@ -1328,14 +1328,19 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   const [mCatDraft, setMCatDraft] = React.useState('');
   // Purchase: user enters quantity (in a chosen unit) + total price paid (IDR).
   // Stored values stay per BASE unit (g/ml/m/pièce); per-unit price is computed.
-  const selMatBase = store.materialById[materialId]?.unit || 'g';
+  // Buying a not-yet-existing material: pick "+ New material", name it, and the
+  // purchase itself creates it — no separate material-creation step.
+  const [newMatMode, setNewMatMode] = React.useState(false);
+  const [newMatName, setNewMatName] = React.useState('');
+  const [newMatUnit, setNewMatUnit] = React.useState('g');
+  const selMatBase = newMatMode ? newMatUnit : (store.materialById[materialId]?.unit || 'g');
   const defBuyUnit = (b) => COMPONENT_UNITS.includes(b) ? b : 'g';
   const [buyUnit, setBuyUnit] = React.useState(defBuyUnit(ed?.buyUnit || selMatBase));
   const [buyTotal, setBuyTotal] = React.useState(ed && ed.qty != null && ed.price != null ? String(Math.round(ed.qty * ed.price)) : '');
-  // keep buy unit aligned when the selected material changes
+  // keep buy unit aligned when the selected material (or new-material unit) changes
   React.useEffect(() => {
-    if (kind === 'buy' && !ed) setBuyUnit(defBuyUnit(store.materialById[materialId]?.unit || 'g'));
-  }, [materialId, kind]);
+    if (kind === 'buy' && !ed) setBuyUnit(defBuyUnit(newMatMode ? newMatUnit : (store.materialById[materialId]?.unit || 'g')));
+  }, [materialId, kind, newMatMode, newMatUnit]);
   // which organisation paid / cashed in this transaction
   const [org, setOrg] = React.useState(ed?.org || 'lumaya');
   // settlement: who pays whom
@@ -1348,7 +1353,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
     if (kind === 'buy' && materialId) setPrice(String(store.materialPrices[materialId] || ''));
   }, [productId, materialId, kind]);
 
-  const selMat = store.materialById[materialId];
+  const selMat = newMatMode ? { unit: newMatUnit } : store.materialById[materialId];
   const canProduce = kind === 'production' ? store.producibleFor(productId) : null;
   const bottleneck = kind === 'production' ? store.bottleneckFor(productId) : null;
 
@@ -1358,13 +1363,18 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
       const payload = { productId, qty: Number(qty), price: Number(price), note, org };
       isEdit ? store.updateSale(ed.id, payload) : store.addSale(payload);
     } else if (kind === 'buy') {
-      if (!materialId || !qty || !buyTotal) return;
-      const mm = store.materialById[materialId];
+      let matId = materialId, mm = store.materialById[materialId];
+      if (newMatMode) {
+        if (!newMatName.trim() || !qty || !buyTotal) return;
+        mm = store.addMaterial({ name: newMatName.trim(), unit: newMatUnit, stock0: 0 });
+        matId = mm.id;
+      }
+      if (!matId || !qty || !buyTotal) return;
       const base = mm?.unit || 'g';
       const baseQty = convertUnit(Number(qty), buyUnit, base, densityFor(mm));  // entered unit → base
       if (baseQty <= 0) return;
       const unitPrice = Number(buyTotal) / baseQty;             // computed price per base unit
-      const payload = { materialId, qty: baseQty, price: unitPrice, note, org, buyUnit };
+      const payload = { materialId: matId, qty: baseQty, price: unitPrice, note, org, buyUnit };
       isEdit ? store.updatePurchase(ed.id, payload) : store.addPurchase(payload);
     } else if (kind === 'cost') {
       if (!label || !amount) return;
@@ -1517,19 +1527,45 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
           <React.Fragment>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <span style={labelStyle}>{tr('Matière première')}</span>
-              {store.materials.length === 0 && (
-                <span style={{ fontFamily: creaSans, fontSize: 12, color: c.muted }}>{tr("Crée d’abord une matière (onglet Matière).")}</span>
-              )}
-              {groupedMaterials(store.materials).map((g) => (
-                <div key={g.cat} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans }}>{tr(g.label)}</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button onClick={() => { setNewMatMode(true); setMaterialId(''); }} style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px 7px 7px', borderRadius: 999,
+                  background: newMatMode ? c.accent : c.panel2, color: newMatMode ? c.inkContrast : c.text,
+                  border: `1px solid ${newMatMode ? c.accent : c.border}`,
+                  cursor: 'pointer', fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+                }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: 999, background: newMatMode ? c.inkContrast : c.border,
+                    color: newMatMode ? c.accent : c.muted, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}><Icon.plus width={12} height={12} /></span>
+                  {tr('Nouvelle matière')}
+                </button>
+              </div>
+              {newMatMode ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
+                  <input value={newMatName} autoFocus onChange={(e) => setNewMatName(e.target.value)}
+                    placeholder={tr('Nom de la matière')} style={{ ...inputStyle, background: 'transparent' }} />
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {g.items.map((m) => (
-                      <CreaMatChip key={m.id} m={m} c={c} selected={materialId === m.id} onClick={() => setMaterialId(m.id)} />
+                    {['g', 'ml', 'goutte', 'm', 'pièce'].map((u) => (
+                      <button key={u} onClick={() => setNewMatUnit(u)} style={pill(newMatUnit === u)}>{u}</button>
                     ))}
                   </div>
+                  <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft }}>
+                    {tr('Le prix de cet achat devient le prix de référence de la matière.')}
+                  </div>
                 </div>
-              ))}
+              ) : (
+                groupedMaterials(store.materials).map((g) => (
+                  <div key={g.cat} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans }}>{tr(g.label)}</span>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {g.items.map((m) => (
+                        <CreaMatChip key={m.id} m={m} c={c} selected={materialId === m.id} onClick={() => { setMaterialId(m.id); setNewMatMode(false); }} />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 12 }}>
               <div>
