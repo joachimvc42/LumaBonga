@@ -739,11 +739,16 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const [nameDraft, setNameDraft] = React.useState('');
   const [sopView, setSopView] = React.useState(null);  // product whose SOP is being viewed
   const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
+  const [compareFor, setCompareFor] = React.useState(null);  // product whose formula suggestion is open
 
   // Level-1 (public, no password) visitors only ever see "Ready" products.
   // Missing status = legacy product = treated as Ready (nothing disappears
-  // when this field is introduced).
-  const productStatus = (p) => p.status || 'ready';
+  // when this field is introduced). Legacy 'correction' (retired status,
+  // folded into Test) reads as Test.
+  const productStatus = (p) => {
+    const st = p.status || 'ready';
+    return st === 'correction' ? 'test' : st;
+  };
   const products = readonly ? store.products.filter((p) => productStatus(p) === 'ready') : store.products;
 
   return (
@@ -809,7 +814,6 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                   {[
                     { id: 'ready', label: 'Ready', color: c.pos || c.accent },
                     { id: 'test', label: 'Test', color: c.amber },
-                    { id: 'correction', label: 'Correction', color: c.rose },
                   ].map((st) => {
                     const active = productStatus(p) === st.id;
                     return (
@@ -829,6 +833,20 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     );
                   })}
                 </div>
+              )}
+
+              {/* Suggest a correction — only while Test; base recipe stays
+                  locked, changes go through a compare-and-approve draft. */}
+              {!readonly && productStatus(p) === 'test' && (
+                <button onClick={() => setCompareFor(p)} style={{
+                  width: '100%', marginTop: 8, padding: '9px', borderRadius: 10, cursor: 'pointer',
+                  border: `1px solid ${c.amber}55`, background: `${c.amber}14`, color: c.amber,
+                  fontFamily: creaSans, fontSize: 12, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}>
+                  <Icon.list width={14} height={14} />
+                  {store.draftFor(p.id) ? tr('Revoir la suggestion') : tr('Suggérer une correction')}
+                </button>
               )}
 
               {/* Comment — free-text note, level 2/3 only, never shown to public. */}
@@ -888,7 +906,12 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 {cost.ingredientLines.length === 0 && (
                   <div style={{ fontFamily: creaSans, fontSize: 12, color: c.muted, padding: '6px 0' }}>{tr('Aucun composant')}</div>
                 )}
-                {edit
+                {edit && productStatus(p) === 'test' && (
+                  <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft, padding: '4px 0 2px', fontStyle: 'italic' }}>
+                    {tr('Composition verrouillée pendant Test — utilise « Suggérer une correction ».')}
+                  </div>
+                )}
+                {edit && productStatus(p) !== 'test'
                   ? cost.ingredientLines.map((ln) => <CreaIngredientEdit key={ln.id} pid={p.id} ln={ln} c={c} store={store} />)
                   : cost.ingredientLines.map((ln) => (
                       <div key={ln.id} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, padding: '4px 0' }}>
@@ -907,7 +930,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                         })()}
                       </div>
                     ))}
-                {edit && (
+                {edit && productStatus(p) !== 'test' && (
                   <button onClick={() => setAddFor(p.id)} style={{
                     width: '100%', marginTop: 8, padding: '9px', borderRadius: 10, cursor: 'pointer',
                     border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
@@ -958,6 +981,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
         used={new Set(store.recipeFor(addFor).ingredients.map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
       {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} onClose={() => setSopView(null)} />}
       {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} onClose={() => setSopEdit(null)} />}
+      {compareFor && <ProdFormulaCompareSheet store={store} dark={dark} t={t} product={compareFor} onClose={() => setCompareFor(null)} />}
     </div>
   );
 }

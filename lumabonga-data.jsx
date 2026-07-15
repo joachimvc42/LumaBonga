@@ -154,6 +154,17 @@ const LB_EN = {
   '{name} : manquant (0%)': '{name}: missing (0%)',
   '{name} : {pct}% (doit faire 100%)': '{name}: {pct}% (must total 100%)',
   'Commentaire (optionnel)…': 'Comment (optional)…',
+  // Formula suggestions (Test status)
+  'Revoir la suggestion': 'Review suggestion', 'Suggérer une correction': 'Suggest a correction',
+  'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':
+    'Composition locked while in Test — use "Suggest a correction".',
+  'Formule testée (actuelle)': 'Tested formula (current)',
+  'Une suggestion part d’une copie de la formule testée : ajuste les quantités, ajoute ou retire des composants, sans jamais modifier la formule actuelle tant qu’elle n’est pas approuvée.':
+    'A suggestion starts as a copy of the tested formula: adjust quantities, add or remove components, without ever touching the current formula until it’s approved.',
+  'Démarrer une suggestion': 'Start a suggestion', 'Testée': 'Tested', 'À tester': 'To test',
+  'Approuver comme formule Ready': 'Approve as Ready formula',
+  'Approuver comme nouvelle base à tester': 'Approve as new base to test',
+  'Supprimer la suggestion': 'Discard suggestion',
   'Combien d’unités veux-tu produire ?': 'How many units do you want to make?',
   'Quantité à produire': 'Quantity to make', 'unités': 'units',
   '1 unité ≈ {x} g': '1 unit ≈ {x} g',
@@ -621,12 +632,17 @@ function useLumaStore(seed, shareLumaya) {
     return out;
   };
   const [recipes, setRecipes] = React.useState(() => saved?.recipes || (seed?.recipes ? withIds(seed.recipes) : {}));
+  // Recipe drafts — one pending "to test" suggestion per product, compared
+  // against the current (tested/base) recipe. Same shape as a recipe.
+  // Approving one replaces `recipes[pid]`; discarding just clears the draft,
+  // the base recipe is never touched by draft edits.
+  const [recipeDrafts, setRecipeDrafts] = React.useState(saved?.recipeDrafts || {});
   const rid = (p) => p + Math.random().toString(36).slice(2, 7);
 
   // Persist on any change. Recipes already carry stable ids, so they round-trip.
   React.useEffect(() => {
-    savePersisted({ products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj, sops, todos, team });
-  }, [products, sales, purchases, costs, production, materials, recipes, activeUser, settlements, materialAdj, productAdj, sops, todos, team]);
+    savePersisted({ products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, todos, team });
+  }, [products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, todos, team]);
 
   const recipeFor = (pid) => recipes[pid] || { ingredients: [], labor: [] };
   const editRecipe = (pid, fn) => setRecipes((rs) => {
@@ -648,6 +664,43 @@ function useLumaStore(seed, shareLumaya) {
     ({ ...r, labor: r.labor.map((l) => l.id === id ? { ...l, ...patch } : l) }));
   const removeLabor = (pid, id) => editRecipe(pid, (r) =>
     ({ ...r, labor: r.labor.filter((l) => l.id !== id) }));
+
+  // ── Recipe drafts ("suggest a correction") ───────────────────
+  const draftFor = (pid) => recipeDrafts[pid] || null;
+  const editDraft = (pid, fn) => setRecipeDrafts((ds) => {
+    const cur = ds[pid];
+    if (!cur) return ds;
+    return { ...ds, [pid]: fn(cur) };
+  });
+  // Starts a draft as a copy of the current (tested) recipe — the base stays
+  // untouched; only this copy is editable until approved or discarded.
+  const startDraft = (pid) => setRecipeDrafts((ds) => ds[pid] ? ds : {
+    ...ds,
+    [pid]: {
+      ingredients: (recipeFor(pid).ingredients || []).map((i) => ({ ...i })),
+      labor: (recipeFor(pid).labor || []).map((l) => ({ ...l })),
+    },
+  });
+  const addDraftIngredient = (pid, materialId, qty) => editDraft(pid, (r) =>
+    ({ ...r, ingredients: [...r.ingredients, { id: rid('di_'), materialId, qty }] }));
+  const updateDraftIngredient = (pid, id, patch) => editDraft(pid, (r) =>
+    ({ ...r, ingredients: r.ingredients.map((i) => i.id === id ? { ...i, ...patch } : i) }));
+  const removeDraftIngredient = (pid, id) => editDraft(pid, (r) =>
+    ({ ...r, ingredients: r.ingredients.filter((i) => i.id !== id) }));
+  const discardDraft = (pid) => setRecipeDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
+  // Draft becomes the new base recipe — status untouched (still Test: keep testing).
+  const approveDraftAsBase = (pid) => {
+    const d = recipeDrafts[pid];
+    if (!d) return;
+    setRecipes((rs) => ({ ...rs, [pid]: { ingredients: d.ingredients, labor: d.labor } }));
+    discardDraft(pid);
+  };
+  // Draft becomes the new base recipe AND the product is validated as Ready.
+  const approveDraftAsReady = (pid) => {
+    if (!recipeDrafts[pid]) return;
+    approveDraftAsBase(pid);
+    setProducts((xs) => xs.map((p) => p.id === pid ? { ...p, status: 'ready' } : p));
+  };
 
   const addProduct = (p) => {
     const id = 'p_' + Math.random().toString(36).slice(2, 8);
@@ -726,6 +779,7 @@ function useLumaStore(seed, shareLumaya) {
     setProduction([]);
     setMaterials([]);
     setRecipes({});
+    setRecipeDrafts({});
     setActiveUser('lumaya');
     setSettlements([]);
     setMaterialAdj({});
@@ -949,6 +1003,9 @@ function useLumaStore(seed, shareLumaya) {
     resetStore,
     productById, materialById, materialPrices, totals,
     recipes, recipeFor, unitCostFor,
+    recipeDrafts, draftFor, startDraft, discardDraft,
+    addDraftIngredient, updateDraftIngredient, removeDraftIngredient,
+    approveDraftAsBase, approveDraftAsReady,
     sops, setSop, removeSop,
     todos, addTodo, updateTodo, toggleTodo, removeTodo,
     team, addTeamMember, removeTeamMember, toPurchase,

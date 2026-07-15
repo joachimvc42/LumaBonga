@@ -63,7 +63,7 @@ function ProdCostChart({ series, c }) {
 }
 
 // ── Add-material bottom sheet ────────────────────────────────
-function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
+function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose, draft }) {
   const c = prodTheme(dark, t.accent);
   const groups = groupedMaterials(store.materials);
   const defaultQty = (m) => m.unit === 'pièce' ? 1 : m.unit === 'm' ? 1 : m.unit === 'goutte' ? 4 : 10;
@@ -76,7 +76,8 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose }) {
     if (!pick) return;
     const q = Number(qty);
     if (!(q > 0)) return;
-    store.addIngredient(productId, pick.id, q);
+    if (draft) store.addDraftIngredient(productId, pick.id, q);
+    else store.addIngredient(productId, pick.id, q);
     onClose();
   };
 
@@ -719,4 +720,150 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
   );
 }
 
-Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart, ProdSopEditorSheet, ProdSopViewerSheet });
+// ── Formula suggestion: one draft ingredient row (editable, diff-colored) ────
+function ProdDraftRow({ pid, ing, mat, diff, store, c }) {
+  const base = mat?.unit || 'g';
+  const dens = densityFor(mat);
+  const unit = COMPONENT_UNITS.includes(ing.unit) ? ing.unit : (COMPONENT_UNITS.includes(base) ? base : 'g');
+  const [val, setVal] = React.useState(String(Math.round(convertUnit(ing.qty, base, unit, dens) * 10) / 10));
+  React.useEffect(() => { setVal(String(Math.round(convertUnit(ing.qty, base, unit, dens) * 10) / 10)); }, [ing.qty, unit]);
+  const commit = (raw, u) => {
+    const q = Number(raw);
+    if (!isFinite(q)) return;
+    store.updateDraftIngredient(pid, ing.id, { qty: convertUnit(q, u, base, dens), unit: u });
+  };
+  const dot = diff === 'added' ? c.accent : diff === 'changed' ? c.amber : (mat?.hue != null ? `oklch(0.62 0.16 ${mat.hue})` : c.mutedSoft);
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0',
+      borderTop: `1px solid ${c.borderSoft}`,
+    }}>
+      <span style={{ width: 7, height: 7, borderRadius: 999, background: dot, flexShrink: 0 }} />
+      <span style={{ flex: 1, minWidth: 0, fontFamily: prodSans, fontSize: 11.5, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{mat?.name || '—'}</span>
+      <input type="number" inputMode="decimal" value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={(e) => commit(e.target.value, unit)}
+        onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
+        style={{ width: 44, textAlign: 'right', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 6, padding: '4px 5px', fontFamily: prodMono, fontSize: 11.5, outline: 'none' }} />
+      <span style={{ fontFamily: prodMono, fontSize: 10, color: c.mutedSoft, flexShrink: 0 }}>{unit}</span>
+      <button onClick={() => store.removeDraftIngredient(pid, ing.id)} style={{ background: 'transparent', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 0, display: 'flex', flexShrink: 0 }}>
+        <Icon.close width={13} height={13} />
+      </button>
+    </div>
+  );
+}
+
+// ── Formula suggestion sheet: Tested (base) vs To test (draft), side by side.
+// The base is read-only reference; only the draft column is editable. Nothing
+// touches the base recipe until a draft is explicitly approved.
+function ProdFormulaCompareSheet({ store, dark, t, product, onClose }) {
+  const c = prodTheme(dark, t.accent);
+  const pid = product.id;
+  const base = store.recipeFor(pid);
+  const draft = store.draftFor(pid);
+  const [addOpen, setAddOpen] = React.useState(false);
+
+  if (!draft) {
+    return (
+      <ProdSheet title={tr('Suggérer une correction')} c={c} onClose={onClose}>
+        <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
+        <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr('Formule testée (actuelle)')}</div>
+        {base.ingredients.length === 0 && <div style={{ fontFamily: prodSans, fontSize: 12, color: c.muted }}>{tr('Aucun composant')}</div>}
+        {base.ingredients.map((ing) => {
+          const mat = store.materialById[ing.materialId];
+          const du = COMPONENT_UNITS.includes(ing.unit) ? ing.unit : (mat?.unit || 'g');
+          return (
+            <div key={ing.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderTop: `1px solid ${c.borderSoft}` }}>
+              <span style={{ width: 7, height: 7, borderRadius: 999, background: `oklch(0.62 0.16 ${mat?.hue || 0})`, flexShrink: 0 }} />
+              <span style={{ flex: 1, fontFamily: prodSans, fontSize: 13, color: c.text }}>{mat?.name || '—'}</span>
+              <span style={{ fontFamily: prodMono, fontSize: 12, color: c.muted }}>{fmtQty(convertUnit(ing.qty, mat?.unit || 'g', du, densityFor(mat)))} {du}</span>
+            </div>
+          );
+        })}
+        <div style={{ fontFamily: prodSans, fontSize: 12, color: c.mutedSoft, lineHeight: 1.5 }}>
+          {tr('Une suggestion part d’une copie de la formule testée : ajuste les quantités, ajoute ou retire des composants, sans jamais modifier la formule actuelle tant qu’elle n’est pas approuvée.')}
+        </div>
+        <button onClick={() => store.startDraft(pid)} style={{
+          width: '100%', padding: '14px', borderRadius: 999, cursor: 'pointer', border: 'none',
+          background: c.amber, color: '#1a1400', fontFamily: prodSans, fontSize: 15, fontWeight: 700,
+        }}>{tr('Démarrer une suggestion')}</button>
+      </ProdSheet>
+    );
+  }
+
+  // Union of ingredient ids from both sides, base order first.
+  const ids = [
+    ...base.ingredients.map((i) => i.materialId),
+    ...draft.ingredients.map((i) => i.materialId).filter((id) => !base.ingredients.some((i) => i.materialId === id)),
+  ];
+  const usedInDraft = new Set(draft.ingredients.map((i) => i.materialId));
+
+  return (
+    <ProdSheet title={tr('Suggérer une correction')} c={c} onClose={onClose}>
+      <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: prodSans, marginBottom: 2 }}>{tr('Testée')}</div>
+          {ids.map((id) => {
+            const ing = base.ingredients.find((i) => i.materialId === id);
+            const mat = store.materialById[id];
+            const removed = !usedInDraft.has(id);
+            if (!ing) return <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}` }} />; // added-in-draft: blank spacer to keep rows aligned
+            const du = COMPONENT_UNITS.includes(ing.unit) ? ing.unit : (mat?.unit || 'g');
+            return (
+              <div key={id} style={{
+                display: 'flex', alignItems: 'center', gap: 6, padding: '7px 0',
+                borderTop: `1px solid ${c.borderSoft}`, opacity: removed ? 0.5 : 1,
+              }}>
+                <span style={{ width: 7, height: 7, borderRadius: 999, background: `oklch(0.62 0.16 ${mat?.hue || 0})`, flexShrink: 0 }} />
+                <span style={{ flex: 1, minWidth: 0, fontFamily: prodSans, fontSize: 11.5, color: c.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: removed ? 'line-through' : 'none' }}>{mat?.name || '—'}</span>
+                <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted, flexShrink: 0 }}>{fmtQty(convertUnit(ing.qty, mat?.unit || 'g', du, densityFor(mat)))} {du}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div>
+          <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: c.amber, fontWeight: 700, fontFamily: prodSans, marginBottom: 2 }}>{tr('À tester')}</div>
+          {ids.map((id) => {
+            const ing = draft.ingredients.find((i) => i.materialId === id);
+            const baseIng = base.ingredients.find((i) => i.materialId === id);
+            const mat = store.materialById[id];
+            if (!ing) return <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}` }} />; // removed-in-draft: blank spacer
+            const diff = !baseIng ? 'added' : (ing.qty !== baseIng.qty ? 'changed' : 'same');
+            return <ProdDraftRow key={id} pid={pid} ing={ing} mat={mat} diff={diff} store={store} c={c} />;
+          })}
+        </div>
+      </div>
+
+      <button onClick={() => setAddOpen(true)} style={{
+        width: '100%', padding: '9px', borderRadius: 10, cursor: 'pointer',
+        border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
+        fontFamily: prodSans, fontSize: 12, fontWeight: 600,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      }}><Icon.plus width={15} height={15} /> {tr('Ajouter un composant')}</button>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+        <button onClick={() => { store.approveDraftAsReady(pid); onClose(); }} style={{
+          width: '100%', padding: '14px', borderRadius: 999, cursor: 'pointer', border: 'none',
+          background: c.pos || c.accent, color: c.inkContrast, fontFamily: prodSans, fontSize: 15, fontWeight: 700,
+        }}>{tr('Approuver comme formule Ready')}</button>
+        <button onClick={() => { store.approveDraftAsBase(pid); onClose(); }} style={{
+          width: '100%', padding: '13px', borderRadius: 999, cursor: 'pointer',
+          background: 'transparent', color: c.text, border: `1px solid ${c.border}`,
+          fontFamily: prodSans, fontSize: 14, fontWeight: 600,
+        }}>{tr('Approuver comme nouvelle base à tester')}</button>
+        <button onClick={() => { store.discardDraft(pid); onClose(); }} style={{
+          width: '100%', padding: '11px', borderRadius: 999, cursor: 'pointer',
+          background: 'transparent', color: c.rose, border: `1px solid ${c.rose}55`,
+          fontFamily: prodSans, fontSize: 13, fontWeight: 600,
+        }}>{tr('Supprimer la suggestion')}</button>
+      </div>
+
+      {addOpen && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={pid} draft
+        used={usedInDraft} onClose={() => setAddOpen(false)} />}
+    </ProdSheet>
+  );
+}
+
+Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart, ProdSopEditorSheet, ProdSopViewerSheet, ProdFormulaCompareSheet });
