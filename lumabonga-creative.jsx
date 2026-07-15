@@ -823,6 +823,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
           const series = costSeries(recipe, store.materialById, store.purchases, 6);
           const edit = editId === p.id;
           const expanded = expandedIds.has(p.id);
+          const hasSop = !!(store.sops[p.id]?.steps?.length);
           const dragging = dragState && dragState.id === p.id;
           const dropHere = !!dragState && !dragging && dragState.targetIndex === idx;
           return (
@@ -885,6 +886,17 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                       );
                     })}
                   </div>
+                )}
+                {/* SOP quick-access — jumps straight to view/create without
+                    expanding the card first. Hidden for public with no SOP. */}
+                {(hasSop || !readonly) && (
+                  <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : setSopEdit(p); }}
+                    aria-label={hasSop ? tr('Voir la SOP') : tr('Créer la SOP')} style={{
+                    flexShrink: 0, width: expanded ? 34 : 24, height: expanded ? 34 : 24, borderRadius: 999, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: hasSop ? `${c.accent}1c` : c.panel2, color: hasSop ? c.accent : c.mutedSoft,
+                    border: `1px solid ${hasSop ? c.accent + '55' : c.border}`,
+                  }}><Icon.list width={expanded ? 15 : 12} height={expanded ? 15 : 12} /></button>
                 )}
                 {/* Chevron — opens/closes the full card. The row itself only
                     ever shows name, price and status (per the compact list view). */}
@@ -1047,7 +1059,6 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
 
               {/* SOP — production procedure */}
               {(() => {
-                const hasSop = !!(store.sops[p.id]?.steps?.length);
                 if (!hasSop && readonly) return null;
                 const btn = (label, onClick, solid) => (
                   <button onClick={onClick} style={{
