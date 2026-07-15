@@ -740,6 +740,60 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const [sopView, setSopView] = React.useState(null);  // product whose SOP is being viewed
   const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
   const [compareFor, setCompareFor] = React.useState(null);  // product whose formula suggestion is open
+  const [expandedIds, setExpandedIds] = React.useState(() => new Set());  // rows showing the full card
+  const toggleExpand = (id) => setExpandedIds((s) => {
+    const n = new Set(s);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
+
+  // ── Drag & drop reordering (pointer events — works for mouse and touch) ──
+  // The dragged row floats under the pointer; everything else stays put until
+  // release, when it snaps into the computed slot. Avoids compounding-
+  // transform bugs from live-reordering every sibling mid-drag.
+  const rowRefs = React.useRef({});
+  const [dragState, setDragState] = React.useState(null);  // { id, dy, targetIndex } — for rendering only
+  const dragRef = React.useRef(null);  // same shape, read synchronously on release (no impure updaters)
+  const startDrag = (id, e) => {
+    if (e.button != null && e.button !== 0) return;
+    e.preventDefault();
+    const ids = store.products.map((x) => x.id);
+    const rects = {};
+    for (const pid of ids) {
+      const el = rowRefs.current[pid];
+      if (el) { const r = el.getBoundingClientRect(); rects[pid] = r.top + r.height / 2; }
+    }
+    const startMid = rects[id] ?? e.clientY;
+    const initial = { id, dy: 0, targetIndex: ids.indexOf(id) };
+    dragRef.current = initial;
+    setDragState(initial);
+    const onMove = (ev) => {
+      let targetIndex = 0, best = Infinity;
+      ids.forEach((pid, i) => {
+        const mid = rects[pid];
+        if (mid == null) return;
+        const d = Math.abs(ev.clientY - mid);
+        if (d < best) { best = d; targetIndex = i; }
+      });
+      const next = { id, dy: ev.clientY - startMid, targetIndex };
+      dragRef.current = next;
+      setDragState(next);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      const s = dragRef.current;
+      dragRef.current = null;
+      setDragState(null);
+      if (s) {
+        const order = ids.filter((x) => x !== s.id);
+        order.splice(s.targetIndex, 0, s.id);
+        store.setProductsOrder(order);
+      }
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+  };
 
   // Level-1 (public, no password) visitors only ever see "Ready" products.
   // Missing status = legacy product = treated as Ready (nothing disappears
@@ -757,7 +811,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
       <CreaSection title={tr('Produits')} right={`${products.length}`} dark={dark} t={t} />
 
       <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-        {products.map((p) => {
+        {products.map((p, idx) => {
           const recipe = store.recipeFor(p.id);
           const cost = recipeCost(recipe, store.materialById, store.purchases);
           const unitCost = cost.total;
@@ -768,13 +822,26 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
           const marginPct = (p.unitPrice || 0) > 0 ? (margin / p.unitPrice) * 100 : 0;
           const series = costSeries(recipe, store.materialById, store.purchases, 6);
           const edit = editId === p.id;
+          const expanded = expandedIds.has(p.id);
+          const dragging = dragState && dragState.id === p.id;
+          const dropHere = !!dragState && !dragging && dragState.targetIndex === idx;
           return (
-            <div key={p.id} style={{
+            <div key={p.id} ref={(el) => { rowRefs.current[p.id] = el; }} style={{
               position: 'relative', overflow: 'hidden', padding: 16, borderRadius: 18,
-              background: c.panel, border: `1px solid ${edit ? c.accent : c.border}`,
+              background: c.panel, border: `1px solid ${dropHere ? c.accent : (edit ? c.accent : c.border)}`,
+              transform: dragging ? `translateY(${dragState.dy}px)` : 'none',
+              zIndex: dragging ? 60 : 'auto',
+              boxShadow: dragging ? (dark ? '0 12px 32px rgba(0,0,0,.5)' : '0 12px 32px rgba(16,19,26,.2)') : 'none',
+              opacity: dragging ? 0.96 : 1,
             }}>
               <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 4, background: `oklch(0.6 0.18 ${p.hue})` }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                {!readonly && (
+                  <span onPointerDown={(e) => startDrag(p.id, e)} style={{
+                    color: c.mutedSoft, cursor: dragging ? 'grabbing' : 'grab', flexShrink: 0,
+                    display: 'flex', touchAction: 'none',
+                  }}><Icon.grip width={15} height={15} /></span>
+                )}
                 <div style={{
                   width: 56, height: 56, borderRadius: 14, background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaMono, fontSize: 18, fontWeight: 700, flexShrink: 0,
@@ -794,11 +861,19 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     </div>
                   )}
                 </div>
-                {/* Per-product edit / done button */}
+                {/* Chevron — opens/closes the full card. The row itself only
+                    ever shows name, price and status (per the compact list view). */}
+                <button onClick={() => toggleExpand(p.id)} aria-label={expanded ? tr('Réduire') : tr('Développer')} style={{
+                  flexShrink: 0, width: 34, height: 34, borderRadius: 999, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: c.panel2, color: c.muted, border: `1px solid ${c.border}`,
+                  transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s',
+                }}><Icon.chevronDown width={15} height={15} /></button>
+                {/* Per-product edit / done button — clicking it also opens the card. */}
                 {!readonly && <button onClick={(e) => {
                   e.stopPropagation();
                   if (edit) { setEditId(null); }
-                  else { setNameDraft(p.name); setEditId(p.id); }
+                  else { setNameDraft(p.name); setEditId(p.id); setExpandedIds((s) => new Set(s).add(p.id)); }
                 }} style={{
                   flexShrink: 0, width: 34, height: 34, borderRadius: 999, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -835,6 +910,11 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 </div>
               )}
 
+              {/* Everything below is hidden in the compact row — the chevron
+                  opens it. Matches "les infos de l'image uniquement" for the
+                  collapsed state: icon, name, price, status only. */}
+              {expanded && (
+              <React.Fragment>
               {/* Suggest a correction — only while Test; base recipe stays
                   locked, changes go through a compare-and-approve draft. */}
               {!readonly && productStatus(p) === 'test' && (
@@ -961,6 +1041,8 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                   </div>
                 );
               })()}
+              </React.Fragment>
+              )}
             </div>
           );
         })}

@@ -154,6 +154,7 @@ const LB_EN = {
   '{name} : manquant (0%)': '{name}: missing (0%)',
   '{name} : {pct}% (doit faire 100%)': '{name}: {pct}% (must total 100%)',
   'Commentaire (optionnel)…': 'Comment (optional)…',
+  'Réduire': 'Collapse', 'Développer': 'Expand',
   // Formula suggestions (Test status)
   'Revoir la suggestion': 'Review suggestion', 'Suggérer une correction': 'Suggest a correction',
   'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':
@@ -714,6 +715,16 @@ function useLumaStore(seed, shareLumaya) {
   };
   const updateProduct = (id, patch) => setProducts((xs) => xs.map((p) => p.id === id ? { ...p, ...patch } : p));
   const removeProduct = (id) => setProducts((xs) => xs.filter((p) => p.id !== id));
+  // Reorder the catalog (drag & drop). Any id missing from `orderedIds`
+  // (shouldn't happen) keeps its relative position at the end, so a stale
+  // snapshot can never silently drop a product.
+  const setProductsOrder = (orderedIds) => setProducts((xs) => {
+    const byId = {};
+    for (const p of xs) byId[p.id] = p;
+    const reordered = orderedIds.map((id) => byId[id]).filter(Boolean);
+    const missing = xs.filter((p) => !orderedIds.includes(p.id));
+    return [...reordered, ...missing];
+  });
 
   // Raw materials CRUD
   const addMaterial = (m) => {
@@ -991,7 +1002,7 @@ function useLumaStore(seed, shareLumaya) {
     materialAdj, productAdj,
     period, setPeriod, availableMonths,
     setActiveUser,
-    addProduct, updateProduct, removeProduct,
+    addProduct, updateProduct, removeProduct, setProductsOrder,
     addMaterial, updateMaterial, removeMaterial,
     addSale, updateSale, removeSale,
     addPurchase, updatePurchase, removePurchase,
@@ -1116,6 +1127,18 @@ const Icon = {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...p}>
       <path d="M9 6h11M9 12h11M9 18h11"/>
       <circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/>
+    </svg>
+  ),
+  chevronDown: (p) => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="M6 9l6 6 6-6"/>
+    </svg>
+  ),
+  grip: (p) => (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" {...p}>
+      <circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/>
+      <circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/>
+      <circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/>
     </svg>
   ),
   todo: (p) => (
