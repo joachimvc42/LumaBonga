@@ -827,7 +827,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
           const dropHere = !!dragState && !dragging && dragState.targetIndex === idx;
           return (
             <div key={p.id} ref={(el) => { rowRefs.current[p.id] = el; }} style={{
-              position: 'relative', overflow: 'hidden', padding: 16, borderRadius: 18,
+              position: 'relative', overflow: 'hidden', padding: expanded ? 16 : '7px 12px', borderRadius: expanded ? 18 : 12,
               background: c.panel, border: `1px solid ${dropHere ? c.accent : (edit ? c.accent : c.border)}`,
               transform: dragging ? `translateY(${dragState.dy}px)` : 'none',
               zIndex: dragging ? 60 : 'auto',
@@ -835,56 +835,81 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
               opacity: dragging ? 0.96 : 1,
             }}>
               <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 4, background: `oklch(0.6 0.18 ${p.hue})` }} />
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: expanded ? 14 : 8 }}>
                 {!readonly && (
                   <span onPointerDown={(e) => startDrag(p.id, e)} style={{
                     color: c.mutedSoft, cursor: dragging ? 'grabbing' : 'grab', flexShrink: 0,
                     display: 'flex', touchAction: 'none',
-                  }}><Icon.grip width={15} height={15} /></span>
+                  }}><Icon.grip width={expanded ? 15 : 13} height={expanded ? 15 : 13} /></span>
                 )}
                 <div style={{
-                  width: 56, height: 56, borderRadius: 14, background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaMono, fontSize: 18, fontWeight: 700, flexShrink: 0,
+                  width: expanded ? 56 : 30, height: expanded ? 56 : 30, borderRadius: expanded ? 14 : 9,
+                  background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaMono,
+                  fontSize: expanded ? 18 : 11, fontWeight: 700, flexShrink: 0, transition: 'width .15s, height .15s',
                 }}>{p.emoji}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ flex: 1, minWidth: 0, display: expanded ? 'block' : 'flex', alignItems: 'baseline', gap: 8 }}>
                   {edit ? (
                     <input value={nameDraft} autoFocus onChange={(e) => setNameDraft(e.target.value)}
                       onBlur={() => { const n = nameDraft.trim(); if (n && n !== p.name) store.updateProduct(p.id, { name: n }); }}
                       onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                       style={{ width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 10px', fontFamily: creaSans, fontSize: 16, outline: 'none' }} />
                   ) : (
-                    <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: c.text }}>{p.name}</div>
+                    <div style={{
+                      fontFamily: creaDisplay, fontStyle: 'normal', fontSize: expanded ? 18 : 13, color: c.text,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{p.name}</div>
                   )}
                   {!readonly && (
-                    <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
+                    <div style={{ fontSize: expanded ? 11 : 10, color: c.muted, fontFamily: creaMono, marginTop: expanded ? 2 : 0, flexShrink: 0 }}>
                       {tr('Vente {x} {cur}', { x: fmtNum(p.unitPrice), cur: t.currency })}
                     </div>
                   )}
                 </div>
+                {/* Status, compact inline form — only in the collapsed row (the
+                    expanded card shows the same chips full-size, below). */}
+                {!readonly && !expanded && (
+                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                    {[
+                      { id: 'ready', label: 'Ready', color: c.pos || c.accent },
+                      { id: 'test', label: 'Test', color: c.amber },
+                    ].map((st) => {
+                      const active = productStatus(p) === st.id;
+                      if (!active) return null;  // collapsed: only show the active one, saves space
+                      return (
+                        <span key={st.id} style={{
+                          padding: '2px 7px', borderRadius: 999, border: `1px solid ${st.color}`,
+                          background: `${st.color}22`, color: st.color,
+                          fontFamily: creaSans, fontSize: 9.5, fontWeight: 700, whiteSpace: 'nowrap',
+                        }}>{st.label}</span>
+                      );
+                    })}
+                  </div>
+                )}
                 {/* Chevron — opens/closes the full card. The row itself only
                     ever shows name, price and status (per the compact list view). */}
                 <button onClick={() => toggleExpand(p.id)} aria-label={expanded ? tr('Réduire') : tr('Développer')} style={{
-                  flexShrink: 0, width: 34, height: 34, borderRadius: 999, cursor: 'pointer',
+                  flexShrink: 0, width: expanded ? 34 : 24, height: expanded ? 34 : 24, borderRadius: 999, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: c.panel2, color: c.muted, border: `1px solid ${c.border}`,
                   transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s',
-                }}><Icon.chevronDown width={15} height={15} /></button>
+                }}><Icon.chevronDown width={expanded ? 15 : 12} height={expanded ? 15 : 12} /></button>
                 {/* Per-product edit / done button — clicking it also opens the card. */}
                 {!readonly && <button onClick={(e) => {
                   e.stopPropagation();
                   if (edit) { setEditId(null); }
                   else { setNameDraft(p.name); setEditId(p.id); setExpandedIds((s) => new Set(s).add(p.id)); }
                 }} style={{
-                  flexShrink: 0, width: 34, height: 34, borderRadius: 999, cursor: 'pointer',
+                  flexShrink: 0, width: expanded ? 34 : 24, height: expanded ? 34 : 24, borderRadius: 999, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   background: edit ? c.accent : c.panel2, color: edit ? c.inkContrast : c.muted,
                   border: `1px solid ${edit ? c.accent : c.border}`,
-                }}>{edit ? <Icon.check width={16} height={16} /> : <Icon.edit width={16} height={16} />}</button>}
+                }}>{edit ? <Icon.check width={expanded ? 16 : 13} height={expanded ? 16 : 13} /> : <Icon.edit width={expanded ? 16 : 13} height={expanded ? 16 : 13} />}</button>}
               </div>
 
-              {/* Status — level 2/3 (staff/admin) only. Only "Ready" products
-                  reach the public catalog (filtered above). */}
-              {!readonly && (
+              {/* Status — level 2/3 (staff/admin) only, full form once expanded.
+                  Only "Ready" products reach the public catalog (filtered above). */}
+              {!readonly && expanded && (
                 <div style={{ display: 'flex', gap: 6, marginTop: 10, flexWrap: 'wrap' }}>
                   {[
                     { id: 'ready', label: 'Ready', color: c.pos || c.accent },
