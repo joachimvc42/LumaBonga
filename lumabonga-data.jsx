@@ -155,6 +155,7 @@ const LB_EN = {
   '{name} : {pct}% (doit faire 100%)': '{name}: {pct}% (must total 100%)',
   'Commentaire (optionnel)…': 'Comment (optional)…',
   'Réduire': 'Collapse', 'Développer': 'Expand',
+  'Nouvelle catégorie…': 'New category…', 'Nouvelle': 'New', 'Autre': 'Other',
   // Formula suggestions (Test status)
   'Revoir la suggestion': 'Review suggestion', 'Suggérer une correction': 'Suggest a correction',
   'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':
@@ -482,23 +483,37 @@ const convertUnit = (qty, fromU, toU, density = DEFAULT_DENSITY) => {
 };
 
 // ── Material categories (for grouped pickers) ────────────────
-// Explicit cat wins; else inferred from the name. Order: wax, oil, eo, other.
+// A material's cat is either explicit (m.cat — any string, including
+// user-created categories from the add-material form) or inferred from the
+// name for legacy materials that predate this field. Default order: wax,
+// oil, eo, other; any custom category sorts after, alphabetically.
 const MATERIAL_CATS = ['wax', 'oil', 'eo', 'other'];
 const MATERIAL_CAT_LABELS = { wax: 'Wax', oil: 'Oil', eo: 'EO', other: 'Autre' };
+const catLabel = (cat) => MATERIAL_CAT_LABELS[cat] || (cat ? cat.charAt(0).toUpperCase() + cat.slice(1) : cat);
 const materialCat = (m) => {
-  if (m && MATERIAL_CATS.includes(m.cat)) return m.cat;
+  if (m && m.cat) return m.cat;
   const n = (m?.name || '').toLowerCase();
   if (/\beo\b|h\.?e\.?\s|essential oil|\babsolute\b|absolue/.test(n)) return 'eo';
   if (/wax|cire/.test(n)) return 'wax';
   if (/oil|huile|\bfco\b|butter|beurre|vitamin|vitamine/.test(n)) return 'oil';
   return 'other';
 };
+// All categories in use (defaults first, custom ones alphabetically after) —
+// feeds the picker in the add/edit-material form, including categories
+// created by simply typing a new one there.
+const allMaterialCats = (materials) => {
+  const used = new Set((materials || []).map(materialCat));
+  const custom = [...used].filter((c) => !MATERIAL_CATS.includes(c)).sort((a, b) => a.localeCompare(b, 'fr'));
+  return [...MATERIAL_CATS, ...custom];
+};
 // Materials grouped by category, alphabetical within each group.
 const groupedMaterials = (materials) => {
-  const by = { wax: [], oil: [], eo: [], other: [] };
+  const cats = allMaterialCats(materials);
+  const by = {};
+  for (const k of cats) by[k] = [];
   for (const m of materials) by[materialCat(m)].push(m);
-  for (const k of MATERIAL_CATS) by[k].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
-  return MATERIAL_CATS.map((k) => ({ cat: k, label: MATERIAL_CAT_LABELS[k], items: by[k] })).filter((g) => g.items.length);
+  for (const k of cats) by[k].sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+  return cats.map((k) => ({ cat: k, label: catLabel(k), items: by[k] })).filter((g) => g.items.length);
 };
 
 // ── Cost engine ──────────────────────────────────────────────
@@ -733,7 +748,7 @@ function useLumaStore(seed, shareLumaya) {
     const price = Number(m.price) || 0;
     const next = {
       id, kind: m.kind || 'matière', hue: m.hue ?? Math.floor(Math.random() * 360),
-      stock0: Number(m.stock0) || 0, unit, name: m.name || 'Matière',
+      stock0: Number(m.stock0) || 0, unit, name: m.name || 'Matière', cat: m.cat || undefined,
       priceHistory: price > 0 ? [{ date: todayISO(), price }] : [],
     };
     setMaterials((xs) => [...xs, next]);
@@ -1190,6 +1205,6 @@ Object.assign(window, {
   materialPricePoints, materialPriceAt, materialCurrentPrice, recipeCost, costSeries,
   useLumaStore, Icon, AnimatedNumber,
   tr, setLbLang, fmtQty,
-  materialCat, groupedMaterials, MATERIAL_CAT_LABELS,
+  materialCat, groupedMaterials, MATERIAL_CAT_LABELS, allMaterialCats, catLabel,
   COMPONENT_UNITS, convertUnit, densityFor, isMassUnit, isVolUnit,
 });

@@ -194,20 +194,20 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                   const low = stock <= (m.unit === 'pièce' ? 30 : m.unit === 'm' ? 5 : 800);
                   return (
                     <div key={m.id} style={{
-                      padding: '12px 14px', borderRadius: 14,
+                      padding: '5px 10px', borderRadius: 10,
                       background: c.panel, border: `1px solid ${c.border}`,
-                      display: 'flex', alignItems: 'center', gap: 12,
+                      display: 'flex', alignItems: 'center', gap: 8,
                     }}>
-                      <span style={{ width: 10, height: 10, borderRadius: 999, background: `oklch(0.62 0.16 ${m.hue})`, flexShrink: 0 }} />
+                      <span style={{ width: 7, height: 7, borderRadius: 999, background: `oklch(0.62 0.16 ${m.hue})`, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
-                        <div style={{ fontFamily: creaMono, fontSize: 11, color: c.muted, marginTop: 2 }}>
+                        <div style={{ fontFamily: creaSans, fontSize: 12, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
+                        <div style={{ fontFamily: creaMono, fontSize: 9.5, color: c.muted }}>
                           {fmtNum(price)} {t.currency}/{m.unit} · {tr(m.kind)}
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 18, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
-                          {fmtNum(stock)} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>{m.unit}</span>
+                        <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 14, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
+                          {fmtNum(stock)} <span style={{ fontFamily: creaMono, fontSize: 9.5, fontStyle: 'normal', color: c.muted }}>{m.unit}</span>
                         </span>
                       </div>
                       <StkRowActions c={c} onEdit={() => onEdit('material', m)} onDelete={() => store.removeMaterial(m.id)} />
@@ -232,19 +232,19 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
               const can = store.producibleFor(p.id);
               return (
                 <div key={p.id} style={{
-                  padding: '12px 14px', borderRadius: 14,
+                  padding: '5px 10px', borderRadius: 10,
                   background: c.panel, border: `1px solid ${c.border}`,
-                  display: 'flex', alignItems: 'center', gap: 12,
+                  display: 'flex', alignItems: 'center', gap: 8,
                 }}>
                   <div onClick={() => onOpen && onOpen(p)} style={{
-                    width: 40, height: 40, borderRadius: 11, cursor: 'pointer',
+                    width: 26, height: 26, borderRadius: 8, cursor: 'pointer',
                     background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: creaMono, fontSize: 14, fontWeight: 700, flexShrink: 0,
+                    fontFamily: creaMono, fontSize: 10.5, fontWeight: 700, flexShrink: 0,
                   }}>{p.emoji}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: creaSans, fontSize: 14, color: c.text, fontWeight: 500 }}>{p.name}</div>
-                    <div style={{ fontFamily: creaMono, fontSize: 11, color: can === 0 ? c.rose : c.muted, marginTop: 2 }}>
+                    <div style={{ fontFamily: creaSans, fontSize: 12, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                    <div style={{ fontFamily: creaMono, fontSize: 9.5, color: can === 0 ? c.rose : c.muted }}>
                       {tr('{n} produisibles', { n: can })}
                     </div>
                   </div>
@@ -256,17 +256,17 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                     else store.setProductStockManual(p.id, Number(v));
                   }} title={tr('Corriger le stock')} style={{
                     background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
-                    display: 'flex', alignItems: 'center', gap: 5,
+                    display: 'flex', alignItems: 'center', gap: 4,
                   }}>
-                    <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 20, color: store.productAdj[p.id] != null ? c.accent : (stock <= 5 ? c.amber : c.text) }}>
-                      {stock} <span style={{ fontFamily: creaMono, fontSize: 11, fontStyle: 'normal', color: c.muted }}>u</span>
+                    <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 14, color: store.productAdj[p.id] != null ? c.accent : (stock <= 5 ? c.amber : c.text) }}>
+                      {stock} <span style={{ fontFamily: creaMono, fontSize: 9.5, fontStyle: 'normal', color: c.muted }}>u</span>
                     </span>
-                    <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={14} height={14} /></span>
+                    <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={11} height={11} /></span>
                   </button>
                   <button onClick={() => onEdit('production', { productId: p.id, qty: '', who: '' })} style={{
-                    padding: '8px 12px', borderRadius: 999, border: 'none',
+                    padding: '5px 10px', borderRadius: 999, border: 'none',
                     background: c.ink, color: c.inkContrast, cursor: 'pointer',
-                    fontFamily: creaSans, fontSize: 11.5, fontWeight: 600, flexShrink: 0,
+                    fontFamily: creaSans, fontSize: 10, fontWeight: 600, flexShrink: 0,
                   }}>{tr('Produire')}</button>
                 </div>
               );
