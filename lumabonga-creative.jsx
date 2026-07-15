@@ -831,6 +831,23 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 </div>
               )}
 
+              {/* Comment — free-text note, level 2/3 only, never shown to public. */}
+              {!readonly && (edit ? (
+                <textarea defaultValue={p.comment || ''} rows={2} placeholder={tr('Commentaire (optionnel)…')}
+                  onBlur={(e) => { const v = e.target.value; if (v !== (p.comment || '')) store.updateProduct(p.id, { comment: v }); }}
+                  style={{
+                    width: '100%', boxSizing: 'border-box', marginTop: 10, resize: 'vertical', minHeight: 44,
+                    background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 10,
+                    padding: '8px 11px', fontFamily: creaSans, fontSize: 12.5, outline: 'none', lineHeight: 1.5,
+                  }} />
+              ) : (p.comment && (
+                <div style={{
+                  marginTop: 10, padding: '8px 11px', borderRadius: 10,
+                  background: c.panel2, border: `1px solid ${c.border}`,
+                  color: c.muted, fontFamily: creaSans, fontSize: 12.5, lineHeight: 1.5, whiteSpace: 'pre-wrap',
+                }}>{p.comment}</div>
+              )))}
+
               {/* Margin tiles */}
               {!readonly && <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 {[

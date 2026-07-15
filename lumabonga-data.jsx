@@ -153,6 +153,7 @@ const LB_EN = {
   'Attention : la SOP ne couvre pas 100% de chaque ingrédient.': 'Warning: the SOP doesn’t cover 100% of every ingredient.',
   '{name} : manquant (0%)': '{name}: missing (0%)',
   '{name} : {pct}% (doit faire 100%)': '{name}: {pct}% (must total 100%)',
+  'Commentaire (optionnel)…': 'Comment (optional)…',
   'Combien d’unités veux-tu produire ?': 'How many units do you want to make?',
   'Quantité à produire': 'Quantity to make', 'unités': 'units',
   '1 unité ≈ {x} g': '1 unit ≈ {x} g',
