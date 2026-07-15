@@ -867,6 +867,20 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     </div>
                   )}
                 </div>
+                {/* SOP quick-access — sits mid-row (between name/price and the
+                    status/chevron/pencil cluster), labeled so it reads clearly.
+                    Jumps straight to view/create without expanding the card.
+                    Hidden for public with no SOP. */}
+                {(hasSop || !readonly) && (
+                  <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : setSopEdit(p); }}
+                    aria-label={hasSop ? tr('Voir la SOP') : tr('Créer la SOP')} style={{
+                    flexShrink: 0, padding: expanded ? '7px 12px' : '4px 9px', borderRadius: 999, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 5,
+                    background: hasSop ? `${c.accent}1c` : c.panel2, color: hasSop ? c.accent : c.mutedSoft,
+                    border: `1px solid ${hasSop ? c.accent + '55' : c.border}`,
+                    fontFamily: creaSans, fontSize: expanded ? 12 : 10.5, fontWeight: 700,
+                  }}><Icon.list width={expanded ? 14 : 11} height={expanded ? 14 : 11} /> SOP</button>
+                )}
                 {/* Status, compact inline form — only in the collapsed row (the
                     expanded card shows the same chips full-size, below). */}
                 {!readonly && !expanded && (
@@ -886,17 +900,6 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                       );
                     })}
                   </div>
-                )}
-                {/* SOP quick-access — jumps straight to view/create without
-                    expanding the card first. Hidden for public with no SOP. */}
-                {(hasSop || !readonly) && (
-                  <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : setSopEdit(p); }}
-                    aria-label={hasSop ? tr('Voir la SOP') : tr('Créer la SOP')} style={{
-                    flexShrink: 0, width: expanded ? 34 : 24, height: expanded ? 34 : 24, borderRadius: 999, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: hasSop ? `${c.accent}1c` : c.panel2, color: hasSop ? c.accent : c.mutedSoft,
-                    border: `1px solid ${hasSop ? c.accent + '55' : c.border}`,
-                  }}><Icon.list width={expanded ? 15 : 12} height={expanded ? 15 : 12} /></button>
                 )}
                 {/* Chevron — opens/closes the full card. The row itself only
                     ever shows name, price and status (per the compact list view). */}
