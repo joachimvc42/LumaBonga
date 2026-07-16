@@ -861,8 +861,8 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{p.name}</div>
                   )}
-                  {!readonly && (
-                    <div style={{ fontSize: expanded ? 11 : 10, color: c.muted, fontFamily: creaMono, marginTop: expanded ? 2 : 0, flexShrink: 0 }}>
+                  {!readonly && expanded && (
+                    <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 2 }}>
                       {tr('Vente {x} {cur}', { x: fmtNum(p.unitPrice), cur: t.currency })}
                     </div>
                   )}
@@ -877,42 +877,27 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     fontFamily: creaMono, fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap',
                   }}>{can} u</span>
                 )}
-                {/* SOP quick-access — sits mid-row (between name/price and the
-                    status/chevron/pencil cluster), labeled so it reads clearly.
-                    Jumps straight to view/create without expanding the card.
-                    Hidden for public with no SOP. */}
-                {(hasSop || !readonly) && (
-                  <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : setSopEdit(p); }}
-                    aria-label={hasSop ? tr('Voir la SOP') : tr('Créer la SOP')} style={{
-                    flexShrink: 0, padding: expanded ? '7px 12px' : '4px 9px', borderRadius: 999, cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: 5,
-                    background: hasSop ? `${c.accent}1c` : c.panel2, color: hasSop ? c.accent : c.mutedSoft,
-                    border: `1px solid ${hasSop ? c.accent + '55' : c.border}`,
-                    fontFamily: creaSans, fontSize: expanded ? 12 : 10.5, fontWeight: 700,
-                  }}><Icon.list width={expanded ? 14 : 11} height={expanded ? 14 : 11} /> SOP</button>
-                )}
-                {/* Status, compact inline form — only in the collapsed row (the
-                    expanded card shows the same chips full-size, below). */}
-                {!readonly && !expanded && (
-                  <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                    {[
-                      { id: 'ready', label: 'Ready', color: c.pos || c.accent },
-                      { id: 'test', label: 'Test', color: c.amber },
-                    ].map((st) => {
-                      const active = productStatus(p) === st.id;
-                      if (!active) return null;  // collapsed: only show the active one, saves space
-                      return (
-                        <span key={st.id} style={{
-                          padding: '2px 7px', borderRadius: 999, border: `1px solid ${st.color}`,
-                          background: `${st.color}22`, color: st.color,
-                          fontFamily: creaSans, fontSize: 9.5, fontWeight: 700, whiteSpace: 'nowrap',
-                        }}>{st.label}</span>
-                      );
-                    })}
-                  </div>
-                )}
-                {/* Chevron — opens/closes the full card. The row itself only
-                    ever shows name, price and status (per the compact list view). */}
+                {/* SOP quick-access — sits mid-row (between name and the
+                    chevron/pencil cluster), labeled so it reads clearly. Color
+                    carries the product status: green=Ready, orange=Test,
+                    gray=no SOP yet. Jumps straight to view/create without
+                    expanding the card. Hidden for public with no SOP. */}
+                {(hasSop || !readonly) && (() => {
+                  const sopColor = !hasSop ? c.mutedSoft : (productStatus(p) === 'ready' ? (c.pos || c.accent) : c.amber);
+                  return (
+                    <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : setSopEdit(p); }}
+                      aria-label={hasSop ? tr('Voir la SOP') : tr('Créer la SOP')} style={{
+                      flexShrink: 0, padding: expanded ? '7px 12px' : '4px 9px', borderRadius: 999, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', gap: 5,
+                      background: hasSop ? `${sopColor}1c` : c.panel2, color: sopColor,
+                      border: `1px solid ${hasSop ? sopColor + '55' : c.border}`,
+                      fontFamily: creaSans, fontSize: expanded ? 12 : 10.5, fontWeight: 700,
+                    }}><Icon.list width={expanded ? 14 : 11} height={expanded ? 14 : 11} /> SOP</button>
+                  );
+                })()}
+                {/* Chevron — opens/closes the full card. The compact row now
+                    only shows name, producible count and the SOP button
+                    (its color already carries Ready/Test). */}
                 <button onClick={() => toggleExpand(p.id)} aria-label={expanded ? tr('Réduire') : tr('Développer')} style={{
                   flexShrink: 0, width: expanded ? 34 : 24, height: expanded ? 34 : 24, borderRadius: 999, cursor: 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
