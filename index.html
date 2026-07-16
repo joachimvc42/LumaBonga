@@ -321,10 +321,10 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
   const dark = t.dark;
   const c = creaTheme(dark, t.accent);
   // French is no longer offered anywhere; sanitize any stale 'fr' left over
-  // from before the Settings toggle was removed (non-public roles only —
-  // public keeps its own EN/ID choice).
+  // from before the Settings toggle was removed, or a stray 'id' from testing
+  // (non-public roles only — public keeps its own EN/ID choice).
   useEffect(() => {
-    if (role !== 'public' && t.lang === 'fr') set('lang', 'en');
+    if (role !== 'public' && t.lang !== 'en') set('lang', 'en');
   }, [role, t.lang]);
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
