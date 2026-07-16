@@ -867,6 +867,16 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     </div>
                   )}
                 </div>
+                {/* Producible-now count — visible right in the compact row,
+                    no need to expand to see if it can be made with current stock. */}
+                {!readonly && !expanded && (
+                  <span title={tr('Produisibles')} style={{
+                    flexShrink: 0, padding: '2px 7px', borderRadius: 999,
+                    background: c.panel2, border: `1px solid ${c.border}`,
+                    color: can === 0 ? c.rose : c.muted,
+                    fontFamily: creaMono, fontSize: 10, fontWeight: 600, whiteSpace: 'nowrap',
+                  }}>{can} u</span>
+                )}
                 {/* SOP quick-access — sits mid-row (between name/price and the
                     status/chevron/pencil cluster), labeled so it reads clearly.
                     Jumps straight to view/create without expanding the card.

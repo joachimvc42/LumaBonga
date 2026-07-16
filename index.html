@@ -170,17 +170,6 @@ function SettingsButton({ t, set, dark }) {
               <button onClick={() => setOpen(false)} style={{ background: 'none', border: 'none', color: c.muted, cursor: 'pointer' }}><Icon.close /></button>
             </div>
 
-            <Row label={tr('Langue')}>
-              {[['en', 'EN'], ['fr', 'FR']].map(([id, lab]) => (
-                <button key={id} onClick={() => set('lang', id)} style={{
-                  padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
-                  background: t.lang === id ? c.accent : 'transparent',
-                  color: t.lang === id ? c.inkContrast : c.text,
-                  border: `1px solid ${t.lang === id ? c.accent : c.border}`,
-                  fontFamily: creaSans, fontSize: 12, fontWeight: 600,
-                }}>{lab}</button>
-              ))}
-            </Row>
 
             <Row label={tr('Mode sombre')}>
               <button onClick={() => set('dark', !t.dark)} style={{
@@ -305,8 +294,9 @@ function InstallAppButton({ dark, t, style }) {
   );
 }
 
-// ── EN/ID language pill — level-1 (public) only; staff/admin keep the
-// existing EN/FR toggle in Settings, unaffected by this. ─────────────────────
+// ── EN/ID language pill — level-1 (public) only. Staff/admin have no
+// language toggle at all: French isn't offered anywhere in the app anymore,
+// so English is their only (fixed) language. ─────────────────────
 function LangToggle({ t, set, dark, style }) {
   const c = creaTheme(dark, t.accent);
   const langs = ['en', 'id'];
@@ -330,6 +320,12 @@ function LangToggle({ t, set, dark, style }) {
 function LumaBongaApp({ role, onSignIn, t, set }) {
   const dark = t.dark;
   const c = creaTheme(dark, t.accent);
+  // French is no longer offered anywhere; sanitize any stale 'fr' left over
+  // from before the Settings toggle was removed (non-public roles only —
+  // public keeps its own EN/ID choice).
+  useEffect(() => {
+    if (role !== 'public' && t.lang === 'fr') set('lang', 'en');
+  }, [role, t.lang]);
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
       <CreaApp t={t} dark={dark} role={role} />

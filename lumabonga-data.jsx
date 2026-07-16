@@ -52,7 +52,7 @@ const LB_EN = {
   'Enregistrer': 'Save', 'Enregistrer les modifications': 'Save changes',
   'Modifier': 'Edit', 'Nouvelle entrée': 'New entry', 'Produire': 'Produce',
   'Responsable': 'In charge', 'Produit par': 'Produced by', 'Atelier': 'Workshop', 'Qui / atelier': 'Who / workshop',
-  'Catégorie': 'Category', 'matière': 'material', 'emballage': 'packaging', 'unité': 'unit',
+  'Catégorie': 'Category', 'Type': 'Type', 'matière': 'material', 'emballage': 'packaging', 'unité': 'unit',
   'Matière': 'Material', 'Emballage': 'Packaging',
   // transaction kinds / tags
   'Vente': 'Sale', 'Achat': 'Purchase', 'Charge': 'Expense', 'Production': 'Production',
@@ -72,7 +72,7 @@ const LB_EN = {
   'Règlement entre associés': 'Partner settlement', 'Règlement': 'Settlement',
   'Qui paie': 'Who pays', '→ reçu par {name}': '→ received by {name}',
   'Coût prod.': 'Prod. cost', 'Valeur stock': 'Stock value',
-  'Stock faible': 'Low stock', 'à produire': 'to produce',
+  'Stock faible': 'Low stock', 'à produire': 'to produce', 'rupture': 'out of stock',
   '{n} produisibles': '{n} producible', 'rupture matières': 'out of materials',
   '{n} en stock': '{n} in stock',
   'Mouvements': 'Activity', '{n} récents': '{n} recent',
@@ -200,10 +200,10 @@ const LB_EN = {
   'Conditionnement': 'Packaging', 'Étiquetage': 'Labeling', 'Teinture': 'Dyeing',
   'Impression cire': 'Wax printing', 'Contrôle qualité': 'Quality control', 'Transport': 'Transport',
 };
-// Indonesian — level-1 (public, password "Bonga") only needs this + English,
-// so only the strings reachable by that role are translated here (login
-// gate, splash, read-only catalog, SOP viewer). Anything else falls back to
-// the French key, same as a missing English entry would.
+// Indonesian — originally scoped to level-1 (public) screens only; now
+// covers the whole app (French must not leak anywhere, any language mode).
+// Anything still missing falls back to the French key, same as a missing
+// English entry would.
 const LB_ID = {
   "Code d'accès": 'Kode akses', 'Connexion…': 'Menghubungkan…', 'Entrer': 'Masuk',
   'Code incorrect.': 'Kode salah.',
@@ -221,6 +221,120 @@ const LB_ID = {
   '1 unité ≈ {x} g': '1 unit ≈ {x} g',
   'Les quantités de la SOP s’adaptent automatiquement.': 'Jumlah pada SOP menyesuaikan secara otomatis.',
   'Étape {n}': 'Langkah {n}',
+
+  // ── Settings ──
+  'Réglages': 'Pengaturan', 'Langue': 'Bahasa', 'Mode sombre': 'Mode gelap',
+  'Devise': 'Mata uang', 'Déconnexion': 'Keluar', 'Couleur d’accent': 'Warna aksen',
+  'Réinitialiser TOUTES les données partagées et revenir aux exemples ? Irréversible, pour tout le monde.':
+    'Setel ulang SEMUA data bersama dan kembali ke contoh? Tidak bisa dibatalkan, untuk semua orang.',
+  'Réinitialiser': 'Setel ulang',
+  'Données partagées via Supabase : tout le monde voit le même registre, synchronisé entre appareils. La réinitialisation efface les données pour tous les utilisateurs.':
+    'Data dibagikan melalui Supabase: semua orang melihat catatan yang sama, tersinkron di semua perangkat. Menyetel ulang menghapus data untuk semua pengguna.',
+  'Données mises à jour — toucher pour recharger': 'Data diperbarui — ketuk untuk memuat ulang',
+
+  // ── Dashboard / balance ──
+  'à recevoir': 'harus menerima', 'à reverser': 'harus membayar', 'équilibré': 'seimbang',
+  'Règlement entre associés': 'Penyelesaian antar mitra', 'Règlement': 'Penyelesaian',
+  'Vente': 'Penjualan', 'Charge': 'Beban', 'Production': 'Produksi', 'Achat': 'Pembelian',
+  'Matière': 'Bahan', 'Emballage': 'Kemasan', 'matière': 'bahan', 'emballage': 'kemasan', 'unité': 'satuan',
+  'Autre': 'Lainnya',
+  '{n} unités produites': '{n} unit diproduksi',
+  'Ventes': 'Penjualan', 'Achats': 'Pembelian', 'Charges': 'Beban', 'Valeur stock': 'Nilai stok',
+  'Profit net': 'Laba bersih', 'Comptes équilibrés': 'Akun seimbang', 'doit recevoir': 'harus menerima',
+  'Régler': 'Selesaikan', 'Historique des règlements ({n})': 'Riwayat penyelesaian ({n})',
+  'Stock faible': 'Stok menipis', 'à produire': 'untuk diproduksi', 'rupture': 'habis',
+  'Mouvements': 'Aktivitas', '{n} récents': '{n} terbaru', 'Tous': 'Semua', 'Tout': 'Semua',
+
+  // ── Sales screen ──
+  'Ventes · 7 derniers jours': 'Penjualan · 7 hari terakhir', '{n} entrées': '{n} entri',
+  'Total ventes': 'Total penjualan', '{n} transactions': '{n} transaksi', 'marge': 'margin',
+  'marge {p}%': 'margin {p}%',
+
+  // ── Products ──
+  'Coût': 'Biaya', 'Vente {x} {cur}': 'Jual {x} {cur}', 'Créer la SOP': 'Buat SOP',
+  'Réduire': 'Ciutkan', 'Développer': 'Perluas',
+  'Revoir la suggestion': 'Tinjau saran', 'Suggérer une correction': 'Sarankan koreksi',
+  'Commentaire (optionnel)…': 'Komentar (opsional)…',
+  'Coût / unité': 'Biaya / unit', 'Marge nette': 'Margin bersih', 'Marge %': 'Margin %',
+  'En stock': 'Stok tersedia', 'Produisibles': 'Dapat diproduksi', 'limité par {name}': 'dibatasi oleh {name}',
+  'Coût de production · 1 unité': 'Biaya produksi · 1 unit', 'Produire': 'Produksi',
+  'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':
+    'Komposisi terkunci selama status Test — gunakan "Sarankan koreksi".',
+  'Ajouter un composant': 'Tambah komponen', 'Éditer la SOP': 'Edit SOP', 'Nouveau produit': 'Produk baru',
+
+  // ── To do ──
+  'Tâches': 'Tugas', 'à faire': 'belum selesai', 'Nouvelle tâche…': 'Tugas baru…',
+  'Assigner à': 'Tugaskan ke', 'Nouveau membre…': 'Anggota baru…', 'Ajouter': 'Tambah',
+  'Aucune tâche. Ajoute la première !': 'Belum ada tugas. Tambahkan yang pertama!',
+  'À acheter': 'Perlu dibeli', 'Stock insuffisant pour produire 10 unités': 'Stok tidak cukup untuk membuat 10 unit',
+  'Rien à acheter — les stocks couvrent 10 unités de chaque produit.':
+    'Tidak ada yang perlu dibeli — stok cukup untuk 10 unit setiap produk.',
+  'pour 10× {name}': 'untuk 10× {name}', 'manquant': 'kurang',
+
+  // ── Add/edit sheet: sale, purchase, cost, production, material, product, settlement ──
+  'Encaissé par': 'Diterima oleh', 'Payé par': 'Dibayar oleh', 'Modifier': 'Edit',
+  'Nouvelle entrée': 'Entri baru', 'Produit': 'Produk', 'Unités vendues': 'Unit terjual',
+  'Prix unité ({cur})': 'Harga satuan ({cur})', 'Note': 'Catatan', 'Optionnel': 'Opsional',
+  'Total vente': 'Total penjualan', 'Marge ({c}/u de coût)': 'Margin ({c}/unit biaya)',
+  'Matière première': 'Bahan baku', 'Nouvelle matière': 'Bahan baru', 'Nom de la matière': 'Nama bahan',
+  'Le prix de cet achat devient le prix de référence de la matière.':
+    'Harga pembelian ini menjadi harga acuan bahan.',
+  'Quantité achetée': 'Jumlah dibeli', 'Unité': 'Satuan', 'Prix total payé ({cur})': 'Total harga dibayar ({cur})',
+  'Fournisseur / note': 'Pemasok / catatan', 'Total facture': 'Total faktur',
+  'Prix calculé / {u}': 'Harga terhitung / {u}', 'Description': 'Deskripsi',
+  'Transport, loyer atelier…': 'Transportasi, sewa bengkel…', 'Montant ({cur})': 'Jumlah ({cur})',
+  'Qui / atelier': 'Siapa / bengkel', 'Produit fabriqué': 'Produk dibuat', 'Unités produites': 'Unit diproduksi',
+  'Produit par': 'Dibuat oleh', 'Atelier': 'Bengkel',
+  'Info : {n} unités produisibles avec le stock actuel': 'Info: {n} unit dapat diproduksi dengan stok saat ini',
+  ' · le stock matières passera en négatif': ' · stok bahan akan menjadi negatif',
+  'Ex: Beurre de karité': 'Contoh: Shea butter', 'Unité de mesure': 'Satuan ukur',
+  'Type': 'Tipe', 'Catégorie': 'Kategori', 'Nouvelle catégorie…': 'Kategori baru…', 'Nouvelle': 'Baru',
+  'Stock de départ ({u})': 'Stok awal ({u})', 'Prix / {u} ({cur})': 'Harga / {u} ({cur})',
+  'Nom du produit': 'Nama produk', 'Ex: Savon noir': 'Contoh: Sabun hitam',
+  'Prix de vente ({cur})': 'Harga jual ({cur})', 'Qui paie': 'Siapa yang bayar',
+  '→ reçu par {name}': '→ diterima oleh {name}',
+  'Enregistrer les modifications': 'Simpan perubahan', 'Enregistrer': 'Simpan',
+  'La recette (matières + main d’œuvre) se définit ensuite dans la fiche produit.':
+    'Resep (bahan + tenaga kerja) diatur setelahnya di halaman produk.',
+
+  // ── Product detail / SOP editor (lumabonga-product.jsx) ──
+  'Quantité du composant': 'Jumlah komponen', 'Quantité par unité produite ({u})': 'Jumlah per unit diproduksi ({u})',
+  'Retour': 'Kembali', 'Ajouter de la main d’œuvre': 'Tambah tenaga kerja',
+  'Une tâche par défaut à 5 min · 1 000 {cur}/h. Ajuste ensuite la durée et le taux.':
+    'Tugas default 5 menit · 1.000 {cur}/jam. Sesuaikan durasi dan tarifnya.',
+  'Fiche produit': 'Halaman produk', ' · {n} composants': ' · {n} komponen', '{x}% / 6 mois': '{x}% / 6 bulan',
+  'Matières & emballage': 'Bahan & kemasan', 'Main d’œuvre': 'Tenaga kerja',
+  'Ajouter une tâche': 'Tambah tugas', 'Coût total / unité': 'Total biaya / unit', 'Marge par unité': 'Margin per unit',
+  'Chaque étape doit avoir une description.': 'Setiap langkah harus punya deskripsi.',
+  '{name} : manquant (0%)': '{name}: kurang (0%)', '{name} : {pct}% (doit faire 100%)': '{name}: {pct}% (harus 100%)',
+  'Attention : la SOP ne couvre pas 100% de chaque ingrédient.': 'Perhatian: SOP belum mencakup 100% setiap bahan.',
+  'Supprimer cette étape': 'Hapus langkah ini', 'Décris cette étape…': 'Jelaskan langkah ini…',
+  'Ingrédients concernés (optionnel)': 'Bahan terkait (opsional)', 'Ajouter une étape': 'Tambah langkah',
+  'Formule testée (actuelle)': 'Formula teruji (saat ini)',
+  'Une suggestion part d’une copie de la formule testée : ajuste les quantités, ajoute ou retire des composants, sans jamais modifier la formule actuelle tant qu’elle n’est pas approuvée.':
+    'Saran dimulai dari salinan formula teruji: sesuaikan jumlah, tambah atau hapus komponen, tanpa pernah mengubah formula saat ini sampai disetujui.',
+  'Démarrer une suggestion': 'Mulai saran', 'Testée': 'Teruji', 'À tester': 'Untuk diuji',
+  'Approuver comme formule Ready': 'Setujui sebagai formula Ready',
+  'Approuver comme nouvelle base à tester': 'Setujui sebagai basis baru untuk diuji',
+  'Supprimer la suggestion': 'Hapus saran',
+
+  // ── Stock / Purchases (lumabonga-stock.jsx) ──
+  'Achats matières': 'Pembelian bahan', '{n} factures': '{n} faktur', '{n} charges': '{n} beban',
+  'Matières': 'Bahan', 'Factures d’achat': 'Faktur pembelian', 'matières premières': 'bahan baku',
+  'Matière supprimée': 'Bahan dihapus', 'Nouvelle facture d’achat': 'Faktur pembelian baru',
+  'hors matières': 'di luar bahan', 'Nouvelle charge': 'Beban baru',
+  'Valeur matières': 'Nilai bahan', 'Valeur produits finis': 'Nilai barang jadi', 'au coût de revient': 'pada harga pokok',
+  'Produits finis': 'Barang jadi', 'Stock matières': 'Stok bahan', 'restant': 'tersisa',
+  'Une nouvelle matière se crée depuis Achats, au moment du premier achat.':
+    'Bahan baru dibuat dari Pembelian, saat pembelian pertamanya.',
+  'en stock': 'tersedia', '{n} produisibles': '{n} dapat diproduksi',
+  'Stock réel pour {name} (u)': 'Stok sebenarnya untuk {name} (u)', 'Corriger le stock': 'Koreksi stok',
+  '{n} lots': '{n} batch', 'Lancer une production': 'Mulai produksi',
+
+  // ── Labor presets (dynamic tr(task) in ProdAddLaborSheet) ──
+  'Mélange': 'Pencampuran', 'Chauffe & mélange': 'Pemanasan & pencampuran', 'Coulage': 'Penuangan',
+  'Conditionnement': 'Pengemasan', 'Étiquetage': 'Pelabelan', 'Teinture': 'Pewarnaan',
+  'Impression cire': 'Cetak lilin', 'Contrôle qualité': 'Kontrol kualitas', 'Transport': 'Transportasi',
 };
 // Normalise apostrophes so straight ' and curly ’ in the source both match.
 const _lbNorm = (s) => String(s).replace(/’/g, "'");

@@ -205,11 +205,21 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                           {fmtNum(price)} {t.currency}/{m.unit} · {tr(m.kind)}
                         </div>
                       </div>
-                      <div style={{ textAlign: 'right' }}>
+                      <button onClick={() => {
+                        const cur = store.materialStock[m.id] ?? 0;
+                        const v = window.prompt(tr('Stock réel pour {name} (u)', { name: m.name }).replace('(u)', `(${m.unit})`), String(cur));
+                        if (v === null) return;
+                        if (v.trim() === '') store.clearMaterialStockManual(m.id);
+                        else store.setMaterialStockManual(m.id, Number(v));
+                      }} title={tr('Corriger le stock')} style={{
+                        background: 'transparent', border: 'none', cursor: 'pointer', padding: 0,
+                        display: 'flex', alignItems: 'center', gap: 4,
+                      }}>
                         <span style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 14, color: store.materialAdj[m.id] != null ? c.accent : (low ? c.amber : c.text) }}>
                           {fmtNum(stock)} <span style={{ fontFamily: creaMono, fontSize: 9.5, fontStyle: 'normal', color: c.muted }}>{m.unit}</span>
                         </span>
-                      </div>
+                        <span style={{ color: c.mutedSoft, display: 'flex' }}><Icon.edit width={10} height={10} /></span>
+                      </button>
                       <StkRowActions c={c} onEdit={() => onEdit('material', m)} onDelete={() => store.removeMaterial(m.id)} />
                     </div>
                   );
