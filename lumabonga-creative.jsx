@@ -1316,7 +1316,6 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   const [mName, setMName] = React.useState(ed && kind === 'material' ? ed.name : '');
   const [mUnit, setMUnit] = React.useState(ed && kind === 'material' ? ed.unit : 'g');
   const [mKind, setMKind] = React.useState(ed && kind === 'material' ? ed.kind : 'matière');
-  const [mStock, setMStock] = React.useState(ed && kind === 'material' ? String(ed.stock0 ?? '') : '');
   const [mPrice, setMPrice] = React.useState('');
   const [mCat, setMCat] = React.useState(ed && kind === 'material' ? materialCat(ed) : 'other');
   const [mCatAdding, setMCatAdding] = React.useState(false);
@@ -1385,7 +1384,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
       isEdit ? store.updateProduct(ed.id, payload) : store.addProduct(payload);
     } else if (kind === 'material') {
       if (!mName) return;
-      const base = { name: mName, unit: mUnit, kind: mKind, cat: mCat, stock0: Number(mStock) || 0 };
+      const base = { name: mName, unit: mUnit, kind: mKind, cat: mCat };
       if (isEdit) store.updateMaterial(ed.id, base);
       else store.addMaterial({ ...base, price: Number(mPrice) || 0 });
     } else if (kind === 'settlement') {
@@ -1707,18 +1706,16 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 )}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            {/* No starting-stock field — a material's stock is derived from
+                purchases (it's created via one) and corrected in Stock via
+                "Correct stock" when reality drifts. A separate starting
+                figure was redundant with that. */}
+            {!ed && (
               <div>
-                <div style={labelStyle}>{tr('Stock de départ ({u})', { u: mUnit })}</div>
-                <input type="number" inputMode="decimal" value={mStock} onChange={(e) => setMStock(e.target.value)} style={inputStyle} placeholder="0" />
+                <div style={labelStyle}>{tr('Prix / {u} ({cur})', { u: mUnit, cur: t.currency })}</div>
+                <input type="number" inputMode="decimal" value={mPrice} onChange={(e) => setMPrice(e.target.value)} style={inputStyle} placeholder="0" />
               </div>
-              {!ed && (
-                <div>
-                  <div style={labelStyle}>{tr('Prix / {u} ({cur})', { u: mUnit, cur: t.currency })}</div>
-                  <input type="number" inputMode="decimal" value={mPrice} onChange={(e) => setMPrice(e.target.value)} style={inputStyle} placeholder="0" />
-                </div>
-              )}
-            </div>
+            )}
           </React.Fragment>
         )}
 
