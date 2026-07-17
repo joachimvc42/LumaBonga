@@ -1105,15 +1105,26 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
 // ── To-do board ──────────────────────────────────────────────
 // Manual tasks assigned to team members + an automatic "to purchase" list of
 // materials whose stock can't cover 10 units of some product.
+const TODO_PRIORITIES = [
+  { id: 'high', label: 'Haute' },
+  { id: 'medium', label: 'Moyenne' },
+  { id: 'low', label: 'Basse' },
+];
+const prioColor = (c, p) => p === 'high' ? c.rose : p === 'low' ? c.mutedSoft : c.amber;
+const prioRank = { high: 0, medium: 1, low: 2 };
+const byPriority = (xs) => [...xs].sort((a, b) => prioRank[a.priority || 'medium'] - prioRank[b.priority || 'medium']);
+
 function CreaTodos({ store, dark, t }) {
   const c = creaTheme(dark, t.accent);
   const [text, setText] = React.useState('');
   const [assignees, setAssignees] = React.useState(() => store.team[0] ? [store.team[0]] : []);
+  const [priority, setPriority] = React.useState('medium');
   const [addingMember, setAddingMember] = React.useState(false);
   const [memberDraft, setMemberDraft] = React.useState('');
+  const [editingId, setEditingId] = React.useState(null);
 
-  const open = store.todos.filter((x) => !x.done);
-  const done = store.todos.filter((x) => x.done);
+  const open = byPriority(store.todos.filter((x) => !x.done));
+  const done = byPriority(store.todos.filter((x) => x.done));
 
   const toggleAssignee = (name) => setAssignees((xs) =>
     xs.includes(name) ? xs.filter((x) => x !== name) : [...xs, name]);
@@ -1121,8 +1132,9 @@ function CreaTodos({ store, dark, t }) {
   const add = () => {
     const txt = text.trim();
     if (!txt || !assignees.length) return;
-    store.addTodo({ text: txt, assignees });
+    store.addTodo({ text: txt, assignees, priority });
     setText('');
+    setPriority('medium');
   };
   const confirmMember = () => {
     const n = memberDraft.trim();
@@ -1180,6 +1192,23 @@ function CreaTodos({ store, dark, t }) {
               }}><Icon.plus width={13} height={13} /></button>
             )}
           </div>
+          <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
+            {tr('Priorité')}
+          </div>
+          <div style={{ display: 'flex', gap: 7 }}>
+            {TODO_PRIORITIES.map((p) => {
+              const sel = priority === p.id;
+              const pc = prioColor(c, p.id);
+              return (
+                <button key={p.id} onClick={() => setPriority(p.id)} style={{
+                  flex: 1, padding: '7px 0', borderRadius: 999, cursor: 'pointer',
+                  border: `1px solid ${sel ? pc : c.border}`,
+                  background: sel ? `${pc}22` : c.panel2, color: sel ? pc : c.text,
+                  fontFamily: creaSans, fontSize: 12.5, fontWeight: 700,
+                }}>{tr(p.label)}</button>
+              );
+            })}
+          </div>
           <button onClick={add} disabled={!text.trim() || !assignees.length} style={{
             width: '100%', marginTop: 12, padding: '12px', borderRadius: 999,
             cursor: (text.trim() && assignees.length) ? 'pointer' : 'default', border: 'none',
@@ -1196,23 +1225,10 @@ function CreaTodos({ store, dark, t }) {
           <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, padding: '4px 0' }}>{tr('Aucune tâche. Ajoute la première !')}</div>
         )}
         {[...open, ...done].map((td) => (
-          <div key={td.id} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
-            <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
-              width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
-              border: `1.5px solid ${td.done ? c.accent : c.border}`,
-              background: td.done ? c.accent : 'transparent',
-              color: c.inkContrast, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            }}>{td.done && <Icon.check width={13} height={13} />}</button>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
-              <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>
-                {(td.assignees || (td.assignee ? [td.assignee] : [])).join(', ')} · {fmtDate(td.date)}
-              </div>
-            </div>
-            <button onClick={() => store.removeTodo(td.id)} aria-label="delete" style={{
-              background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 4, display: 'flex', flexShrink: 0,
-            }}><Icon.trash width={15} height={15} /></button>
-          </div>
+          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card}
+            editing={editingId === td.id}
+            onEdit={() => setEditingId(td.id)}
+            onCloseEdit={() => setEditingId(null)} />
         ))}
       </div>
 
@@ -1241,6 +1257,110 @@ function CreaTodos({ store, dark, t }) {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+// One To do row — static display, or an inline edit form (text, assignees,
+// priority) when `editing`. Split out so its draft state doesn't leak into
+// the parent (and reset) when a different row is edited.
+function CreaTodoRow({ td, store, c, card, editing, onEdit, onCloseEdit }) {
+  const [text, setText] = React.useState(td.text);
+  const [assignees, setAssignees] = React.useState(() => td.assignees || (td.assignee ? [td.assignee] : []));
+  const [priority, setPriority] = React.useState(td.priority || 'medium');
+  React.useEffect(() => {
+    if (editing) {
+      setText(td.text);
+      setAssignees(td.assignees || (td.assignee ? [td.assignee] : []));
+      setPriority(td.priority || 'medium');
+    }
+  }, [editing]);
+
+  const toggleAssignee = (name) => setAssignees((xs) =>
+    xs.includes(name) ? xs.filter((x) => x !== name) : [...xs, name]);
+
+  const save = () => {
+    const txt = text.trim();
+    if (!txt || !assignees.length) return;
+    store.updateTodo(td.id, { text: txt, assignees, priority });
+    onCloseEdit();
+  };
+
+  if (editing) {
+    return (
+      <div style={{ ...card, padding: 14, border: `1px solid ${c.accent}` }}>
+        <input value={text} autoFocus onChange={(e) => setText(e.target.value)}
+          style={{
+            width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text,
+            border: `1px solid ${c.border}`, borderRadius: 10, padding: '9px 12px',
+            fontFamily: creaSans, fontSize: 13.5, outline: 'none',
+          }} />
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+          {store.team.map((name) => {
+            const sel = assignees.includes(name);
+            return (
+              <button key={name} onClick={() => toggleAssignee(name)} style={{
+                padding: '5px 11px', borderRadius: 999, cursor: 'pointer',
+                border: `1px solid ${sel ? c.accent : c.border}`,
+                background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.text,
+                fontFamily: creaSans, fontSize: 11.5, fontWeight: 600,
+              }}>{name}</button>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          {TODO_PRIORITIES.map((p) => {
+            const sel = priority === p.id;
+            const pc = prioColor(c, p.id);
+            return (
+              <button key={p.id} onClick={() => setPriority(p.id)} style={{
+                flex: 1, padding: '6px 0', borderRadius: 999, cursor: 'pointer',
+                border: `1px solid ${sel ? pc : c.border}`,
+                background: sel ? `${pc}22` : c.panel2, color: sel ? pc : c.text,
+                fontFamily: creaSans, fontSize: 11.5, fontWeight: 700,
+              }}>{tr(p.label)}</button>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+          <button onClick={onCloseEdit} style={{
+            flex: 1, padding: '10px', borderRadius: 999, cursor: 'pointer',
+            background: 'transparent', color: c.muted, border: `1px solid ${c.border}`,
+            fontFamily: creaSans, fontSize: 13, fontWeight: 600,
+          }}>{tr('Annuler')}</button>
+          <button onClick={save} disabled={!text.trim() || !assignees.length} style={{
+            flex: 2, padding: '10px', borderRadius: 999, cursor: 'pointer', border: 'none',
+            background: c.accent, color: c.inkContrast, opacity: (text.trim() && assignees.length) ? 1 : 0.45,
+            fontFamily: creaSans, fontSize: 13, fontWeight: 700,
+          }}>{tr('Enregistrer')}</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
+      <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
+        width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
+        border: `1.5px solid ${td.done ? c.accent : c.border}`,
+        background: td.done ? c.accent : 'transparent',
+        color: c.inkContrast, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>{td.done && <Icon.check width={13} height={13} />}</button>
+      <span title={td.priority || 'medium'} style={{
+        width: 7, height: 7, borderRadius: 999, flexShrink: 0, background: prioColor(c, td.priority || 'medium'),
+      }} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
+        <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>
+          {(td.assignees || (td.assignee ? [td.assignee] : [])).join(', ')} · {fmtDate(td.date)}
+        </div>
+      </div>
+      <button onClick={onEdit} aria-label="edit" style={{
+        background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 4, display: 'flex', flexShrink: 0,
+      }}><Icon.edit width={15} height={15} /></button>
+      <button onClick={() => store.removeTodo(td.id)} aria-label="delete" style={{
+        background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 4, display: 'flex', flexShrink: 0,
+      }}><Icon.trash width={15} height={15} /></button>
     </div>
   );
 }

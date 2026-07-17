@@ -187,6 +187,7 @@ const LB_EN = {
     'Open your browser menu and choose "Install app" (or look for an install icon in the address bar).',
   // To-do
   'Tâches': 'Tasks', 'à faire': 'open', 'Nouvelle tâche…': 'New task…', 'Assigner à': 'Assign to',
+  'Priorité': 'Priority', 'Haute': 'High', 'Moyenne': 'Medium', 'Basse': 'Low', 'Annuler': 'Cancel',
   'Nouveau membre…': 'New member…', 'Équipe': 'Team',
   'Aucune tâche. Ajoute la première !': 'No tasks yet. Add the first one!',
   'À acheter': 'To purchase',
@@ -265,6 +266,7 @@ const LB_ID = {
   // ── To do ──
   'Tâches': 'Tugas', 'à faire': 'belum selesai', 'Nouvelle tâche…': 'Tugas baru…',
   'Assigner à': 'Tugaskan ke', 'Nouveau membre…': 'Anggota baru…', 'Ajouter': 'Tambah',
+  'Priorité': 'Prioritas', 'Haute': 'Tinggi', 'Moyenne': 'Sedang', 'Basse': 'Rendah', 'Annuler': 'Batal',
   'Aucune tâche. Ajoute la première !': 'Belum ada tugas. Tambahkan yang pertama!',
   'À acheter': 'Perlu dibeli', 'Stock insuffisant pour produire 10 unités': 'Stok tidak cukup untuk membuat 10 unit',
   'Rien à acheter — les stocks couvrent 10 unités de chaque produit.':
