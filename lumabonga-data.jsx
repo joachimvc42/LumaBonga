@@ -188,6 +188,11 @@ const LB_EN = {
   // To-do
   'Tâches': 'Tasks', 'à faire': 'open', 'Nouvelle tâche…': 'New task…', 'Assigner à': 'Assign to',
   'Priorité': 'Priority', 'Haute': 'High', 'Moyenne': 'Medium', 'Basse': 'Low', 'Annuler': 'Cancel',
+  'Supprimer': 'Delete', 'Supprimer le produit': 'Delete product',
+  'Répartition des revenus': 'Revenue split', 'Lumaya {x}%': 'Lumaya {x}%', 'GawahBonga {x}%': 'GawahBonga {x}%',
+  'Tape DELETE pour confirmer': 'Type DELETE to confirm',
+  '« {name} » sera supprimé définitivement, avec sa recette, sa SOP et son historique de suggestions. Cette action est irréversible.':
+    '"{name}" will be permanently deleted, along with its recipe, SOP and suggestion history. This cannot be undone.',
   'Nouveau membre…': 'New member…', 'Équipe': 'Team',
   'Aucune tâche. Ajoute la première !': 'No tasks yet. Add the first one!',
   'À acheter': 'To purchase',
@@ -267,6 +272,11 @@ const LB_ID = {
   'Tâches': 'Tugas', 'à faire': 'belum selesai', 'Nouvelle tâche…': 'Tugas baru…',
   'Assigner à': 'Tugaskan ke', 'Nouveau membre…': 'Anggota baru…', 'Ajouter': 'Tambah',
   'Priorité': 'Prioritas', 'Haute': 'Tinggi', 'Moyenne': 'Sedang', 'Basse': 'Rendah', 'Annuler': 'Batal',
+  'Supprimer': 'Hapus', 'Supprimer le produit': 'Hapus produk',
+  'Répartition des revenus': 'Pembagian pendapatan', 'Lumaya {x}%': 'Lumaya {x}%', 'GawahBonga {x}%': 'GawahBonga {x}%',
+  'Tape DELETE pour confirmer': 'Ketik DELETE untuk konfirmasi',
+  '« {name} » sera supprimé définitivement, avec sa recette, sa SOP et son historique de suggestions. Cette action est irréversible.':
+    '"{name}" akan dihapus permanen, beserta resep, SOP, dan riwayat sarannya. Tindakan ini tidak bisa dibatalkan.',
   'Aucune tâche. Ajoute la première !': 'Belum ada tugas. Tambahkan yang pertama!',
   'À acheter': 'Perlu dibeli', 'Stock insuffisant pour produire 10 unités': 'Stok tidak cukup untuk membuat 10 unit',
   'Rien à acheter — les stocks couvrent 10 unités de chaque produit.':
@@ -849,7 +859,16 @@ function useLumaStore(seed, shareLumaya) {
     return next;
   };
   const updateProduct = (id, patch) => setProducts((xs) => xs.map((p) => p.id === id ? { ...p, ...patch } : p));
-  const removeProduct = (id) => setProducts((xs) => xs.filter((p) => p.id !== id));
+  // Deleting a product also drops everything keyed to it — recipe, SOP,
+  // pending draft, manual stock override — so nothing orphaned lingers
+  // (a dangling recipe/SOP reference caused a real bug once already).
+  const removeProduct = (id) => {
+    setProducts((xs) => xs.filter((p) => p.id !== id));
+    setRecipes((rs) => { const n = { ...rs }; delete n[id]; return n; });
+    setSops((s) => { const n = { ...s }; delete n[id]; return n; });
+    setRecipeDrafts((ds) => { const n = { ...ds }; delete n[id]; return n; });
+    setProductAdj((m) => { const n = { ...m }; delete n[id]; return n; });
+  };
   // Reorder the catalog (drag & drop). Any id missing from `orderedIds`
   // (shouldn't happen) keeps its relative position at the end, so a stale
   // snapshot can never silently drop a product.
@@ -1057,12 +1076,21 @@ function useLumaStore(seed, shareLumaya) {
     // held     = cash actually in each org's hands (its own sales − its purchases
     //            − its charges + settlements received − settlements paid).
     // balance  = held − entitled. NEGATIVE = is owed money (must receive).
-    const share = { lumaya: 0, gawah: 0 };
     const distributable = ventes - achats - charges;
-    // share split from tweaks isn't here; balances use 50/50 of entitlement? No —
-    // entitlement uses the configured lumayaShare, passed in via `shareLumaya`.
-    const sl = (typeof shareLumaya === 'number' ? shareLumaya : 70) / 100;
-    const entitled = { lumaya: distributable * sl, gawah: distributable * (1 - sl) };
+    // Default split (fallback for products without their own share) comes
+    // from the shareLumaya tweak; each product can override it — set from
+    // its own card — so entitlement is a per-sale weighted split, not one
+    // flat percentage for the whole business.
+    const defaultSl = (typeof shareLumaya === 'number' ? shareLumaya : 70) / 100;
+    const shareFor = (pid) => {
+      const p = productById[pid];
+      const s = p && p.lumayaShare;
+      return (typeof s === 'number' ? s : defaultSl * 100) / 100;
+    };
+    let lumayaFromSales = 0;
+    for (const s of sales) lumayaFromSales += s.qty * s.price * shareFor(s.productId);
+    const entitledLumaya = lumayaFromSales - (achats + charges) * defaultSl;
+    const entitled = { lumaya: entitledLumaya, gawah: distributable - entitledLumaya };
     const held = { lumaya: 0, gawah: 0 };
     const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
     for (const s of sales) held[orgOf(s)] += s.qty * s.price;
@@ -1081,7 +1109,7 @@ function useLumaStore(seed, shareLumaya) {
       valMatieres, valProduits, valStock: valMatieres + valProduits,
       entitled, held, balance,
     };
-  }, [sales, purchases, costs, settlements, recipes, materialById, materials, products, materialStock, finishedStock, materialPrices, unitCostFor, cogsOf, shareLumaya, period]);
+  }, [sales, purchases, costs, settlements, recipes, materialById, materials, products, productById, materialStock, finishedStock, materialPrices, unitCostFor, cogsOf, shareLumaya, period]);
 
   // ── SOP actions ────────────────────────────────────────────
   // Steps are saved as a whole from the editor (validated there: text required).

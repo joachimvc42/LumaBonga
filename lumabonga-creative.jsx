@@ -740,6 +740,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const [sopView, setSopView] = React.useState(null);  // product whose SOP is being viewed
   const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
   const [compareFor, setCompareFor] = React.useState(null);  // product whose formula suggestion is open
+  const [deleteTarget, setDeleteTarget] = React.useState(null);  // product pending DELETE confirmation
   const [expandedIds, setExpandedIds] = React.useState(() => new Set());  // rows showing the full card
   const toggleExpand = (id) => setExpandedIds((s) => {
     const n = new Set(s);
@@ -981,6 +982,25 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 }}>{p.comment}</div>
               )))}
 
+              {/* Revenue split between orgs — per product, overrides the
+                  default (shareLumaya tweak) used for products with none set. */}
+              {!readonly && edit && (() => {
+                const shareVal = typeof p.lumayaShare === 'number' ? p.lumayaShare : t.lumayaShare;
+                return (
+                  <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 10, background: c.panel2, border: `1px solid ${c.border}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+                      <span style={{ fontSize: 9, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans }}>{tr('Répartition des revenus')}</span>
+                      <span style={{ fontFamily: creaMono, fontSize: 11, color: c.muted }}>
+                        {tr('Lumaya {x}%', { x: shareVal })} · {tr('GawahBonga {x}%', { x: 100 - shareVal })}
+                      </span>
+                    </div>
+                    <input type="range" min="0" max="100" step="1" value={shareVal}
+                      onChange={(e) => store.updateProduct(p.id, { lumayaShare: Number(e.target.value) })}
+                      style={{ width: '100%', accentColor: c.accent }} />
+                  </div>
+                );
+              })()}
+
               {/* Margin tiles */}
               {!readonly && <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                 {[
@@ -1075,6 +1095,17 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                   </div>
                 );
               })()}
+
+              {/* Delete — edit mode only, guarded by a typed confirmation
+                  (see the DELETE modal below) so it can't happen by accident. */}
+              {!readonly && edit && (
+                <button onClick={() => setDeleteTarget(p)} style={{
+                  width: '100%', marginTop: 12, padding: '10px', borderRadius: 10, cursor: 'pointer',
+                  background: 'transparent', color: c.rose, border: `1px solid ${c.rose}55`,
+                  fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}><Icon.trash width={14} height={14} /> {tr('Supprimer le produit')}</button>
+              )}
               </React.Fragment>
               )}
             </div>
@@ -1098,6 +1129,63 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
       {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} onClose={() => setSopView(null)} />}
       {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} onClose={() => setSopEdit(null)} />}
       {compareFor && <ProdFormulaCompareSheet store={store} dark={dark} t={t} product={compareFor} onClose={() => setCompareFor(null)} />}
+      {deleteTarget && (
+        <CreaDeleteProductConfirm store={store} c={c} product={deleteTarget} onClose={() => setDeleteTarget(null)} />
+      )}
+    </div>
+  );
+}
+
+// ── Delete-product confirmation — must type DELETE to enable the button,
+// so a product (and its recipe/SOP/drafts) can't be removed by accident.
+function CreaDeleteProductConfirm({ store, c, product, onClose }) {
+  const [confirmText, setConfirmText] = React.useState('');
+  const ready = confirmText === 'DELETE';
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 360, background: c.bg2, border: `1px solid ${c.border}`,
+        borderRadius: 20, padding: 22, display: 'flex', flexDirection: 'column', gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            width: 36, height: 36, borderRadius: 999, background: `${c.rose}1c`, color: c.rose,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}><Icon.trash width={17} height={17} /></span>
+          <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 19, color: c.text }}>{tr('Supprimer le produit')}</div>
+        </div>
+        <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, lineHeight: 1.5 }}>
+          {tr('« {name} » sera supprimé définitivement, avec sa recette, sa SOP et son historique de suggestions. Cette action est irréversible.', { name: product.name })}
+        </div>
+        <div>
+          <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, marginBottom: 6 }}>
+            {tr('Tape DELETE pour confirmer')}
+          </div>
+          <input value={confirmText} autoFocus onChange={(e) => setConfirmText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter' && ready) { store.removeProduct(product.id); onClose(); } }}
+            placeholder="DELETE" style={{
+              width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text,
+              border: `1px solid ${ready ? c.rose : c.border}`, borderRadius: 10, padding: '11px 13px',
+              fontFamily: creaMono, fontSize: 14, outline: 'none',
+            }} />
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button onClick={onClose} style={{
+            flex: 1, padding: '11px', borderRadius: 999, cursor: 'pointer',
+            background: 'transparent', color: c.muted, border: `1px solid ${c.border}`,
+            fontFamily: creaSans, fontSize: 13.5, fontWeight: 600,
+          }}>{tr('Annuler')}</button>
+          <button onClick={() => { store.removeProduct(product.id); onClose(); }} disabled={!ready} style={{
+            flex: 1, padding: '11px', borderRadius: 999, cursor: ready ? 'pointer' : 'default', border: 'none',
+            background: c.rose, color: '#fff', opacity: ready ? 1 : 0.4,
+            fontFamily: creaSans, fontSize: 13.5, fontWeight: 700,
+          }}>{tr('Supprimer')}</button>
+        </div>
+      </div>
     </div>
   );
 }
