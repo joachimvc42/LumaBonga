@@ -1108,22 +1108,25 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
 function CreaTodos({ store, dark, t }) {
   const c = creaTheme(dark, t.accent);
   const [text, setText] = React.useState('');
-  const [assignee, setAssignee] = React.useState(store.team[0] || '');
+  const [assignees, setAssignees] = React.useState(() => store.team[0] ? [store.team[0]] : []);
   const [addingMember, setAddingMember] = React.useState(false);
   const [memberDraft, setMemberDraft] = React.useState('');
 
   const open = store.todos.filter((x) => !x.done);
   const done = store.todos.filter((x) => x.done);
 
+  const toggleAssignee = (name) => setAssignees((xs) =>
+    xs.includes(name) ? xs.filter((x) => x !== name) : [...xs, name]);
+
   const add = () => {
     const txt = text.trim();
-    if (!txt || !assignee) return;
-    store.addTodo({ text: txt, assignee });
+    if (!txt || !assignees.length) return;
+    store.addTodo({ text: txt, assignees });
     setText('');
   };
   const confirmMember = () => {
     const n = memberDraft.trim();
-    if (n) { store.addTeamMember(n); setAssignee(n); }
+    if (n) { store.addTeamMember(n); setAssignees((xs) => xs.includes(n) ? xs : [...xs, n]); }
     setMemberDraft(''); setAddingMember(false);
   };
 
@@ -1149,9 +1152,9 @@ function CreaTodos({ store, dark, t }) {
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, alignItems: 'center' }}>
             {store.team.map((name) => {
-              const sel = assignee === name;
+              const sel = assignees.includes(name);
               return (
-                <button key={name} onClick={() => setAssignee(name)} style={{
+                <button key={name} onClick={() => toggleAssignee(name)} style={{
                   padding: '6px 13px', borderRadius: 999, cursor: 'pointer',
                   border: `1px solid ${sel ? c.accent : c.border}`,
                   background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.text,
@@ -1177,10 +1180,10 @@ function CreaTodos({ store, dark, t }) {
               }}><Icon.plus width={13} height={13} /></button>
             )}
           </div>
-          <button onClick={add} disabled={!text.trim()} style={{
+          <button onClick={add} disabled={!text.trim() || !assignees.length} style={{
             width: '100%', marginTop: 12, padding: '12px', borderRadius: 999,
-            cursor: text.trim() ? 'pointer' : 'default', border: 'none',
-            background: c.accent, color: c.inkContrast, opacity: text.trim() ? 1 : 0.45,
+            cursor: (text.trim() && assignees.length) ? 'pointer' : 'default', border: 'none',
+            background: c.accent, color: c.inkContrast, opacity: (text.trim() && assignees.length) ? 1 : 0.45,
             fontFamily: creaSans, fontSize: 14, fontWeight: 700,
           }}>{tr('Ajouter')}</button>
         </div>
@@ -1202,7 +1205,9 @@ function CreaTodos({ store, dark, t }) {
             }}>{td.done && <Icon.check width={13} height={13} />}</button>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
-              <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>{td.assignee} · {fmtDate(td.date)}</div>
+              <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>
+                {(td.assignees || (td.assignee ? [td.assignee] : [])).join(', ')} · {fmtDate(td.date)}
+              </div>
             </div>
             <button onClick={() => store.removeTodo(td.id)} aria-label="delete" style={{
               background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 4, display: 'flex', flexShrink: 0,
