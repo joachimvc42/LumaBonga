@@ -1497,6 +1497,10 @@ function CreaTodoRow({ td, store, c, card, editing, onEdit, onCloseEdit }) {
     );
   }
 
+  const pid = td.priority || 'medium';
+  const pc = prioColor(c, pid);
+  const pLabel = (TODO_PRIORITIES.find((p) => p.id === pid) || TODO_PRIORITIES[1]).label;
+
   return (
     <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
       <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
@@ -1505,15 +1509,17 @@ function CreaTodoRow({ td, store, c, card, editing, onEdit, onCloseEdit }) {
         background: td.done ? c.accent : 'transparent',
         color: c.inkContrast, display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>{td.done && <Icon.check width={13} height={13} />}</button>
-      <span title={td.priority || 'medium'} style={{
-        width: 7, height: 7, borderRadius: 999, flexShrink: 0, background: prioColor(c, td.priority || 'medium'),
-      }} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
         <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>
           {(td.assignees || (td.assignee ? [td.assignee] : [])).join(', ')} · {fmtDate(td.date)}
         </div>
       </div>
+      <span style={{
+        flexShrink: 0, padding: '3px 9px', borderRadius: 999,
+        border: `1px solid ${pc}`, background: `${pc}22`, color: pc,
+        fontFamily: creaSans, fontSize: 10, fontWeight: 700,
+      }}>{tr(pLabel)}</span>
       <button onClick={onEdit} aria-label="edit" style={{
         background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 4, display: 'flex', flexShrink: 0,
       }}><Icon.edit width={15} height={15} /></button>
