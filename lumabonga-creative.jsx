@@ -1261,9 +1261,12 @@ function CreaTodos({ store, dark, t }) {
   const [addingMember, setAddingMember] = React.useState(false);
   const [memberDraft, setMemberDraft] = React.useState('');
   const [editingId, setEditingId] = React.useState(null);
+  const [personFilter, setPersonFilter] = React.useState(null);  // team member name, or null = everyone
 
-  const open = byPriority(store.todos.filter((x) => !x.done));
-  const done = byPriority(store.todos.filter((x) => x.done));
+  const assigneesOf = (td) => td.assignees || (td.assignee ? [td.assignee] : []);
+  const matchesFilter = (td) => !personFilter || assigneesOf(td).includes(personFilter);
+  const open = byPriority(store.todos.filter((x) => !x.done && matchesFilter(x)));
+  const done = byPriority(store.todos.filter((x) => x.done && matchesFilter(x)));
 
   const toggleAssignee = (name) => setAssignees((xs) =>
     xs.includes(name) ? xs.filter((x) => x !== name) : [...xs, name]);
@@ -1359,9 +1362,26 @@ function CreaTodos({ store, dark, t }) {
 
       {/* Task list */}
       <CreaSection title={tr('Tâches')} right={`${open.length}`} dark={dark} t={t} />
+      {/* Filter by person — tap a name to show only their tasks, tap again to clear. */}
+      <div style={{ padding: '0 22px 8px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {store.team.map((name) => {
+          const sel = personFilter === name;
+          return (
+            <button key={name} onClick={() => setPersonFilter(sel ? null : name)} style={{
+              padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
+              border: `1px solid ${sel ? c.accent : c.border}`,
+              background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.muted,
+              fontFamily: creaSans, fontSize: 11.5, fontWeight: 600,
+            }}>{name}</button>
+          );
+        })}
+      </div>
       <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
         {store.todos.length === 0 && (
           <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, padding: '4px 0' }}>{tr('Aucune tâche. Ajoute la première !')}</div>
+        )}
+        {store.todos.length > 0 && open.length === 0 && done.length === 0 && (
+          <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, padding: '4px 0' }}>{tr('Aucune tâche pour {name}.', { name: personFilter })}</div>
         )}
         {[...open, ...done].map((td) => (
           <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card}

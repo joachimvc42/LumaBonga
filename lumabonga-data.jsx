@@ -189,6 +189,7 @@ const LB_EN = {
   'Tâches': 'Tasks', 'à faire': 'open', 'Nouvelle tâche…': 'New task…', 'Assigner à': 'Assign to',
   'Priorité': 'Priority', 'Haute': 'High', 'Moyenne': 'Medium', 'Basse': 'Low', 'Annuler': 'Cancel',
   'Supprimer': 'Delete', 'Supprimer le produit': 'Delete product',
+  'Aucune tâche pour {name}.': 'No tasks for {name}.',
   'Répartition des revenus': 'Revenue split', 'Lumaya {x}%': 'Lumaya {x}%', 'GawahBonga {x}%': 'GawahBonga {x}%',
   'Tape DELETE pour confirmer': 'Type DELETE to confirm',
   '« {name} » sera supprimé définitivement, avec sa recette, sa SOP et son historique de suggestions. Cette action est irréversible.':
@@ -273,6 +274,7 @@ const LB_ID = {
   'Assigner à': 'Tugaskan ke', 'Nouveau membre…': 'Anggota baru…', 'Ajouter': 'Tambah',
   'Priorité': 'Prioritas', 'Haute': 'Tinggi', 'Moyenne': 'Sedang', 'Basse': 'Rendah', 'Annuler': 'Batal',
   'Supprimer': 'Hapus', 'Supprimer le produit': 'Hapus produk',
+  'Aucune tâche pour {name}.': 'Tidak ada tugas untuk {name}.',
   'Répartition des revenus': 'Pembagian pendapatan', 'Lumaya {x}%': 'Lumaya {x}%', 'GawahBonga {x}%': 'GawahBonga {x}%',
   'Tape DELETE pour confirmer': 'Ketik DELETE untuk konfirmasi',
   '« {name} » sera supprimé définitivement, avec sa recette, sa SOP et son historique de suggestions. Cette action est irréversible.':
