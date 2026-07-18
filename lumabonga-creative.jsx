@@ -755,17 +755,22 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const rowRefs = React.useRef({});
   const [dragState, setDragState] = React.useState(null);  // { id, dy, targetIndex } — for rendering only
   const dragRef = React.useRef(null);  // same shape, read synchronously on release (no impure updaters)
+  // Reordering is scoped to the product's own category group: the drop slot
+  // is computed against same-group rows only, and the final order is rebuilt
+  // group by group so a drag can never silently move a product across ranges.
   const startDrag = (id, e) => {
     if (e.button != null && e.button !== 0) return;
     e.preventDefault();
-    const ids = store.products.map((x) => x.id);
+    const group = groupedProducts(store.products).find((g) => g.items.some((x) => x.id === id));
+    const ids = group ? group.items.map((x) => x.id) : store.products.map((x) => x.id);
+    const cat = group ? group.cat : null;
     const rects = {};
     for (const pid of ids) {
       const el = rowRefs.current[pid];
       if (el) { const r = el.getBoundingClientRect(); rects[pid] = r.top + r.height / 2; }
     }
     const startMid = rects[id] ?? e.clientY;
-    const initial = { id, dy: 0, targetIndex: ids.indexOf(id) };
+    const initial = { id, cat, dy: 0, targetIndex: ids.indexOf(id) };
     dragRef.current = initial;
     setDragState(initial);
     const onMove = (ev) => {
@@ -776,7 +781,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
         const d = Math.abs(ev.clientY - mid);
         if (d < best) { best = d; targetIndex = i; }
       });
-      const next = { id, dy: ev.clientY - startMid, targetIndex };
+      const next = { id, cat, dy: ev.clientY - startMid, targetIndex };
       dragRef.current = next;
       setDragState(next);
     };
@@ -787,9 +792,17 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
       dragRef.current = null;
       setDragState(null);
       if (s) {
-        const order = ids.filter((x) => x !== s.id);
-        order.splice(s.targetIndex, 0, s.id);
-        store.setProductsOrder(order);
+        // New global order = groups in display order, dragged group reordered.
+        const flat = [];
+        for (const g of groupedProducts(store.products)) {
+          let gids = g.items.map((x) => x.id);
+          if (gids.includes(s.id)) {
+            gids = gids.filter((x) => x !== s.id);
+            gids.splice(s.targetIndex, 0, s.id);
+          }
+          flat.push(...gids);
+        }
+        store.setProductsOrder(flat);
       }
     };
     window.addEventListener('pointermove', onMove);
@@ -811,8 +824,21 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
       <CreaHero label={tr('Catalogue')} value={products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} unit="" />
       <CreaSection title={tr('Produits')} right={`${products.length}`} dark={dark} t={t} />
 
-      <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10 }}>
-        {products.map((p, idx) => {
+      {(() => {
+        const groups = groupedProducts(products);
+        // No headers while nothing is categorised yet — the list then looks
+        // exactly like the old flat catalog (nothing moves on upgrade).
+        const showHeaders = groups.length > 1 || (groups.length === 1 && groups[0].cat !== 'other');
+        return groups.map((g) => (
+          <React.Fragment key={g.cat}>
+            {showHeaders && (
+              <div style={{ padding: '0 22px', margin: '10px 0 -2px', display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans }}>{tr(g.label)}</span>
+                <span style={{ fontFamily: creaMono, fontSize: 9, color: c.mutedSoft }}>{g.items.length}</span>
+              </div>
+            )}
+            <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 4 }}>
+              {g.items.map((p, idx) => {
           const recipe = store.recipeFor(p.id);
           const cost = recipeCost(recipe, store.materialById, store.purchases);
           const unitCost = cost.total;
@@ -826,7 +852,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
           const expanded = expandedIds.has(p.id);
           const hasSop = !!(store.sops[p.id]?.steps?.length);
           const dragging = dragState && dragState.id === p.id;
-          const dropHere = !!dragState && !dragging && dragState.targetIndex === idx;
+          const dropHere = !!dragState && !dragging && dragState.cat === g.cat && dragState.targetIndex === idx;
           return (
             <div key={p.id} ref={(el) => { rowRefs.current[p.id] = el; }} style={{
               position: 'relative', overflow: 'hidden', padding: expanded ? 16 : '7px 12px', borderRadius: expanded ? 18 : 12,
@@ -941,6 +967,28 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                         <span style={{ width: 6, height: 6, borderRadius: 999, background: active ? st.color : c.border, flexShrink: 0 }} />
                         {st.label}
                       </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Category (range) — same edit gating as status. "Autre" clears
+                  the field, which drops the product back to the trailing bucket. */}
+              {!readonly && expanded && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: 9, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans, marginRight: 2 }}>{tr('Catégorie')}</span>
+                  {[...PRODUCT_CATS.map((id) => ({ id, label: PRODUCT_CAT_LABELS[id] })), { id: 'other', label: tr('Autre') }].map((ct) => {
+                    const active = productCat(p) === ct.id;
+                    return (
+                      <button key={ct.id} disabled={!edit}
+                        onClick={() => store.updateProduct(p.id, { cat: ct.id === 'other' ? undefined : ct.id })}
+                        style={{
+                          padding: '4px 10px', borderRadius: 999, cursor: edit ? 'pointer' : 'default',
+                          border: `1px solid ${active ? c.accent : c.border}`,
+                          background: active ? `${c.accent}22` : 'transparent',
+                          color: active ? c.accent : c.mutedSoft,
+                          fontFamily: creaSans, fontSize: 11, fontWeight: 700,
+                        }}>{ct.label}</button>
                     );
                   })}
                 </div>
@@ -1111,7 +1159,10 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
             </div>
           );
         })}
-      </div>
+            </div>
+          </React.Fragment>
+        ));
+      })()}
 
       {!readonly && (
         <div style={{ padding: '14px 22px 0' }}>

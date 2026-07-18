@@ -646,6 +646,24 @@ const groupedMaterials = (materials) => {
   return cats.map((k) => ({ cat: k, label: catLabel(k), items: by[k] })).filter((g) => g.items.length);
 };
 
+// ── Product categories (finished-goods ranges) ───────────────
+// Fixed set of ranges chosen by the owners; a product's cat is p.cat.
+// Anything unset (or unknown) lands in the trailing "Autre" bucket so
+// legacy products never disappear when this field is introduced.
+const PRODUCT_CATS = ['surf', 'baby', 'atma', 'wellness'];
+const PRODUCT_CAT_LABELS = { surf: 'Surf', baby: 'Baby', atma: 'Atma', wellness: 'Wellness' };
+const productCat = (p) => (p && p.cat && PRODUCT_CATS.includes(p.cat)) ? p.cat : 'other';
+const productCatLabel = (cat) => PRODUCT_CAT_LABELS[cat] || 'Autre';
+// Products grouped by range, in fixed range order. Within a group the
+// catalog (drag) order is preserved — no alphabetical sort, unlike materials.
+const groupedProducts = (products) => {
+  const cats = [...PRODUCT_CATS, 'other'];
+  const by = {};
+  for (const k of cats) by[k] = [];
+  for (const p of (products || [])) by[productCat(p)].push(p);
+  return cats.map((k) => ({ cat: k, label: productCatLabel(k), items: by[k] })).filter((g) => g.items.length);
+};
+
 // ── Cost engine ──────────────────────────────────────────────
 // A material's price points = seed history + every purchase of it,
 // sorted by date. Purchases are the real source of truth going forward.
@@ -1354,5 +1372,6 @@ Object.assign(window, {
   useLumaStore, Icon, AnimatedNumber,
   tr, setLbLang, fmtQty,
   materialCat, groupedMaterials, MATERIAL_CAT_LABELS, allMaterialCats, catLabel,
+  PRODUCT_CATS, PRODUCT_CAT_LABELS, productCat, productCatLabel, groupedProducts,
   COMPONENT_UNITS, convertUnit, densityFor, isMassUnit, isVolUnit,
 });
