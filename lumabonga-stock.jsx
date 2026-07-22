@@ -167,6 +167,12 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
   const [seg, setSeg] = React.useState('mat');
   // Staff (level-1 pass) sees stock levels to do their job, never the $ value.
   const restricted = role === 'staff';
+  // Category folds — both lists start fully collapsed: pick the category
+  // first, then the item (long catalogs stay scannable).
+  const [openMatCats, setOpenMatCats] = React.useState(() => new Set());
+  const [openProdCats, setOpenProdCats] = React.useState(() => new Set());
+  const toggleMatCat = foldToggle(setOpenMatCats);
+  const toggleProdCat = foldToggle(setOpenProdCats);
 
   return (
     <div>
@@ -185,9 +191,10 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
         <React.Fragment>
           <CreaSection title={tr('Stock matières')} right={tr('restant')} dark={dark} t={t} />
           {groupedMaterials(store.materials).map((g) => (
-            <div key={g.cat} style={{ padding: '0 22px', marginBottom: 6 }}>
-              <div style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans, margin: '8px 0 6px' }}>{tr(g.label)}</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div key={g.cat} style={{ padding: '0 22px', marginBottom: 2 }}>
+              <CreaFold label={tr(g.label)} count={g.items.length} c={c}
+                open={openMatCats.has(g.cat)} onToggle={() => toggleMatCat(g.cat)}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 }}>
                 {g.items.map((m) => {
                   const stock = store.materialStock[m.id] ?? 0;
                   const price = store.materialPrices[m.id] ?? 0;
@@ -225,6 +232,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                   );
                 })}
               </div>
+              </CreaFold>
             </div>
           ))}
           <div style={{ padding: '10px 22px 0', fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft }}>
@@ -236,8 +244,12 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
       {seg === 'prod' && (
         <React.Fragment>
           <CreaSection title={tr('Produits finis')} right={tr('en stock')} dark={dark} t={t} />
-          <div style={{ padding: '0 22px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {store.products.map((p) => {
+          {groupedProducts(store.products).map((g) => (
+            <div key={g.cat} style={{ padding: '0 22px', marginBottom: 2 }}>
+              <CreaFold label={tr(g.label)} count={g.items.length} c={c}
+                open={openProdCats.has(g.cat)} onToggle={() => toggleProdCat(g.cat)}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 }}>
+            {g.items.map((p) => {
               const stock = store.finishedStock[p.id] ?? 0;
               const can = store.producibleFor(p.id);
               return (
@@ -246,15 +258,14 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                   background: c.panel, border: `1px solid ${c.border}`,
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}>
-                  <div onClick={() => onOpen && onOpen(p)} style={{
-                    width: 26, height: 26, borderRadius: 8, cursor: 'pointer',
-                    background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: creaMono, fontSize: 10.5, fontWeight: 700, flexShrink: 0,
-                  }}>{p.emoji}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontFamily: creaSans, fontSize: 12, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
-                    <div style={{ fontFamily: creaMono, fontSize: 9.5, color: can === 0 ? c.rose : c.muted }}>
+                    <div onClick={() => onOpen && onOpen(p)} style={{
+                      fontFamily: creaSans, fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                      ...prodTint(dark, p.hue), display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
+                      padding: '3px 9px', borderRadius: 8,
+                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    }}>{p.name}</div>
+                    <div style={{ fontFamily: creaMono, fontSize: 9.5, color: can === 0 ? c.rose : c.muted, marginTop: 2 }}>
                       {tr('{n} produisibles', { n: can })}
                     </div>
                   </div>
@@ -281,7 +292,10 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                 </div>
               );
             })}
-          </div>
+              </div>
+              </CreaFold>
+            </div>
+          ))}
 
           <CreaSection title={tr('Production')} right={tr('{n} lots', { n: store.production.length })} dark={dark} t={t} />
           <div style={{ padding: '0 22px' }}>

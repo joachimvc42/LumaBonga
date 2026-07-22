@@ -529,6 +529,36 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
   );
 }
 
+// ── Collapsible category section ─────────────────────────────
+// Every product/material list is folded by category: closed by default,
+// tap the header (chevron + label + count) to open. Keeps long catalogs
+// scannable — pick the range first, then the item.
+function CreaFold({ label, count, open, onToggle, c, children, style }) {
+  return (
+    <div style={style}>
+      <button onClick={onToggle} style={{
+        width: '100%', display: 'flex', alignItems: 'center', gap: 6,
+        background: 'transparent', border: 'none', cursor: 'pointer',
+        padding: '8px 0', margin: 0, textAlign: 'left', color: c.mutedSoft,
+      }}>
+        <span style={{
+          display: 'flex', transform: open ? 'none' : 'rotate(-90deg)',
+          transition: 'transform .15s',
+        }}><Icon.chevronDown width={13} height={13} /></span>
+        <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 700, fontFamily: creaSans }}>{label}</span>
+        <span style={{ fontFamily: creaMono, fontSize: 9 }}>{count}</span>
+      </button>
+      {open && children}
+    </div>
+  );
+}
+// Shared toggle helper for the per-surface "which categories are open" Set.
+const foldToggle = (setter) => (k) => setter((s) => {
+  const n = new Set(s);
+  if (n.has(k)) n.delete(k); else n.add(k);
+  return n;
+});
+
 // ── Product chip (creative variant) ──────────────────────────
 function CreaProductChip({ p, dark, t, onClick, selected }) {
   const c = creaTheme(dark, t.accent);
@@ -740,6 +770,8 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
     if (n.has(id)) n.delete(id); else n.add(id);
     return n;
   });
+  const [openCats, setOpenCats] = React.useState(() => new Set());  // folded ranges — all closed at first
+  const toggleCat = foldToggle(setOpenCats);
 
   // ── Drag & drop reordering (pointer events — works for mouse and touch) ──
   // The dragged row floats under the pointer; everything else stays put until
@@ -822,14 +854,17 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
         // No headers while nothing is categorised yet — the list then looks
         // exactly like the old flat catalog (nothing moves on upgrade).
         const showHeaders = groups.length > 1 || (groups.length === 1 && groups[0].cat !== 'other');
-        return groups.map((g) => (
+        return groups.map((g) => {
+          const catOpen = !showHeaders || openCats.has(g.cat);
+          return (
           <React.Fragment key={g.cat}>
             {showHeaders && (
-              <div style={{ padding: '0 22px', margin: '10px 0 -2px', display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans }}>{tr(g.label)}</span>
-                <span style={{ fontFamily: creaMono, fontSize: 9, color: c.mutedSoft }}>{g.items.length}</span>
+              <div style={{ padding: '0 22px', margin: '2px 0 -2px' }}>
+                <CreaFold label={tr(g.label)} count={g.items.length} c={c}
+                  open={openCats.has(g.cat)} onToggle={() => toggleCat(g.cat)} />
               </div>
             )}
+            {catOpen && (
             <div style={{ padding: '0 22px', display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 4 }}>
               {g.items.map((p, idx) => {
           const recipe = store.recipeFor(p.id);
@@ -1149,8 +1184,10 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
           );
         })}
             </div>
+            )}
           </React.Fragment>
-        ));
+          );
+        });
       })()}
 
       {!readonly && (
@@ -1583,6 +1620,12 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
   const isEdit = !!(ed && ed.id);
   const [productId, setProductId] = React.useState(ed?.productId || store.products[0]?.id || '');
   const [materialId, setMaterialId] = React.useState(ed?.materialId || store.materials[0]?.id || '');
+  // Category folds for the product/material pickers: only the group holding
+  // the current selection starts open, everything else stays collapsed.
+  const [openProdCats, setOpenProdCats] = React.useState(() => new Set([productCat(store.productById[ed?.productId || store.products[0]?.id])]));
+  const [openMatCats, setOpenMatCats] = React.useState(() => new Set([materialCat(store.materialById[ed?.materialId || store.materials[0]?.id])]));
+  const toggleProdCat = foldToggle(setOpenProdCats);
+  const toggleMatCat = foldToggle(setOpenMatCats);
   const [qty, setQty] = React.useState(ed?.qty != null ? String(ed.qty) : '');
   const [price, setPrice] = React.useState(ed?.price != null ? String(ed.price) : '');
   const [note, setNote] = React.useState(ed?.note || ed?.who || '');
@@ -1753,14 +1796,19 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
 
         {kind === 'sale' && (
           <React.Fragment>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={labelStyle}>{tr('Produit')}</span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {store.products.map((p) => (
-                  <CreaProductChip key={p.id} p={p} dark={dark} t={t}
-                    selected={productId === p.id} onClick={() => setProductId(p.id)} />
-                ))}
-              </div>
+              {groupedProducts(store.products).map((g) => (
+                <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+                  open={openProdCats.has(g.cat)} onToggle={() => toggleProdCat(g.cat)}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 6 }}>
+                    {g.items.map((p) => (
+                      <CreaProductChip key={p.id} p={p} dark={dark} t={t}
+                        selected={productId === p.id} onClick={() => setProductId(p.id)} />
+                    ))}
+                  </div>
+                </CreaFold>
+              ))}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
@@ -1829,14 +1877,14 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 </div>
               ) : (
                 groupedMaterials(store.materials).map((g) => (
-                  <div key={g.cat} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: creaSans }}>{tr(g.label)}</span>
-                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+                    open={openMatCats.has(g.cat)} onToggle={() => toggleMatCat(g.cat)}>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 6 }}>
                       {g.items.map((m) => (
                         <CreaMatChip key={m.id} m={m} c={c} selected={materialId === m.id} onClick={() => { setMaterialId(m.id); setNewMatMode(false); }} />
                       ))}
                     </div>
-                  </div>
+                  </CreaFold>
                 ))
               )}
             </div>
@@ -1905,14 +1953,19 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
 
         {kind === 'production' && (
           <React.Fragment>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={labelStyle}>{tr('Produit fabriqué')}</span>
-              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {store.products.map((p) => (
-                  <CreaProductChip key={p.id} p={p} dark={dark} t={t}
-                    selected={productId === p.id} onClick={() => setProductId(p.id)} />
-                ))}
-              </div>
+              {groupedProducts(store.products).map((g) => (
+                <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+                  open={openProdCats.has(g.cat)} onToggle={() => toggleProdCat(g.cat)}>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 6 }}>
+                    {g.items.map((p) => (
+                      <CreaProductChip key={p.id} p={p} dark={dark} t={t}
+                        selected={productId === p.id} onClick={() => setProductId(p.id)} />
+                    ))}
+                  </div>
+                </CreaFold>
+              ))}
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <div>
@@ -2121,4 +2174,4 @@ function CreaApp({ t, dark, role }) {
   );
 }
 
-Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip, OrgFilter });
+Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip, OrgFilter, CreaFold, foldToggle, prodTint });

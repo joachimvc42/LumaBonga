@@ -70,6 +70,9 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose, draft 
   // Two-step: pick a material, then enter the quantity needed per unit produced.
   const [pick, setPick] = React.useState(null);
   const [qty, setQty] = React.useState('');
+  // Category folds — all collapsed until tapped (long material list).
+  const [openCats, setOpenCats] = React.useState(() => new Set());
+  const toggleCat = foldToggle(setOpenCats);
 
   const choose = (m) => { setPick(m); setQty(String(defaultQty(m))); };
   const confirm = () => {
@@ -119,9 +122,9 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose, draft 
   return (
     <ProdSheet title={tr('Ajouter un composant')} c={c} onClose={onClose}>
       {groups.map((g) => (
-        <div key={g.cat} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr(g.label)}</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+          open={openCats.has(g.cat)} onToggle={() => toggleCat(g.cat)}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 6 }}>
             {g.items.map((m) => {
               const isUsed = used.has(m.id);
               return (
@@ -147,7 +150,7 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose, draft 
               );
             })}
           </div>
-        </div>
+        </CreaFold>
       ))}
     </ProdSheet>
   );
