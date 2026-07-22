@@ -60,6 +60,13 @@ const BUY_UNITS = {
 const buyUnitsFor = (base) => BUY_UNITS[base] || [{ u: base || 'pièce', f: 1 }];
 const buyFactor = (base, u) => (buyUnitsFor(base).find((x) => x.u === u) || { f: 1 }).f;
 
+// Soft per-product tint for the name pill (replaces the old 2-letter
+// abbreviation square): pastel background, readable colored text.
+const prodTint = (dark, hue) => ({
+  background: dark ? `oklch(0.33 0.06 ${hue})` : `oklch(0.91 0.06 ${hue})`,
+  color: dark ? `oklch(0.90 0.09 ${hue})` : `oklch(0.38 0.11 ${hue})`,
+});
+
 // ── Month / period picker ────────────────────────────────────
 function periodLabel(p) {
   if (!p || p === 'all') return tr('Tout');
@@ -527,19 +534,12 @@ function CreaProductChip({ p, dark, t, onClick, selected }) {
   const c = creaTheme(dark, t.accent);
   return (
     <button onClick={onClick} style={{
-      display: 'flex', alignItems: 'center', gap: 8,
-      padding: '7px 12px 7px 7px', borderRadius: 999,
-      background: selected ? `oklch(0.22 0.08 ${p.hue})` : c.panel2,
+      display: 'flex', alignItems: 'center',
+      padding: '7px 12px', borderRadius: 999,
+      ...(selected ? prodTint(dark, p.hue) : { background: c.panel2, color: c.text }),
       border: `1px solid ${selected ? `oklch(0.55 0.12 ${p.hue})` : c.border}`,
-      color: selected ? `oklch(0.92 0.12 ${p.hue})` : c.text,
-      cursor: 'pointer', fontFamily: creaSans, fontSize: 12, fontWeight: 500,
+      cursor: 'pointer', fontFamily: creaSans, fontSize: 12, fontWeight: selected ? 600 : 500,
     }}>
-      <span style={{
-        width: 22, height: 22, borderRadius: 999,
-        background: `oklch(0.55 0.16 ${p.hue})`, color: '#0c0c10',
-        fontFamily: creaMono, fontSize: 10, fontWeight: 700,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>{p.emoji}</span>
       {p.name}
     </button>
   );
@@ -635,16 +635,9 @@ function CreaTxScreen({ store, dark, t, kind, onEdit, role }) {
               borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}`,
               display: 'flex', gap: 10, alignItems: 'center',
             }}>
-              <div style={{
-                width: 30, height: 30, borderRadius: 9,
-                background: `oklch(0.22 0.08 ${p?.hue || 0})`,
-                color: `oklch(0.88 0.14 ${p?.hue || 0})`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                fontFamily: creaMono, fontSize: 11, fontWeight: 700, flexShrink: 0,
-              }}>{p?.emoji}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-                  <span style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontFamily: creaSans, fontSize: 13.5, ...prodTint(dark, p?.hue || 0), fontWeight: 500, padding: '3px 9px', borderRadius: 8, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
                   <span style={{ fontFamily: creaMono, fontSize: 13, color, fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>{fmtNum(it.qty * it.price)} {t.currency}</span>
                 </div>
                 <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 1 }}>
@@ -870,13 +863,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     display: 'flex', touchAction: 'none',
                   }}><Icon.grip width={expanded ? 15 : 13} height={expanded ? 15 : 13} /></span>
                 )}
-                <div style={{
-                  width: expanded ? 56 : 30, height: expanded ? 56 : 30, borderRadius: expanded ? 14 : 9,
-                  background: `oklch(0.22 0.08 ${p.hue})`, color: `oklch(0.92 0.14 ${p.hue})`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: creaMono,
-                  fontSize: expanded ? 18 : 11, fontWeight: 700, flexShrink: 0, transition: 'width .15s, height .15s',
-                }}>{p.emoji}</div>
-                <div style={{ flex: 1, minWidth: 0, display: expanded ? 'block' : 'flex', alignItems: 'baseline', gap: 8 }}>
+                <div style={{ flex: 1, minWidth: 0, display: expanded ? 'block' : 'flex', alignItems: 'center', gap: 8 }}>
                   {edit ? (
                     <input value={nameDraft} autoFocus onChange={(e) => setNameDraft(e.target.value)}
                       onBlur={() => { const n = nameDraft.trim(); if (n && n !== p.name) store.updateProduct(p.id, { name: n }); }}
@@ -884,7 +871,9 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                       style={{ width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 10px', fontFamily: creaSans, fontSize: 16, outline: 'none' }} />
                   ) : (
                     <div style={{
-                      fontFamily: creaDisplay, fontStyle: 'normal', fontSize: expanded ? 18 : 13, color: c.text,
+                      fontFamily: creaDisplay, fontStyle: 'normal', fontSize: expanded ? 18 : 13, ...prodTint(dark, p.hue),
+                      display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
+                      padding: expanded ? '5px 12px' : '4px 10px', borderRadius: 8,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{p.name}</div>
                   )}
