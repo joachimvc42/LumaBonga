@@ -122,7 +122,7 @@ function ProdAddMaterialSheet({ store, dark, t, productId, used, onClose, draft 
   return (
     <ProdSheet title={tr('Ajouter un composant')} c={c} onClose={onClose}>
       {groups.map((g) => (
-        <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+        <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c} dark={dark}
           open={openCats.has(g.cat)} onToggle={() => toggleCat(g.cat)}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, paddingBottom: 6 }}>
             {g.items.map((m) => {

@@ -70,6 +70,12 @@ const softTint = (dark, h) => ({
   background: dark ? `oklch(0.33 0.07 ${h})` : `oklch(0.91 0.07 ${h})`,
   color: dark ? `oklch(0.89 0.10 ${h})` : `oklch(0.40 0.11 ${h})`,
 });
+// Whole-row variant: a lighter wash + matching border, so an entire card
+// can carry the color while pills/text stay readable on top of it.
+const softTintBar = (dark, h) => ({
+  background: dark ? `oklch(0.24 0.04 ${h})` : `oklch(0.945 0.045 ${h})`,
+  border: `1px solid ${dark ? `oklch(0.40 0.08 ${h})` : `oklch(0.82 0.07 ${h})`}`,
+});
 // Product pills carry the release STATUS: light green = Ready, light
 // orange = Test ('correction' legacy = Test, missing status = Ready — same
 // reading as productStatus in the catalog). The Stock page overrides this
@@ -546,20 +552,23 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
 // Every product/material list is folded by category: closed by default,
 // tap the header (chevron + label + count) to open. Keeps long catalogs
 // scannable — pick the range first, then the item.
-function CreaFold({ label, count, open, onToggle, c, children, style }) {
+function CreaFold({ label, count, open, onToggle, c, dark, children, style }) {
   return (
     <div style={style}>
+      {/* Full-width light-blue bar (like a product row, but tinted blue so
+          category lines read apart from item lines). */}
       <button onClick={onToggle} style={{
-        width: '100%', display: 'flex', alignItems: 'center', gap: 6,
-        background: 'transparent', border: 'none', cursor: 'pointer',
-        padding: '8px 0', margin: 0, textAlign: 'left', color: c.mutedSoft,
+        width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+        ...softTintBar(dark, 240), color: softTint(dark, 240).color,
+        borderRadius: 10, padding: '10px 12px', margin: '0 0 6px', cursor: 'pointer',
+        textAlign: 'left',
       }}>
         <span style={{
           display: 'flex', transform: open ? 'none' : 'rotate(-90deg)',
           transition: 'transform .15s',
-        }}><Icon.chevronDown width={13} height={13} /></span>
-        <span style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', fontWeight: 700, fontFamily: creaSans }}>{label}</span>
-        <span style={{ fontFamily: creaMono, fontSize: 9 }}>{count}</span>
+        }}><Icon.chevronDown width={15} height={15} /></span>
+        <span style={{ fontSize: 12.5, letterSpacing: 0.6, textTransform: 'uppercase', fontWeight: 700, fontFamily: creaSans }}>{label}</span>
+        <span style={{ fontFamily: creaMono, fontSize: 10.5, opacity: 0.75 }}>{count}</span>
       </button>
       {open && children}
     </div>
@@ -873,7 +882,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
           <React.Fragment key={g.cat}>
             {showHeaders && (
               <div style={{ padding: '0 22px', margin: '2px 0 -2px' }}>
-                <CreaFold label={tr(g.label)} count={g.items.length} c={c}
+                <CreaFold label={tr(g.label)} count={g.items.length} c={c} dark={dark}
                   open={openCats.has(g.cat)} onToggle={() => toggleCat(g.cat)} />
               </div>
             )}
@@ -1289,6 +1298,8 @@ const TODO_PRIORITIES = [
   { id: 'low', label: 'Basse' },
 ];
 const prioColor = (c, p) => p === 'high' ? c.prioHigh : p === 'low' ? c.prioLow : c.prioMed;
+// Same scale as oklch hues, for whole-row washes (red / orange / yellow).
+const prioHue = (p) => p === 'high' ? 25 : p === 'low' ? 85 : 60;
 const prioRank = { high: 0, medium: 1, low: 2 };
 const byPriority = (xs) => [...xs].sort((a, b) => prioRank[a.priority || 'medium'] - prioRank[b.priority || 'medium']);
 
@@ -1423,7 +1434,7 @@ function CreaTodos({ store, dark, t }) {
           <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, padding: '4px 0' }}>{tr('Aucune tâche pour {name}.', { name: personFilter })}</div>
         )}
         {[...open, ...done].map((td) => (
-          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card}
+          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
             editing={editingId === td.id}
             onEdit={() => setEditingId(td.id)}
             onCloseEdit={() => setEditingId(null)} />
@@ -1448,9 +1459,10 @@ function CreaTodos({ store, dark, t }) {
           const mat = store.materialById[x.materialId];
           const prod = store.productById[x.productId];
           if (!mat) return null;
-          const tint = softTint(dark, x.units <= 1 ? 25 : x.units < 5 ? 60 : 85);
+          const levelHue = x.units <= 1 ? 25 : x.units < 5 ? 60 : 85;
+          const tint = softTint(dark, levelHue);
           return (
-            <div key={x.materialId} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px' }}>
+            <div key={x.materialId} style={{ ...card, ...softTintBar(dark, levelHue), display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px' }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{
                   fontFamily: creaSans, fontSize: 13.5, fontWeight: 500, ...tint,
@@ -1474,7 +1486,7 @@ function CreaTodos({ store, dark, t }) {
 // One To do row — static display, or an inline edit form (text, assignees,
 // priority) when `editing`. Split out so its draft state doesn't leak into
 // the parent (and reset) when a different row is edited.
-function CreaTodoRow({ td, store, c, card, editing, onEdit, onCloseEdit }) {
+function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit }) {
   const [text, setText] = React.useState(td.text);
   const [assignees, setAssignees] = React.useState(() => td.assignees || (td.assignee ? [td.assignee] : []));
   const [priority, setPriority] = React.useState(td.priority || 'medium');
@@ -1553,7 +1565,7 @@ function CreaTodoRow({ td, store, c, card, editing, onEdit, onCloseEdit }) {
   const pLabel = (TODO_PRIORITIES.find((p) => p.id === pid) || TODO_PRIORITIES[1]).label;
 
   return (
-    <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
+    <div style={{ ...card, ...softTintBar(dark, prioHue(pid)), display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
       <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
         width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
         border: `1.5px solid ${td.done ? c.accent : c.border}`,
@@ -1824,7 +1836,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={labelStyle}>{tr('Produit')}</span>
               {groupedProducts(store.products).map((g) => (
-                <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+                <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c} dark={dark}
                   open={openProdCats.has(g.cat)} onToggle={() => toggleProdCat(g.cat)}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 6 }}>
                     {g.items.map((p) => (
@@ -1902,7 +1914,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
                 </div>
               ) : (
                 groupedMaterials(store.materials).map((g) => (
-                  <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+                  <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c} dark={dark}
                     open={openMatCats.has(g.cat)} onToggle={() => toggleMatCat(g.cat)}>
                     <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 6 }}>
                       {g.items.map((m) => (
@@ -1981,7 +1993,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               <span style={labelStyle}>{tr('Produit fabriqué')}</span>
               {groupedProducts(store.products).map((g) => (
-                <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c}
+                <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c} dark={dark}
                   open={openProdCats.has(g.cat)} onToggle={() => toggleProdCat(g.cat)}>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 6 }}>
                     {g.items.map((p) => (

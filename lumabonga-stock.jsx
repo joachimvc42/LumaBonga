@@ -192,7 +192,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
           <CreaSection title={tr('Stock matières')} right={tr('restant')} dark={dark} t={t} />
           {groupedMaterials(store.materials).map((g) => (
             <div key={g.cat} style={{ padding: '0 22px', marginBottom: 2 }}>
-              <CreaFold label={tr(g.label)} count={g.items.length} c={c}
+              <CreaFold label={tr(g.label)} count={g.items.length} c={c} dark={dark}
                 open={openMatCats.has(g.cat)} onToggle={() => toggleMatCat(g.cat)}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 }}>
                 {g.items.map((m) => {
@@ -205,7 +205,6 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                       background: c.panel, border: `1px solid ${c.border}`,
                       display: 'flex', alignItems: 'center', gap: 8,
                     }}>
-                      <span style={{ width: 7, height: 7, borderRadius: 999, background: `oklch(0.62 0.16 ${m.hue})`, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontFamily: creaSans, fontSize: 12, color: c.text, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name}</div>
                         <div style={{ fontFamily: creaMono, fontSize: 9.5, color: c.muted }}>
@@ -246,7 +245,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
           <CreaSection title={tr('Produits finis')} right={tr('en stock')} dark={dark} t={t} />
           {groupedProducts(store.products).map((g) => (
             <div key={g.cat} style={{ padding: '0 22px', marginBottom: 2 }}>
-              <CreaFold label={tr(g.label)} count={g.items.length} c={c}
+              <CreaFold label={tr(g.label)} count={g.items.length} c={c} dark={dark}
                 open={openProdCats.has(g.cat)} onToggle={() => toggleProdCat(g.cat)}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 6 }}>
             {g.items.map((p) => {
