@@ -29,6 +29,10 @@ const creaTheme = (dark, accent) => {
     purple:     dark ? '#c4a8ff' : '#5b54c9',
     amber:      dark ? '#f5c451' : '#b5811d',
     rose:       dark ? '#f48fb1' : '#d2483f',
+    // To-do priority scale: light red / orange / yellow.
+    prioHigh:   dark ? '#f28b82' : '#e05252',
+    prioMed:    dark ? '#f5a25c' : '#e07a2e',
+    prioLow:    dark ? '#f5d76e' : '#c9a227',
     pos:        dark ? '#7dd3a0' : '#138a5e',
     ink:        dark ? '#f3f4f7' : '#10131a',
     inkContrast: dark ? '#0e0f13' : '#ffffff',
@@ -60,12 +64,21 @@ const BUY_UNITS = {
 const buyUnitsFor = (base) => BUY_UNITS[base] || [{ u: base || 'pièce', f: 1 }];
 const buyFactor = (base, u) => (buyUnitsFor(base).find((x) => x.u === u) || { f: 1 }).f;
 
-// Soft per-product tint for the name pill (replaces the old 2-letter
-// abbreviation square): pastel background, readable colored text.
-const prodTint = (dark, hue) => ({
-  background: dark ? `oklch(0.33 0.06 ${hue})` : `oklch(0.91 0.06 ${hue})`,
-  color: dark ? `oklch(0.90 0.09 ${hue})` : `oklch(0.38 0.11 ${hue})`,
+// Name-pill tinting (replaces the old 2-letter squares): pastel background
+// + readable colored text at a given hue (155 green / 60 orange / 25 red).
+const softTint = (dark, h) => ({
+  background: dark ? `oklch(0.33 0.07 ${h})` : `oklch(0.91 0.07 ${h})`,
+  color: dark ? `oklch(0.89 0.10 ${h})` : `oklch(0.40 0.11 ${h})`,
 });
+// Product pills carry the release STATUS: light green = Ready, light
+// orange = Test ('correction' legacy = Test, missing status = Ready — same
+// reading as productStatus in the catalog). The Stock page overrides this
+// with a stock-level tint instead (see CreaStock).
+const prodStatusTint = (dark, p) => {
+  const raw = p?.status || 'ready';
+  const st = raw === 'correction' ? 'test' : raw;
+  return softTint(dark, st === 'ready' ? 155 : 60);
+};
 
 // ── Month / period picker ────────────────────────────────────
 function periodLabel(p) {
@@ -566,9 +579,9 @@ function CreaProductChip({ p, dark, t, onClick, selected }) {
     <button onClick={onClick} style={{
       display: 'flex', alignItems: 'center',
       padding: '7px 12px', borderRadius: 999,
-      ...(selected ? prodTint(dark, p.hue) : { background: c.panel2, color: c.text }),
-      border: `1px solid ${selected ? `oklch(0.55 0.12 ${p.hue})` : c.border}`,
-      cursor: 'pointer', fontFamily: creaSans, fontSize: 12, fontWeight: selected ? 600 : 500,
+      ...prodStatusTint(dark, p),
+      border: `1.5px solid ${selected ? c.ink : 'transparent'}`,
+      cursor: 'pointer', fontFamily: creaSans, fontSize: 12, fontWeight: selected ? 700 : 500,
     }}>
       {p.name}
     </button>
@@ -667,7 +680,7 @@ function CreaTxScreen({ store, dark, t, kind, onEdit, role }) {
             }}>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontFamily: creaSans, fontSize: 13.5, ...prodTint(dark, p?.hue || 0), fontWeight: 500, padding: '3px 9px', borderRadius: 8, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
+                  <span style={{ fontFamily: creaSans, fontSize: 13.5, ...prodStatusTint(dark, p), fontWeight: 500, padding: '3px 9px', borderRadius: 8, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p?.name}</span>
                   <span style={{ fontFamily: creaMono, fontSize: 13, color, fontWeight: 600, marginLeft: 'auto', flexShrink: 0 }}>{fmtNum(it.qty * it.price)} {t.currency}</span>
                 </div>
                 <div style={{ fontSize: 11, color: c.muted, fontFamily: creaMono, marginTop: 1 }}>
@@ -906,7 +919,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                       style={{ width: '100%', boxSizing: 'border-box', background: c.panel2, color: c.text, border: `1px solid ${c.border}`, borderRadius: 8, padding: '6px 10px', fontFamily: creaSans, fontSize: 16, outline: 'none' }} />
                   ) : (
                     <div style={{
-                      fontFamily: creaDisplay, fontStyle: 'normal', fontSize: expanded ? 18 : 13, ...prodTint(dark, p.hue),
+                      fontFamily: creaDisplay, fontStyle: 'normal', fontSize: expanded ? 18 : 13, ...prodStatusTint(dark, p),
                       display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
                       padding: expanded ? '5px 12px' : '4px 10px', borderRadius: 8,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
@@ -1275,7 +1288,7 @@ const TODO_PRIORITIES = [
   { id: 'medium', label: 'Moyenne' },
   { id: 'low', label: 'Basse' },
 ];
-const prioColor = (c, p) => p === 'high' ? c.rose : p === 'low' ? c.mutedSoft : c.amber;
+const prioColor = (c, p) => p === 'high' ? c.prioHigh : p === 'low' ? c.prioLow : c.prioMed;
 const prioRank = { high: 0, medium: 1, low: 2 };
 const byPriority = (xs) => [...xs].sort((a, b) => prioRank[a.priority || 'medium'] - prioRank[b.priority || 'medium']);
 
@@ -1424,18 +1437,30 @@ function CreaTodos({ store, dark, t }) {
         {store.toPurchase.length === 0 && (
           <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted }}>{tr('Rien à acheter — les stocks couvrent 10 unités de chaque produit.')}</div>
         )}
-        {store.toPurchase.map((x) => {
+        {/* Sorted by criticality: how many units the remaining stock still
+            covers — empty/near-empty (≤1 u) in light red on top, under 5 u
+            in light orange, the rest (up to 10 u) in light yellow at the
+            bottom. Ties keep the biggest shortfall first. */}
+        {[...store.toPurchase]
+          .map((x) => ({ ...x, units: x.need > 0 ? Math.floor(10 * x.have / x.need) : 0 }))
+          .sort((a, b) => a.units - b.units || b.missing - a.missing)
+          .map((x) => {
           const mat = store.materialById[x.materialId];
           const prod = store.productById[x.productId];
           if (!mat) return null;
+          const tint = softTint(dark, x.units <= 1 ? 25 : x.units < 5 ? 60 : 85);
           return (
             <div key={x.materialId} style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px' }}>
-              <span style={{ width: 9, height: 9, borderRadius: 999, background: `oklch(0.62 0.16 ${mat.hue || 0})`, flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500 }}>{mat.name}</div>
-                <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>{prod ? tr('pour 10× {name}', { name: prod.name }) : ''}</div>
+                <div style={{
+                  fontFamily: creaSans, fontSize: 13.5, fontWeight: 500, ...tint,
+                  display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
+                  padding: '3px 9px', borderRadius: 8,
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>{mat.name}</div>
+                <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 2 }}>{prod ? tr('pour 10× {name}', { name: prod.name }) : ''}</div>
               </div>
-              <div style={{ fontFamily: creaDisplay, fontSize: 16, color: c.amber, flexShrink: 0, fontWeight: 600 }}>
+              <div style={{ fontFamily: creaDisplay, fontSize: 16, color: tint.color, flexShrink: 0, fontWeight: 600 }}>
                 {fmtQty(x.missing)} <span style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted }}>{mat.unit} {tr('manquant')}</span>
               </div>
             </div>
@@ -2174,4 +2199,4 @@ function CreaApp({ t, dark, role }) {
   );
 }
 
-Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip, OrgFilter, CreaFold, foldToggle, prodTint });
+Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip, OrgFilter, CreaFold, foldToggle, softTint, prodStatusTint });

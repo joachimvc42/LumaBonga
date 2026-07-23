@@ -252,6 +252,9 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
             {g.items.map((p) => {
               const stock = store.finishedStock[p.id] ?? 0;
               const can = store.producibleFor(p.id);
+              // Stock-level tint: red = can produce < 3 units (materials
+              // nearly out), orange = < 10 finished in stock, green = fine.
+              const levelHue = can < 3 ? 25 : stock < 10 ? 60 : 155;
               return (
                 <div key={p.id} style={{
                   padding: '5px 10px', borderRadius: 10,
@@ -261,7 +264,7 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div onClick={() => onOpen && onOpen(p)} style={{
                       fontFamily: creaSans, fontSize: 12, fontWeight: 500, cursor: 'pointer',
-                      ...prodTint(dark, p.hue), display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
+                      ...softTint(dark, levelHue), display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
                       padding: '3px 9px', borderRadius: 8,
                       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     }}>{p.name}</div>
