@@ -1300,6 +1300,11 @@ const TODO_PRIORITIES = [
 const prioColor = (c, p) => p === 'high' ? c.prioHigh : p === 'low' ? c.prioLow : c.prioMed;
 // Same scale as oklch hues, for whole-row washes (red / orange / yellow).
 const prioHue = (p) => p === 'high' ? 25 : p === 'low' ? 85 : 60;
+// Shopping-list criticality hue, from units of stock still covered (10× recipe
+// qty = 100%): near-empty red, under 5 orange, the rest (up to 10) yellow.
+// Shared by the To-purchase rows and any Stock row for a product that shows
+// up there, so the two screens agree on what "urgent" looks like.
+const purchaseHue = (units) => units <= 1 ? 25 : units < 5 ? 60 : 85;
 const prioRank = { high: 0, medium: 1, low: 2 };
 const byPriority = (xs) => [...xs].sort((a, b) => prioRank[a.priority || 'medium'] - prioRank[b.priority || 'medium']);
 
@@ -1312,6 +1317,7 @@ function CreaTodos({ store, dark, t }) {
   const [memberDraft, setMemberDraft] = React.useState('');
   const [editingId, setEditingId] = React.useState(null);
   const [personFilter, setPersonFilter] = React.useState(null);  // team member name, or null = everyone
+  const [doneOpen, setDoneOpen] = React.useState(false);  // "Completed" fold — closed by default
 
   const assigneesOf = (td) => td.assignees || (td.assignee ? [td.assignee] : []);
   const matchesFilter = (td) => !personFilter || assigneesOf(td).includes(personFilter);
@@ -1433,13 +1439,30 @@ function CreaTodos({ store, dark, t }) {
         {store.todos.length > 0 && open.length === 0 && done.length === 0 && (
           <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, padding: '4px 0' }}>{tr('Aucune tâche pour {name}.', { name: personFilter })}</div>
         )}
-        {[...open, ...done].map((td) => (
+        {open.map((td) => (
           <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
             editing={editingId === td.id}
             onEdit={() => setEditingId(td.id)}
             onCloseEdit={() => setEditingId(null)} />
         ))}
       </div>
+
+      {/* Completed tasks — folded away by default so the open list stays the focus. */}
+      {done.length > 0 && (
+        <div style={{ padding: '10px 22px 0' }}>
+          <CreaFold label={tr('Terminées')} count={done.length} c={c} dark={dark}
+            open={doneOpen} onToggle={() => setDoneOpen((v) => !v)}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 4 }}>
+              {done.map((td) => (
+                <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
+                  editing={editingId === td.id}
+                  onEdit={() => setEditingId(td.id)}
+                  onCloseEdit={() => setEditingId(null)} />
+              ))}
+            </div>
+          </CreaFold>
+        </div>
+      )}
 
       {/* To purchase — auto shopping list */}
       <CreaSection title={tr('À acheter')} right={`${store.toPurchase.length}`} dark={dark} t={t} />
@@ -1459,7 +1482,7 @@ function CreaTodos({ store, dark, t }) {
           const mat = store.materialById[x.materialId];
           const prod = store.productById[x.productId];
           if (!mat) return null;
-          const levelHue = x.units <= 1 ? 25 : x.units < 5 ? 60 : 85;
+          const levelHue = purchaseHue(x.units);
           const tint = softTint(dark, levelHue);
           return (
             <div key={x.materialId} style={{ ...card, ...softTintBar(dark, levelHue), display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px' }}>
@@ -2211,4 +2234,4 @@ function CreaApp({ t, dark, role }) {
   );
 }
 
-Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip, OrgFilter, CreaFold, foldToggle, softTint, prodStatusTint });
+Object.assign(window, { CreaApp, creaTheme, creaSans, creaMono, creaDisplay, CreaSection, CreaHero, CreaProductChip, OrgFilter, CreaFold, foldToggle, softTint, softTintBar, prodStatusTint, purchaseHue });

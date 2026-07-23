@@ -251,13 +251,19 @@ function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
             {g.items.map((p) => {
               const stock = store.finishedStock[p.id] ?? 0;
               const can = store.producibleFor(p.id);
-              // Stock-level tint: red = can produce < 3 units (materials
-              // nearly out), orange = < 10 finished in stock, green = fine.
-              const levelHue = can < 3 ? 25 : stock < 10 ? 60 : 155;
+              // If this product is driving a shortage on the To-purchase list,
+              // match that row's exact color (worst-covered material wins) so
+              // the two screens read as one system. Otherwise fall back to a
+              // simple stock-level read: red = can produce < 3, orange = < 10
+              // finished in stock, green = fine.
+              const shortages = store.toPurchase.filter((x) => x.productId === p.id);
+              const levelHue = shortages.length
+                ? Math.min(...shortages.map((x) => purchaseHue(x.need > 0 ? Math.floor(10 * x.have / x.need) : 0)))
+                : (can < 3 ? 25 : stock < 10 ? 60 : 155);
               return (
                 <div key={p.id} style={{
                   padding: '5px 10px', borderRadius: 10,
-                  background: c.panel, border: `1px solid ${c.border}`,
+                  ...softTintBar(dark, levelHue),
                   display: 'flex', alignItems: 'center', gap: 8,
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
