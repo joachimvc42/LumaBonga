@@ -464,6 +464,77 @@ function sopItemQty(store, pid, item, batch) {
   return { name: mat.name, hue: mat.hue, qty: convertUnit(qty, base, du, densityFor(mat)), unit: du, pct: Math.round(pct * 100) };
 }
 
+// ── SOP: one step's editor UI (text + optional ingredient/% tags) ───────────
+// Pure/presentational — no internal state. Used by both the single-version
+// SOP editor (ProdSopEditorSheet, local-state-backed) and the draft compare
+// sheet (ProdSopCompareSheet, store-backed): both supply their own callbacks.
+function ProdSopStepEditor({ step, index, ingredients, materialById, c, canRemove, hasError, onPatchText, onToggleItem, onSetPct, onRemove }) {
+  return (
+    <div style={{ padding: 14, borderRadius: 14, background: c.panel, border: `1px solid ${c.border}` }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ fontFamily: prodSans, fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: c.accent }}>
+          {tr('Étape {n}', { n: index + 1 })}
+        </span>
+        {canRemove && (
+          <button onClick={onRemove} aria-label={tr('Supprimer cette étape')} style={{
+            background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 2, display: 'flex',
+          }}><Icon.close width={15} height={15} /></button>
+        )}
+      </div>
+      <textarea value={step.text} onChange={(e) => onPatchText(e.target.value)}
+        placeholder={tr('Décris cette étape…')} rows={2}
+        style={{
+          width: '100%', boxSizing: 'border-box', resize: 'vertical', minHeight: 48,
+          background: c.panel2, color: c.text, border: `1px solid ${(!step.text.trim() && hasError) ? c.rose : c.border}`,
+          borderRadius: 10, padding: '10px 12px', fontFamily: prodSans, fontSize: 14, outline: 'none', lineHeight: 1.45,
+        }} />
+      {ingredients.length > 0 && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: prodSans, marginBottom: 6 }}>
+            {tr('Ingrédients concernés (optionnel)')}
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+            {ingredients.map((ing) => {
+              const mat = materialById[ing.materialId];
+              if (!mat) return null;
+              const sel = step.items.find((it) => it.materialId === ing.materialId);
+              return (
+                <span key={ing.materialId} style={{ display: 'inline-flex', alignItems: 'center' }}>
+                  <button onClick={() => onToggleItem(ing.materialId)} style={{
+                    display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px',
+                    borderRadius: sel ? '999px 0 0 999px' : 999,
+                    border: `1px solid ${sel ? c.accent : c.border}`,
+                    background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.text,
+                    cursor: 'pointer', fontFamily: prodSans, fontSize: 12.5, fontWeight: 600,
+                  }}>
+                    <span style={{ width: 8, height: 8, borderRadius: 999, background: `oklch(0.62 0.16 ${mat.hue || 0})`, flexShrink: 0 }} />
+                    {mat.name}
+                  </button>
+                  {sel && (
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center',
+                      border: `1px solid ${c.accent}`, borderLeft: 'none', borderRadius: '0 999px 999px 0',
+                      background: c.panel2, padding: '4px 9px 4px 6px', gap: 1,
+                    }}>
+                      <input type="number" inputMode="numeric" min="0" max="100" value={sel.pct}
+                        onChange={(e) => onSetPct(ing.materialId, e.target.value)}
+                        style={{
+                          width: 34, background: 'transparent', border: 'none', outline: 'none',
+                          color: c.text, fontFamily: prodMono, fontSize: 12.5, fontWeight: 600, textAlign: 'right',
+                        }} />
+                      <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted }}>%</span>
+                    </span>
+                  )}
+                </span>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── SOP: editor bottom sheet ─────────────────────────────────
 // One or more steps; each step = required text + optional multi-select of the
 // product's recipe ingredients, each with a % of the recipe quantity (default 100).
@@ -522,68 +593,12 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
     <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
       <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
       {steps.map((s, i) => (
-        <div key={s.id} style={{ padding: 14, borderRadius: 14, background: c.panel, border: `1px solid ${c.border}` }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-            <span style={{ fontFamily: prodSans, fontSize: 12, fontWeight: 700, letterSpacing: 0.6, textTransform: 'uppercase', color: c.accent }}>
-              {tr('Étape {n}', { n: i + 1 })}
-            </span>
-            {steps.length > 1 && (
-              <button onClick={() => removeStep(s.id)} aria-label={tr('Supprimer cette étape')} style={{
-                background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 2, display: 'flex',
-              }}><Icon.close width={15} height={15} /></button>
-            )}
-          </div>
-          <textarea value={s.text} onChange={(e) => patchStep(s.id, { text: e.target.value })}
-            placeholder={tr('Décris cette étape…')} rows={2}
-            style={{
-              width: '100%', boxSizing: 'border-box', resize: 'vertical', minHeight: 48,
-              background: c.panel2, color: c.text, border: `1px solid ${(!s.text.trim() && err) ? c.rose : c.border}`,
-              borderRadius: 10, padding: '10px 12px', fontFamily: prodSans, fontSize: 14, outline: 'none', lineHeight: 1.45,
-            }} />
-          {ingredients.length > 0 && (
-            <div style={{ marginTop: 10 }}>
-              <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: prodSans, marginBottom: 6 }}>
-                {tr('Ingrédients concernés (optionnel)')}
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
-                {ingredients.map((ing) => {
-                  const mat = store.materialById[ing.materialId];
-                  if (!mat) return null;
-                  const sel = s.items.find((it) => it.materialId === ing.materialId);
-                  return (
-                    <span key={ing.materialId} style={{ display: 'inline-flex', alignItems: 'center' }}>
-                      <button onClick={() => toggleItem(s.id, ing.materialId)} style={{
-                        display: 'flex', alignItems: 'center', gap: 6, padding: '6px 11px',
-                        borderRadius: sel ? '999px 0 0 999px' : 999,
-                        border: `1px solid ${sel ? c.accent : c.border}`,
-                        background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.text,
-                        cursor: 'pointer', fontFamily: prodSans, fontSize: 12.5, fontWeight: 600,
-                      }}>
-                        <span style={{ width: 8, height: 8, borderRadius: 999, background: `oklch(0.62 0.16 ${mat.hue || 0})`, flexShrink: 0 }} />
-                        {mat.name}
-                      </button>
-                      {sel && (
-                        <span style={{
-                          display: 'inline-flex', alignItems: 'center',
-                          border: `1px solid ${c.accent}`, borderLeft: 'none', borderRadius: '0 999px 999px 0',
-                          background: c.panel2, padding: '4px 9px 4px 6px', gap: 1,
-                        }}>
-                          <input type="number" inputMode="numeric" min="0" max="100" value={sel.pct}
-                            onChange={(e) => setPct(s.id, ing.materialId, e.target.value)}
-                            style={{
-                              width: 34, background: 'transparent', border: 'none', outline: 'none',
-                              color: c.text, fontFamily: prodMono, fontSize: 12.5, fontWeight: 600, textAlign: 'right',
-                            }} />
-                          <span style={{ fontFamily: prodMono, fontSize: 11, color: c.muted }}>%</span>
-                        </span>
-                      )}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
+        <ProdSopStepEditor key={s.id} step={s} index={i} ingredients={ingredients} materialById={store.materialById} c={c}
+          canRemove={steps.length > 1} hasError={!!err}
+          onPatchText={(text) => patchStep(s.id, { text })}
+          onToggleItem={(materialId) => toggleItem(s.id, materialId)}
+          onSetPct={(materialId, pct) => setPct(s.id, materialId, pct)}
+          onRemove={() => removeStep(s.id)} />
       ))}
       {err && (
         <div style={{
