@@ -781,6 +781,12 @@ function useLumaStore(seed, shareLumaya) {
   // { [productId]: { steps: [{ id, text, items: [{ materialId, pct }] }] } }
   // `pct` = share of the recipe quantity handled in this step (default 100).
   const [sops, setSops] = React.useState(saved?.sops || {});
+  // SOP drafts — one pending "to test" set of steps per product, compared
+  // against the current (tested/base) SOP. Same shape as a SOP. Approving
+  // one replaces `sops[pid]`; discarding just clears the draft. Fully
+  // independent from `recipeDrafts` — approving/discarding one never
+  // touches the other.
+  const [sopDrafts, setSopDrafts] = React.useState(saved?.sopDrafts || {});
   // Team task board. { id, date, text, assignee, done }
   const [todos, setTodos] = React.useState(saved?.todos || []);
   const [team, setTeam] = React.useState(saved?.team || ['Pawung', 'Gani', 'Burhan', 'Joachim']);
@@ -807,8 +813,8 @@ function useLumaStore(seed, shareLumaya) {
 
   // Persist on any change. Recipes already carry stable ids, so they round-trip.
   React.useEffect(() => {
-    savePersisted({ products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, todos, team });
-  }, [products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, todos, team]);
+    savePersisted({ products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, sopDrafts, todos, team });
+  }, [products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, sopDrafts, todos, team]);
 
   const recipeFor = (pid) => recipes[pid] || { ingredients: [], labor: [] };
   const editRecipe = (pid, fn) => setRecipes((rs) => {
@@ -1136,6 +1142,24 @@ function useLumaStore(seed, shareLumaya) {
   const setSop = (pid, steps) => setSops((s) => ({ ...s, [pid]: { steps } }));
   const removeSop = (pid) => setSops((s) => { const n = { ...s }; delete n[pid]; return n; });
 
+  // ── SOP draft actions ("suggest a correction") ───────────────────
+  // Independent of recipe drafts: no "approve as Ready" here, because SOPs
+  // have no Ready/Test status of their own — only the product does, and
+  // that flag is owned entirely by the recipe side (approveDraftAsReady).
+  const sopDraftFor = (pid) => sopDrafts[pid] || null;
+  const startSopDraft = (pid) => setSopDrafts((ds) => ds[pid] ? ds : {
+    ...ds,
+    [pid]: { steps: (sops[pid]?.steps || []).map((s) => ({ ...s, items: (s.items || []).map((i) => ({ ...i })) })) },
+  });
+  const setSopDraftSteps = (pid, steps) => setSopDrafts((ds) => ({ ...ds, [pid]: { steps } }));
+  const approveSopDraftAsBase = (pid) => {
+    const d = sopDrafts[pid];
+    if (!d) return;
+    setSops((s) => ({ ...s, [pid]: { steps: d.steps } }));
+    setSopDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
+  };
+  const discardSopDraft = (pid) => setSopDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
+
   // ── To-do actions ──────────────────────────────────────────
   const addTodo = (td) => {
     const id = 'td_' + Math.random().toString(36).slice(2, 8);
@@ -1201,6 +1225,7 @@ function useLumaStore(seed, shareLumaya) {
     addDraftIngredient, updateDraftIngredient, removeDraftIngredient,
     approveDraftAsBase, approveDraftAsReady,
     sops, setSop, removeSop,
+    sopDrafts, sopDraftFor, startSopDraft, setSopDraftSteps, approveSopDraftAsBase, discardSopDraft,
     todos, addTodo, updateTodo, toggleTodo, removeTodo,
     team, addTeamMember, removeTeamMember, toPurchase,
     materialStock, finishedStock, producibleFor, bottleneckFor,
