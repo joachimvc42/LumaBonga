@@ -785,6 +785,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const [sopView, setSopView] = React.useState(null);  // product whose SOP is being viewed
   const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
   const [compareFor, setCompareFor] = React.useState(null);  // product whose formula suggestion is open
+  const [sopCompareFor, setSopCompareFor] = React.useState(null);  // product whose SOP suggestion is open
   const [deleteTarget, setDeleteTarget] = React.useState(null);  // product pending DELETE confirmation
   const [expandedIds, setExpandedIds] = React.useState(() => new Set());  // rows showing the full card
   const toggleExpand = (id) => setExpandedIds((s) => {
@@ -1059,6 +1060,20 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 </button>
               )}
 
+              {/* SOP suggestion — independent lifecycle from the recipe
+                  draft above: approving one never touches the other. */}
+              {!readonly && productStatus(p) === 'test' && (
+                <button onClick={() => setSopCompareFor(p)} style={{
+                  width: '100%', marginTop: 8, padding: '9px', borderRadius: 10, cursor: 'pointer',
+                  border: `1px solid ${c.amber}55`, background: `${c.amber}14`, color: c.amber,
+                  fontFamily: creaSans, fontSize: 12, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}>
+                  <Icon.list width={14} height={14} />
+                  {store.sopDraftFor(p.id) ? tr('Revoir la suggestion (SOP)') : tr('Suggérer une correction (SOP)')}
+                </button>
+              )}
+
               {/* Comment — free-text note, level 2/3 only, never shown to public. */}
               {!readonly && (edit ? (
                 <textarea defaultValue={p.comment || ''} rows={2} placeholder={tr('Commentaire (optionnel)…')}
@@ -1228,6 +1243,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
       {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} onClose={() => setSopView(null)} />}
       {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} onClose={() => setSopEdit(null)} />}
       {compareFor && <ProdFormulaCompareSheet store={store} dark={dark} t={t} product={compareFor} onClose={() => setCompareFor(null)} />}
+      {sopCompareFor && <ProdSopCompareSheet store={store} dark={dark} t={t} product={sopCompareFor} onClose={() => setSopCompareFor(null)} />}
       {deleteTarget && (
         <CreaDeleteProductConfirm store={store} c={c} product={deleteTarget} onClose={() => setDeleteTarget(null)} />
       )}
