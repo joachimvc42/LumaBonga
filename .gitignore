@@ -34,3 +34,4 @@ coverage/
 # local session/agent files
 .remember/
 .vercel/
+.superpowers/
