@@ -884,4 +884,130 @@ function ProdFormulaCompareSheet({ store, dark, t, product, onClose }) {
   );
 }
 
-Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart, ProdSopEditorSheet, ProdSopViewerSheet, ProdFormulaCompareSheet });
+// ── SOP suggestion sheet: Tested (base) vs To test (draft), side by side.
+// Mirrors ProdFormulaCompareSheet but fully independent: no "approve as
+// Ready" here (SOPs have no status of their own — only the product does,
+// owned by the recipe side). Draft edits commit straight to the store on
+// every change (setSopDraftSteps), no local buffer and no Save button —
+// see the Global Constraints note on why (recipe drafts' onBlur commit
+// once silently dropped edits under scripted input).
+function ProdSopCompareSheet({ store, dark, t, product, onClose }) {
+  const c = prodTheme(dark, t.accent);
+  const pid = product.id;
+  const baseSteps = store.sops[pid]?.steps || [];
+  const draft = store.sopDraftFor(pid);
+  // Ingredient chips in the step editor should reflect whichever recipe is
+  // "current" for testing purposes: the recipe draft if one exists (that's
+  // almost always why you're drafting new SOP steps), else the base recipe.
+  const ingredients = (store.draftFor(pid) || store.recipeFor(pid)).ingredients || [];
+
+  if (!draft) {
+    return (
+      <ProdSheet title={tr('Suggérer une correction (SOP)')} c={c} onClose={onClose}>
+        <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
+        <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>{tr('Étapes testées (actuelles)')}</div>
+        {baseSteps.length === 0 && <div style={{ fontFamily: prodSans, fontSize: 12, color: c.muted }}>{tr('Aucune étape')}</div>}
+        {baseSteps.map((s, i) => (
+          <div key={s.id} style={{ padding: '8px 0', borderTop: i === 0 ? 'none' : `1px solid ${c.borderSoft}` }}>
+            <div style={{ fontFamily: prodSans, fontSize: 11, fontWeight: 700, color: c.mutedSoft, marginBottom: 2 }}>{tr('Étape {n}', { n: i + 1 })}</div>
+            <div style={{ fontFamily: prodSans, fontSize: 13, color: c.text, lineHeight: 1.45 }}>{s.text}</div>
+          </div>
+        ))}
+        <div style={{ fontFamily: prodSans, fontSize: 12, color: c.mutedSoft, lineHeight: 1.5 }}>
+          {tr('Une suggestion part d’une copie des étapes testées : ajuste, ajoute ou retire des étapes, sans jamais modifier la version actuelle tant qu’elle n’est pas approuvée.')}
+        </div>
+        <button onClick={() => store.startSopDraft(pid)} style={{
+          width: '100%', padding: '14px', borderRadius: 999, cursor: 'pointer', border: 'none',
+          background: c.amber, color: '#1a1400', fontFamily: prodSans, fontSize: 15, fontWeight: 700,
+        }}>{tr('Démarrer une suggestion')}</button>
+      </ProdSheet>
+    );
+  }
+
+  const newStep = () => ({ id: 'ss_' + Math.random().toString(36).slice(2, 8), text: '', items: [] });
+  const patchDraft = (fn) => store.setSopDraftSteps(pid, fn(draft.steps));
+  const patchStep = (id, patch) => patchDraft((xs) => xs.map((s) => s.id === id ? { ...s, ...patch } : s));
+  const toggleItem = (sid, materialId) => patchDraft((xs) => xs.map((s) => {
+    if (s.id !== sid) return s;
+    const has = s.items.some((it) => it.materialId === materialId);
+    return { ...s, items: has ? s.items.filter((it) => it.materialId !== materialId) : [...s.items, { materialId, pct: 100 }] };
+  }));
+  const setPct = (sid, materialId, pct) => patchDraft((xs) => xs.map((s) => s.id === sid
+    ? { ...s, items: s.items.map((it) => it.materialId === materialId ? { ...it, pct: Math.max(0, Math.min(100, Number(pct) || 0)) } : it) }
+    : s));
+  const removeStep = (id) => patchDraft((xs) => xs.length > 1 ? xs.filter((s) => s.id !== id) : xs);
+  const addStep = () => patchDraft((xs) => [...xs, newStep()]);
+
+  // Union of step ids from both sides, base order first — same technique
+  // ProdFormulaCompareSheet uses for materialId (lines ~813-817).
+  const ids = [
+    ...baseSteps.map((s) => s.id),
+    ...draft.steps.map((s) => s.id).filter((id) => !baseSteps.some((s) => s.id === id)),
+  ];
+  const usedInDraft = new Set(draft.steps.map((s) => s.id));
+
+  return (
+    <ProdSheet title={tr('Suggérer une correction (SOP)')} c={c} onClose={onClose}>
+      <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: prodSans, marginBottom: 2 }}>{tr('Testée')}</div>
+          {ids.map((id) => {
+            const s = baseSteps.find((x) => x.id === id);
+            const removed = !usedInDraft.has(id);
+            if (!s) return <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}` }} />;
+            return (
+              <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}`, opacity: removed ? 0.5 : 1 }}>
+                <div style={{ fontFamily: prodSans, fontSize: 11.5, color: c.text, lineHeight: 1.4, textDecoration: removed ? 'line-through' : 'none' }}>{s.text}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div>
+          <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: c.amber, fontWeight: 700, fontFamily: prodSans, marginBottom: 2 }}>{tr('À tester')}</div>
+          {ids.map((id, idx) => {
+            const s = draft.steps.find((x) => x.id === id);
+            const baseS = baseSteps.find((x) => x.id === id);
+            if (!s) return <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}` }} />;
+            const diff = !baseS ? 'added' : (s.text !== baseS.text || JSON.stringify(s.items) !== JSON.stringify(baseS.items)) ? 'changed' : 'same';
+            const dot = diff === 'added' ? c.accent : diff === 'changed' ? c.amber : c.mutedSoft;
+            return (
+              <div key={id} style={{ position: 'relative', paddingLeft: 10, marginBottom: 6 }}>
+                <span style={{ position: 'absolute', left: 0, top: 20, width: 6, height: 6, borderRadius: 999, background: dot }} />
+                <ProdSopStepEditor step={s} index={idx} ingredients={ingredients} materialById={store.materialById} c={c}
+                  canRemove={draft.steps.length > 1} hasError={false}
+                  onPatchText={(text) => patchStep(id, { text })}
+                  onToggleItem={(materialId) => toggleItem(id, materialId)}
+                  onSetPct={(materialId, pct) => setPct(id, materialId, pct)}
+                  onRemove={() => removeStep(id)} />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <button onClick={addStep} style={{
+        width: '100%', padding: '9px', borderRadius: 10, cursor: 'pointer',
+        border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
+        fontFamily: prodSans, fontSize: 12, fontWeight: 600,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+      }}><Icon.plus width={15} height={15} /> {tr('Ajouter une étape')}</button>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+        <button onClick={() => { store.approveSopDraftAsBase(pid); onClose(); }} style={{
+          width: '100%', padding: '13px', borderRadius: 999, cursor: 'pointer',
+          background: 'transparent', color: c.text, border: `1px solid ${c.border}`,
+          fontFamily: prodSans, fontSize: 14, fontWeight: 600,
+        }}>{tr('Approuver comme nouvelle base à tester')}</button>
+        <button onClick={() => { store.discardSopDraft(pid); onClose(); }} style={{
+          width: '100%', padding: '11px', borderRadius: 999, cursor: 'pointer',
+          background: 'transparent', color: c.rose, border: `1px solid ${c.rose}55`,
+          fontFamily: prodSans, fontSize: 13, fontWeight: 600,
+        }}>{tr('Supprimer la suggestion')}</button>
+      </div>
+    </ProdSheet>
+  );
+}
+
+Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart, ProdSopEditorSheet, ProdSopViewerSheet, ProdFormulaCompareSheet, ProdSopCompareSheet });
