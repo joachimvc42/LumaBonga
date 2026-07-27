@@ -171,6 +171,12 @@ const LB_EN = {
   'Approuver comme formule Ready': 'Approve as Ready formula',
   'Approuver comme nouvelle base à tester': 'Approve as new base to test',
   'Supprimer la suggestion': 'Discard suggestion',
+  'Suggérer une correction (SOP)': 'Suggest a correction (SOP)',
+  'Revoir la suggestion (SOP)': 'Review suggestion (SOP)',
+  'Étapes testées (actuelles)': 'Tested steps (current)',
+  'Aucune étape': 'No steps',
+  'Une suggestion part d’une copie des étapes testées : ajuste, ajoute ou retire des étapes, sans jamais modifier la version actuelle tant qu’elle n’est pas approuvée.':
+    'A suggestion starts as a copy of the tested steps: adjust, add or remove steps, without ever touching the current version until it’s approved.',
   'Combien d’unités veux-tu produire ?': 'How many units do you want to make?',
   'Quantité à produire': 'Quantity to make', 'unités': 'units',
   '1 unité ≈ {x} g': '1 unit ≈ {x} g',
@@ -331,6 +337,12 @@ const LB_ID = {
   'Approuver comme formule Ready': 'Setujui sebagai formula Ready',
   'Approuver comme nouvelle base à tester': 'Setujui sebagai basis baru untuk diuji',
   'Supprimer la suggestion': 'Hapus saran',
+  'Suggérer une correction (SOP)': 'Sarankan koreksi (SOP)',
+  'Revoir la suggestion (SOP)': 'Tinjau saran (SOP)',
+  'Étapes testées (actuelles)': 'Langkah teruji (saat ini)',
+  'Aucune étape': 'Belum ada langkah',
+  'Une suggestion part d'une copie des étapes testées : ajuste, ajoute ou retire des étapes, sans jamais modifier la version actuelle tant qu'elle n'est pas approuvée.':
+    'Saran dimulai dari salinan langkah teruji: sesuaikan, tambah, atau hapus langkah, tanpa pernah mengubah versi saat ini sampai disetujui.',
 
   // ── Stock / Purchases (lumabonga-stock.jsx) ──
   'Achats matières': 'Pembelian bahan', '{n} factures': '{n} faktur', '{n} charges': '{n} beban',
