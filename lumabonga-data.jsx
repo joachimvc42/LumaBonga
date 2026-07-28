@@ -341,7 +341,7 @@ const LB_ID = {
   'Revoir la suggestion (SOP)': 'Tinjau saran (SOP)',
   'Étapes testées (actuelles)': 'Langkah teruji (saat ini)',
   'Aucune étape': 'Belum ada langkah',
-  'Une suggestion part d'une copie des étapes testées : ajuste, ajoute ou retire des étapes, sans jamais modifier la version actuelle tant qu'elle n'est pas approuvée.':
+  'Une suggestion part d’une copie des étapes testées : ajuste, ajoute ou retire des étapes, sans jamais modifier la version actuelle tant qu’elle n’est pas approuvée.':
     'Saran dimulai dari salinan langkah teruji: sesuaikan, tambah, atau hapus langkah, tanpa pernah mengubah versi saat ini sampai disetujui.',
 
   // ── Stock / Purchases (lumabonga-stock.jsx) ──
