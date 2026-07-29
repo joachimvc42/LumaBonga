@@ -900,6 +900,12 @@ function ProdSopCompareSheet({ store, dark, t, product, onClose }) {
   // "current" for testing purposes: the recipe draft if one exists (that's
   // almost always why you're drafting new SOP steps), else the base recipe.
   const ingredients = (store.draftFor(pid) || store.recipeFor(pid)).ingredients || [];
+  // Blocks approving a draft that has a blank step; mirrors ProdSopEditorSheet's
+  // save() validation (text required per step). Ingredient-coverage validation
+  // is deliberately not ported here — the draft's ingredient list can come from
+  // an independent recipe draft with its own lifecycle, so % coverage doesn't
+  // cleanly apply.
+  const [approveErr, setApproveErr] = React.useState('');
 
   if (!draft) {
     return (
@@ -938,12 +944,28 @@ function ProdSopCompareSheet({ store, dark, t, product, onClose }) {
   const removeStep = (id) => patchDraft((xs) => xs.length > 1 ? xs.filter((s) => s.id !== id) : xs);
   const addStep = () => patchDraft((xs) => [...xs, newStep()]);
 
-  // Union of step ids from both sides, base order first — same technique
-  // ProdFormulaCompareSheet uses for materialId (lines ~813-817).
-  const ids = [
-    ...baseSteps.map((s) => s.id),
-    ...draft.steps.map((s) => s.id).filter((id) => !baseSteps.some((s) => s.id === id)),
-  ];
+  // Blocks the approve action when any step is left blank/whitespace-only.
+  // Trimming of the committed text happens in approveSopDraftAsBase itself
+  // (data layer) rather than via a second setSopDraftSteps call here, so the
+  // commit never reads a stale pre-trim draft (the exact "onBlur commit
+  // silently dropped edits" trap this feature already hit once for recipe
+  // drafts — see the note atop this component).
+  const handleApprove = () => {
+    if (draft.steps.some((s) => !s.text.trim())) {
+      setApproveErr(tr('Chaque étape doit avoir une description.'));
+      return;
+    }
+    setApproveErr('');
+    store.approveSopDraftAsBase(pid);
+    onClose();
+  };
+
+  // Which base steps are still present in the draft — drives the left
+  // ("Testée") column's struck-through "removed" treatment. No union/spacer
+  // array is needed any more: the two columns no longer try to align
+  // row-for-row (the right column renders full step-editor cards of varying
+  // height, so a blank spacer div can't keep rows lined up — see Finding 4
+  // in the SOP-draft-versioning final review).
   const usedInDraft = new Set(draft.steps.map((s) => s.id));
 
   return (
@@ -953,12 +975,11 @@ function ProdSopCompareSheet({ store, dark, t, product, onClose }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div>
           <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 700, fontFamily: prodSans, marginBottom: 2 }}>{tr('Testée')}</div>
-          {ids.map((id) => {
-            const s = baseSteps.find((x) => x.id === id);
-            const removed = !usedInDraft.has(id);
-            if (!s) return <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}` }} />;
+          {baseSteps.length === 0 && <div style={{ fontFamily: prodSans, fontSize: 12, color: c.muted }}>{tr('Aucune étape')}</div>}
+          {baseSteps.map((s) => {
+            const removed = !usedInDraft.has(s.id);
             return (
-              <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}`, opacity: removed ? 0.5 : 1 }}>
+              <div key={s.id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}`, opacity: removed ? 0.5 : 1 }}>
                 <div style={{ fontFamily: prodSans, fontSize: 11.5, color: c.text, lineHeight: 1.4, textDecoration: removed ? 'line-through' : 'none' }}>{s.text}</div>
               </div>
             );
@@ -966,21 +987,19 @@ function ProdSopCompareSheet({ store, dark, t, product, onClose }) {
         </div>
         <div>
           <div style={{ fontSize: 9.5, letterSpacing: 0.7, textTransform: 'uppercase', color: c.amber, fontWeight: 700, fontFamily: prodSans, marginBottom: 2 }}>{tr('À tester')}</div>
-          {ids.map((id, idx) => {
-            const s = draft.steps.find((x) => x.id === id);
-            const baseS = baseSteps.find((x) => x.id === id);
-            if (!s) return <div key={id} style={{ padding: '7px 0', borderTop: `1px solid ${c.borderSoft}` }} />;
+          {draft.steps.map((s, idx) => {
+            const baseS = baseSteps.find((x) => x.id === s.id);
             const diff = !baseS ? 'added' : (s.text !== baseS.text || JSON.stringify(s.items) !== JSON.stringify(baseS.items)) ? 'changed' : 'same';
             const dot = diff === 'added' ? c.accent : diff === 'changed' ? c.amber : c.mutedSoft;
             return (
-              <div key={id} style={{ position: 'relative', paddingLeft: 10, marginBottom: 6 }}>
+              <div key={s.id} style={{ position: 'relative', paddingLeft: 10, marginBottom: 6 }}>
                 <span style={{ position: 'absolute', left: 0, top: 20, width: 6, height: 6, borderRadius: 999, background: dot }} />
                 <ProdSopStepEditor step={s} index={idx} ingredients={ingredients} materialById={store.materialById} c={c}
-                  canRemove={draft.steps.length > 1} hasError={false}
-                  onPatchText={(text) => patchStep(id, { text })}
-                  onToggleItem={(materialId) => toggleItem(id, materialId)}
-                  onSetPct={(materialId, pct) => setPct(id, materialId, pct)}
-                  onRemove={() => removeStep(id)} />
+                  canRemove={draft.steps.length > 1} hasError={!!approveErr}
+                  onPatchText={(text) => patchStep(s.id, { text })}
+                  onToggleItem={(materialId) => toggleItem(s.id, materialId)}
+                  onSetPct={(materialId, pct) => setPct(s.id, materialId, pct)}
+                  onRemove={() => removeStep(s.id)} />
               </div>
             );
           })}
@@ -994,8 +1013,17 @@ function ProdSopCompareSheet({ store, dark, t, product, onClose }) {
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
       }}><Icon.plus width={15} height={15} /> {tr('Ajouter une étape')}</button>
 
+      {approveErr && (
+        <div style={{
+          padding: '10px 13px', borderRadius: 12,
+          background: `${c.rose}18`, border: `1px solid ${c.rose}55`,
+          color: c.rose, fontSize: 12.5, fontFamily: prodSans, lineHeight: 1.6,
+          whiteSpace: 'pre-line',
+        }}>{approveErr}</div>
+      )}
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
-        <button onClick={() => { store.approveSopDraftAsBase(pid); onClose(); }} style={{
+        <button onClick={handleApprove} style={{
           width: '100%', padding: '13px', borderRadius: 999, cursor: 'pointer',
           background: 'transparent', color: c.text, border: `1px solid ${c.border}`,
           fontFamily: prodSans, fontSize: 14, fontWeight: 600,

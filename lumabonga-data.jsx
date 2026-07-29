@@ -898,13 +898,15 @@ function useLumaStore(seed, shareLumaya) {
   };
   const updateProduct = (id, patch) => setProducts((xs) => xs.map((p) => p.id === id ? { ...p, ...patch } : p));
   // Deleting a product also drops everything keyed to it — recipe, SOP,
-  // pending draft, manual stock override — so nothing orphaned lingers
-  // (a dangling recipe/SOP reference caused a real bug once already).
+  // pending drafts (recipe + SOP), manual stock override — so nothing
+  // orphaned lingers (a dangling recipe/SOP reference caused a real bug once
+  // already).
   const removeProduct = (id) => {
     setProducts((xs) => xs.filter((p) => p.id !== id));
     setRecipes((rs) => { const n = { ...rs }; delete n[id]; return n; });
     setSops((s) => { const n = { ...s }; delete n[id]; return n; });
     setRecipeDrafts((ds) => { const n = { ...ds }; delete n[id]; return n; });
+    setSopDrafts((ds) => { const n = { ...ds }; delete n[id]; return n; });
     setProductAdj((m) => { const n = { ...m }; delete n[id]; return n; });
   };
   // Reorder the catalog (drag & drop). Any id missing from `orderedIds`
@@ -983,6 +985,7 @@ function useLumaStore(seed, shareLumaya) {
     setMaterials([]);
     setRecipes({});
     setRecipeDrafts({});
+    setSopDrafts({});
     setActiveUser('lumaya');
     setSettlements([]);
     setMaterialAdj({});
@@ -1167,7 +1170,10 @@ function useLumaStore(seed, shareLumaya) {
   const approveSopDraftAsBase = (pid) => {
     const d = sopDrafts[pid];
     if (!d) return;
-    setSops((s) => ({ ...s, [pid]: { steps: d.steps } }));
+    // Trim on commit (not on every keystroke — the compare sheet's per-step
+    // text handler deliberately doesn't trim while typing), matching how
+    // ProdSopEditorSheet's save() trims each step's text at the same point.
+    setSops((s) => ({ ...s, [pid]: { steps: d.steps.map((step) => ({ ...step, text: step.text.trim() })) } }));
     setSopDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
   };
   const discardSopDraft = (pid) => setSopDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
