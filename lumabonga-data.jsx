@@ -664,8 +664,8 @@ const groupedMaterials = (materials) => {
 // Fixed set of ranges chosen by the owners; a product's cat is p.cat.
 // Anything unset (or unknown) lands in the trailing "Autre" bucket so
 // legacy products never disappear when this field is introduced.
-const PRODUCT_CATS = ['surf', 'baby', 'atma', 'wellness'];
-const PRODUCT_CAT_LABELS = { surf: 'Surf', baby: 'Baby', atma: 'Atma', wellness: 'Wellness' };
+const PRODUCT_CATS = ['surf', 'baby', 'atma', 'balm', 'spray', 'oil', 'bathroom'];
+const PRODUCT_CAT_LABELS = { surf: 'Surf', baby: 'Baby', atma: 'Atma', balm: 'Balm', spray: 'Spray', oil: 'Oil', bathroom: 'Bathroom' };
 const productCat = (p) => (p && p.cat && PRODUCT_CATS.includes(p.cat)) ? p.cat : 'other';
 const productCatLabel = (cat) => PRODUCT_CAT_LABELS[cat] || 'Autre';
 // Products grouped by range, in fixed range order. Within a group the
