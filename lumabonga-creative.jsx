@@ -913,7 +913,6 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
               boxShadow: dragging ? (dark ? '0 12px 32px rgba(0,0,0,.5)' : '0 12px 32px rgba(16,19,26,.2)') : 'none',
               opacity: dragging ? 0.96 : 1,
             }}>
-              <div style={{ position: 'absolute', top: 0, bottom: 0, left: 0, width: 4, background: `oklch(0.6 0.18 ${p.hue})` }} />
               <div style={{ display: 'flex', alignItems: 'center', gap: expanded ? 14 : 8 }}>
                 {!readonly && (
                   <span onPointerDown={(e) => startDrag(p.id, e)} style={{
@@ -932,7 +931,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                       fontFamily: creaDisplay, fontStyle: 'normal', fontSize: expanded ? 18 : 13, ...prodStatusTint(dark, p),
                       display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
                       padding: expanded ? '5px 12px' : '4px 10px', borderRadius: 8,
-                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      whiteSpace: 'normal', overflowWrap: 'break-word',
                     }}>{p.name}</div>
                   )}
                   {!readonly && expanded && (
