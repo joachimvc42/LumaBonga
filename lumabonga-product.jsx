@@ -602,7 +602,7 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose, draft = false })
   };
 
   return (
-    <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
+    <ProdSheet title={draft ? tr('Procédure (SOP) — Test') : tr('Procédure (SOP)')} c={c} onClose={onClose}>
       <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
       {steps.map((s, i) => (
         <ProdSopStepEditor key={s.id} step={s} index={i} ingredients={ingredients} materialById={store.materialById} c={c}
