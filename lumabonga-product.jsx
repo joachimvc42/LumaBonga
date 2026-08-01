@@ -1055,4 +1055,4 @@ function ProdSopCompareSheet({ store, dark, t, product, onClose }) {
   );
 }
 
-Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart, ProdSopEditorSheet, ProdSopViewerSheet, ProdFormulaCompareSheet, ProdSopCompareSheet });
+Object.assign(window, { CreaProductDetail, ProdAddMaterialSheet, ProdCostChart, ProdSopEditorSheet, ProdSopViewerSheet, ProdFormulaCompareSheet, ProdSopCompareSheet, ProdDraftRow });

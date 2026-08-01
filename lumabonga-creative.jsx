@@ -790,6 +790,9 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
   const [compareFor, setCompareFor] = React.useState(null);  // product whose formula suggestion is open
   const [sopCompareFor, setSopCompareFor] = React.useState(null);  // product whose SOP suggestion is open
+  const [sopDraftView, setSopDraftView] = React.useState(null);  // product whose TEST SOP is being viewed
+  const [sopDraftEdit, setSopDraftEdit] = React.useState(null);  // product whose TEST SOP is being edited
+  const [addTestFor, setAddTestFor] = React.useState(null);  // product id currently adding a component to its TEST composition
   const [deleteTarget, setDeleteTarget] = React.useState(null);  // product pending DELETE confirmation
   const [expandedIds, setExpandedIds] = React.useState(() => new Set());  // rows showing the full card
   const toggleExpand = (id) => setExpandedIds((s) => {
@@ -1208,6 +1211,80 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 );
               })()}
 
+              {/* Test composition — editable draft, distinct blue tint.
+                  Auto-created when status flips to Test (Task 3's status-chip
+                  handler); "Valider" below promotes it to base and
+                  immediately starts a fresh copy so testing continues
+                  without an extra click. */}
+              {!readonly && productStatus(p) === 'test' && (() => {
+                const tc = c.testAccent;
+                const draft = store.draftFor(p.id);
+                const sopDraft = store.sopDraftFor(p.id);
+                const hasSopDraft = !!(sopDraft && sopDraft.steps && sopDraft.steps.length > 0);
+                const base = store.recipeFor(p.id);
+                return (
+                  <div style={{ marginTop: 12, padding: 12, borderRadius: 14, background: `${tc}0e`, border: `1px solid ${tc}33` }}>
+                    <div style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: tc, fontWeight: 700, fontFamily: creaSans, marginBottom: 4 }}>{tr('Test composition')}</div>
+                    {!draft ? (
+                      <React.Fragment>
+                        <div style={{ fontFamily: creaSans, fontSize: 12, color: c.mutedSoft, padding: '4px 0 8px', lineHeight: 1.5 }}>
+                          {tr('Aucun test en cours pour ce produit.')}
+                        </div>
+                        <button onClick={() => { store.startDraft(p.id); store.startSopDraft(p.id); }} style={{
+                          width: '100%', padding: '9px', borderRadius: 10, cursor: 'pointer', border: 'none',
+                          background: tc, color: '#ffffff', fontFamily: creaSans, fontSize: 12, fontWeight: 700,
+                        }}>{tr('Démarrer le test')}</button>
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        {draft.ingredients.length === 0 && (
+                          <div style={{ fontFamily: creaSans, fontSize: 12, color: c.muted, padding: '6px 0' }}>{tr('Aucun composant')}</div>
+                        )}
+                        {draft.ingredients.map((ing) => {
+                          const mat = store.materialById[ing.materialId];
+                          const baseIng = base.ingredients.find((i) => i.materialId === ing.materialId);
+                          const diff = !baseIng ? 'added' : (ing.qty !== baseIng.qty ? 'changed' : 'same');
+                          return <ProdDraftRow key={ing.id} pid={p.id} ing={ing} mat={mat} diff={diff} store={store} c={c} />;
+                        })}
+                        <button onClick={() => setAddTestFor(p.id)} style={{
+                          width: '100%', marginTop: 8, padding: '9px', borderRadius: 10, cursor: 'pointer',
+                          border: `1px dashed ${tc}55`, background: 'transparent', color: tc,
+                          fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                        }}><Icon.plus width={15} height={15} /> {tr('Ajouter un composant')}</button>
+
+                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                          {hasSopDraft && (
+                            <button onClick={() => setSopDraftView(p)} style={{
+                              flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer', border: 'none',
+                              background: `${tc}22`, color: tc,
+                              fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            }}><Icon.list width={15} height={15} /> {tr('Voir la SOP (test)')}</button>
+                          )}
+                          <button onClick={() => setSopDraftEdit(p)} style={{
+                            flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
+                            border: `1px solid ${tc}55`, background: 'transparent', color: tc,
+                            fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                          }}><Icon.list width={15} height={15} /> {tr(hasSopDraft ? 'Éditer la SOP (test)' : 'Créer la SOP (test)')}</button>
+                        </div>
+
+                        <button onClick={() => {
+                          store.approveDraftAsBase(p.id);
+                          store.approveSopDraftAsBase(p.id);
+                          store.startDraft(p.id);
+                          store.startSopDraft(p.id);
+                        }} style={{
+                          width: '100%', marginTop: 10, padding: '11px', borderRadius: 10, cursor: 'pointer', border: 'none',
+                          background: tc, color: '#ffffff', fontFamily: creaSans, fontSize: 13, fontWeight: 700,
+                        }}>{tr('Valider comme nouvelle base')}</button>
+                      </React.Fragment>
+                    )}
+                  </div>
+                );
+              })()}
+
               {/* Delete — edit mode only, guarded by a typed confirmation
                   (see the DELETE modal below) so it can't happen by accident. */}
               {!readonly && edit && (
@@ -1243,8 +1320,12 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
 
       {addFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addFor}
         used={new Set(store.recipeFor(addFor).ingredients.map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
+      {addTestFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addTestFor} draft
+        used={new Set((store.draftFor(addTestFor)?.ingredients || []).map((i) => i.materialId))} onClose={() => setAddTestFor(null)} />}
       {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} onClose={() => setSopView(null)} />}
       {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} onClose={() => setSopEdit(null)} />}
+      {sopDraftView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopDraftView} draft onClose={() => setSopDraftView(null)} />}
+      {sopDraftEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopDraftEdit} draft onClose={() => setSopDraftEdit(null)} />}
       {compareFor && <ProdFormulaCompareSheet store={store} dark={dark} t={t} product={compareFor} onClose={() => setCompareFor(null)} />}
       {sopCompareFor && <ProdSopCompareSheet store={store} dark={dark} t={t} product={sopCompareFor} onClose={() => setSopCompareFor(null)} />}
       {deleteTarget && (
