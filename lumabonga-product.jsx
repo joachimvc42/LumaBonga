@@ -453,8 +453,11 @@ function CreaProductDetail({ store, dark, t, product, onBack, onProduce }) {
 
 // ── SOP: helpers ─────────────────────────────────────────────
 // Display quantity of one SOP item: recipe qty × pct × batch, in the display unit.
-function sopItemQty(store, pid, item, batch) {
-  const ing = (store.recipeFor(pid).ingredients || []).find((i) => i.materialId === item.materialId);
+// `recipe` is passed in (rather than looked up here) so callers can choose
+// base vs. draft — the sole caller, ProdSopViewerSheet, needs both depending
+// on its `draft` prop.
+function sopItemQty(store, pid, item, batch, recipe) {
+  const ing = (recipe.ingredients || []).find((i) => i.materialId === item.materialId);
   const mat = store.materialById[item.materialId];
   if (!ing || !mat) return null;
   const base = mat.unit || 'g';
@@ -538,13 +541,14 @@ function ProdSopStepEditor({ step, index, ingredients, materialById, c, canRemov
 // ── SOP: editor bottom sheet ─────────────────────────────────
 // One or more steps; each step = required text + optional multi-select of the
 // product's recipe ingredients, each with a % of the recipe quantity (default 100).
-function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
+function ProdSopEditorSheet({ store, dark, t, product, onClose, draft = false }) {
   const c = prodTheme(dark, t.accent);
   const pid = product.id;
-  const ingredients = store.recipeFor(pid).ingredients || [];
+  const recipe = draft ? (store.draftFor(pid) || store.recipeFor(pid)) : store.recipeFor(pid);
+  const ingredients = recipe.ingredients || [];
   const newStep = () => ({ id: 'ss_' + Math.random().toString(36).slice(2, 8), text: '', items: [] });
   const [steps, setSteps] = React.useState(() => {
-    const cur = store.sops[pid]?.steps;
+    const cur = (draft ? store.sopDraftFor(pid) : store.sops[pid])?.steps;
     return (cur && cur.length) ? cur.map((s) => ({ ...s, items: (s.items || []).map((i) => ({ ...i })) })) : [newStep()];
   });
   const [err, setErr] = React.useState('');
@@ -565,27 +569,35 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
 
     // Guard rail: every recipe ingredient must be fully accounted for across
     // all steps — the % shares must add up to exactly 100, no more, no less.
-    const totals = {};
-    for (const ing of ingredients) totals[ing.materialId] = 0;
-    for (const s of steps) for (const it of s.items) {
-      if (totals[it.materialId] == null) continue;
-      totals[it.materialId] += Number(it.pct) || 0;
-    }
-    const problems = ingredients
-      .map((ing) => ({ ing, total: Math.round((totals[ing.materialId] || 0) * 10) / 10 }))
-      .filter(({ total }) => Math.abs(total - 100) > 0.5);
-    if (problems.length) {
-      const lines = problems.map(({ ing, total }) => {
-        const name = store.materialById[ing.materialId]?.name || '—';
-        return total <= 0
-          ? tr('{name} : manquant (0%)', { name })
-          : tr('{name} : {pct}% (doit faire 100%)', { name, pct: total });
-      });
-      setErr([tr('Attention : la SOP ne couvre pas 100% de chaque ingrédient.'), ...lines].join('\n'));
-      return;
+    // Deliberately skipped for the draft editor: a recipe draft has its own
+    // independent lifecycle (may be mid-edit, ingredients still changing),
+    // so % coverage doesn't cleanly apply to it — same scoping the old SOP
+    // compare sheet used.
+    if (!draft) {
+      const totals = {};
+      for (const ing of ingredients) totals[ing.materialId] = 0;
+      for (const s of steps) for (const it of s.items) {
+        if (totals[it.materialId] == null) continue;
+        totals[it.materialId] += Number(it.pct) || 0;
+      }
+      const problems = ingredients
+        .map((ing) => ({ ing, total: Math.round((totals[ing.materialId] || 0) * 10) / 10 }))
+        .filter(({ total }) => Math.abs(total - 100) > 0.5);
+      if (problems.length) {
+        const lines = problems.map(({ ing, total }) => {
+          const name = store.materialById[ing.materialId]?.name || '—';
+          return total <= 0
+            ? tr('{name} : manquant (0%)', { name })
+            : tr('{name} : {pct}% (doit faire 100%)', { name, pct: total });
+        });
+        setErr([tr('Attention : la SOP ne couvre pas 100% de chaque ingrédient.'), ...lines].join('\n'));
+        return;
+      }
     }
 
-    store.setSop(pid, steps.map((s) => ({ id: s.id, text: s.text.trim(), items: s.items })));
+    const clean = steps.map((s) => ({ id: s.id, text: s.text.trim(), items: s.items }));
+    if (draft) store.setSopDraftSteps(pid, clean);
+    else store.setSop(pid, clean);
     onClose();
   };
 
@@ -616,7 +628,7 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
       }}><Icon.plus width={15} height={15} /> {tr('Ajouter une étape')}</button>
       <button onClick={save} style={{
         width: '100%', padding: '14px', borderRadius: 999, cursor: 'pointer', border: 'none',
-        background: c.accent, color: c.inkContrast, fontFamily: prodSans, fontSize: 15, fontWeight: 700,
+        background: draft ? c.testAccent : c.accent, color: c.inkContrast, fontFamily: prodSans, fontSize: 15, fontWeight: 700,
       }}>{tr('Enregistrer')}</button>
     </ProdSheet>
   );
@@ -625,10 +637,15 @@ function ProdSopEditorSheet({ store, dark, t, product, onClose }) {
 // ── SOP: viewer bottom sheet ─────────────────────────────────
 // Opens with a batch-size prompt (in units OR in grams — one unit's weight is
 // derived from the recipe), then shows every step with quantities scaled.
-function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
+function ProdSopViewerSheet({ store, dark, t, product, onClose, draft = false }) {
   const c = prodTheme(dark, t.accent);
   const pid = product.id;
-  const steps = store.sops[pid]?.steps || [];
+  const steps = (draft ? store.sopDraftFor(pid) : store.sops[pid])?.steps || [];
+  // Ingredient quantities shown per step should resolve against whichever
+  // recipe this viewer represents: the draft recipe (if one exists) when
+  // viewing the test SOP, otherwise the base recipe — matches the old SOP
+  // compare sheet's ingredient-resolution preference.
+  const recipe = draft ? (store.draftFor(pid) || store.recipeFor(pid)) : store.recipeFor(pid);
   const [batchDraft, setBatchDraft] = React.useState('1');
   const [mode, setMode] = React.useState('u');      // 'u' = units | 'g' = grams
   const [batch, setBatch] = React.useState(null);   // scale factor, null until confirmed
@@ -636,7 +653,7 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
   // Weight of ONE unit: every convertible ingredient of the recipe, in grams.
   const unitWeight = React.useMemo(() => {
     let g = 0;
-    for (const ing of (store.recipeFor(pid).ingredients || [])) {
+    for (const ing of (recipe.ingredients || [])) {
       const mat = store.materialById[ing.materialId];
       if (!mat) continue;
       const base = mat.unit || 'g';
@@ -644,7 +661,7 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
       g += convertUnit(Number(ing.qty) || 0, base, 'g', densityFor(mat));
     }
     return g;
-  }, [store, pid]);
+  }, [store, pid, recipe]);
 
   if (batch == null) {
     const go = () => {
@@ -663,7 +680,7 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
       }}>{label}</button>
     );
     return (
-      <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
+      <ProdSheet title={draft ? tr('Procédure (SOP) — Test') : tr('Procédure (SOP)')} c={c} onClose={onClose}>
         <div style={{ fontFamily: prodSans, fontSize: 13, color: c.muted, marginTop: -8 }}>{product.name}</div>
         <div>
           <div style={{ fontSize: 10, letterSpacing: 0.9, textTransform: 'uppercase', color: c.muted, fontWeight: 600, fontFamily: prodSans }}>
@@ -701,7 +718,7 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
     : tr('Pour {n} unité(s)', { n: batch });
 
   return (
-    <ProdSheet title={tr('Procédure (SOP)')} c={c} onClose={onClose}>
+    <ProdSheet title={draft ? tr('Procédure (SOP) — Test') : tr('Procédure (SOP)')} c={c} onClose={onClose}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: -8 }}>
         <span style={{ fontFamily: prodSans, fontSize: 13, color: c.muted }}>{product.name}</span>
         <span style={{ fontFamily: prodMono, fontSize: 12, color: c.accent, fontWeight: 600 }}>{batchLabel}</span>
@@ -715,7 +732,7 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose }) {
           {(s.items || []).length > 0 && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7, marginTop: 10 }}>
               {s.items.map((it) => {
-                const q = sopItemQty(store, pid, it, batch);
+                const q = sopItemQty(store, pid, it, batch, recipe);
                 if (!q) return null;
                 return (
                   <span key={it.materialId} style={{

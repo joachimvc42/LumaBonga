@@ -29,6 +29,10 @@ const creaTheme = (dark, accent) => {
     purple:     dark ? '#c4a8ff' : '#5b54c9',
     amber:      dark ? '#f5c451' : '#b5811d',
     rose:       dark ? '#f48fb1' : '#d2483f',
+    // Test-composition section (product card): deliberately distinct from
+    // purple (already means GawahBonga throughout the finance views) and
+    // amber (already means "needs review" elsewhere on this same card).
+    testAccent: dark ? '#7aa2f7' : '#3b5bdb',
     // To-do priority scale: light red / orange / yellow.
     prioHigh:   dark ? '#f28b82' : '#e05252',
     prioMed:    dark ? '#f5a25c' : '#e07a2e',
