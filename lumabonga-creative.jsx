@@ -793,6 +793,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   const [sopDraftView, setSopDraftView] = React.useState(null);  // product whose TEST SOP is being viewed
   const [sopDraftEdit, setSopDraftEdit] = React.useState(null);  // product whose TEST SOP is being edited
   const [addTestFor, setAddTestFor] = React.useState(null);  // product id currently adding a component to its TEST composition
+  const [finalizeFor, setFinalizeFor] = React.useState(null);  // product pending the Ready-vs-Test finalize choice
   const [deleteTarget, setDeleteTarget] = React.useState(null);  // product pending DELETE confirmation
   const [expandedIds, setExpandedIds] = React.useState(() => new Set());  // rows showing the full card
   const toggleExpand = (id) => setExpandedIds((s) => {
@@ -1008,7 +1009,20 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     const active = productStatus(p) === st.id;
                     return (
                       <button key={st.id} disabled={!edit}
-                        onClick={() => store.updateProduct(p.id, { status: st.id })}
+                        onClick={() => {
+                          if (st.id === 'test') {
+                            store.updateProduct(p.id, { status: 'test' });
+                            store.startDraft(p.id);
+                            store.startSopDraft(p.id);
+                            return;
+                          }
+                          // st.id === 'ready'
+                          if (productStatus(p) === 'test' && (store.draftFor(p.id) || store.sopDraftFor(p.id))) {
+                            setFinalizeFor(p);
+                            return;
+                          }
+                          store.updateProduct(p.id, { status: 'ready' });
+                        }}
                         style={{
                           padding: '4px 10px', borderRadius: 999, cursor: edit ? 'pointer' : 'default',
                           border: `1px solid ${active ? st.color : c.border}`,
@@ -1329,6 +1343,9 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
       {deleteTarget && (
         <CreaDeleteProductConfirm store={store} c={c} product={deleteTarget} onClose={() => setDeleteTarget(null)} />
       )}
+      {finalizeFor && (
+        <CreaFinalizeVersionConfirm store={store} c={c} product={finalizeFor} onClose={() => setFinalizeFor(null)} />
+      )}
     </div>
   );
 }
@@ -1381,6 +1398,64 @@ function CreaDeleteProductConfirm({ store, c, product, onClose }) {
             background: c.rose, color: '#fff', opacity: ready ? 1 : 0.4,
             fontFamily: creaSans, fontSize: 13.5, fontWeight: 700,
           }}>{tr('Supprimer')}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Ready-transition confirmation — switching a Test-status product to
+// Ready forces an explicit choice between the base and the pending test
+// version; whichever isn't picked is deleted. Modeled on
+// CreaDeleteProductConfirm's overlay/card chrome.
+function CreaFinalizeVersionConfirm({ store, c, product, onClose }) {
+  const keepTest = () => {
+    store.approveDraftAsBase(product.id);
+    store.approveSopDraftAsBase(product.id);
+    store.updateProduct(product.id, { status: 'ready' });
+    onClose();
+  };
+  const keepBase = () => {
+    store.discardDraft(product.id);
+    store.discardSopDraft(product.id);
+    store.updateProduct(product.id, { status: 'ready' });
+    onClose();
+  };
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 200,
+      background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24,
+    }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: '100%', maxWidth: 360, background: c.bg2, border: `1px solid ${c.border}`,
+        borderRadius: 20, padding: 22, display: 'flex', flexDirection: 'column', gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{
+            width: 36, height: 36, borderRadius: 999, background: `${c.testAccent}1c`, color: c.testAccent,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}><Icon.list width={17} height={17} /></span>
+          <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 19, color: c.text }}>{tr('Choisir la version définitive')}</div>
+        </div>
+        <div style={{ fontFamily: creaSans, fontSize: 13, color: c.muted, lineHeight: 1.5 }}>
+          {tr('Le passage en Ready nécessite de choisir une version définitive. La version non choisie sera supprimée définitivement. Cette action est irréversible.')}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          <button onClick={keepTest} style={{
+            width: '100%', padding: '13px', borderRadius: 999, cursor: 'pointer', border: 'none',
+            background: c.testAccent, color: '#ffffff', fontFamily: creaSans, fontSize: 14, fontWeight: 700,
+          }}>{tr('Garder la version de test')}</button>
+          <button onClick={keepBase} style={{
+            width: '100%', padding: '13px', borderRadius: 999, cursor: 'pointer',
+            background: 'transparent', color: c.text, border: `1px solid ${c.border}`,
+            fontFamily: creaSans, fontSize: 14, fontWeight: 600,
+          }}>{tr('Garder la version de base')}</button>
+          <button onClick={onClose} style={{
+            width: '100%', padding: '11px', borderRadius: 999, cursor: 'pointer',
+            background: 'transparent', color: c.muted, border: 'none',
+            fontFamily: creaSans, fontSize: 13, fontWeight: 600,
+          }}>{tr('Annuler')}</button>
         </div>
       </div>
     </div>
