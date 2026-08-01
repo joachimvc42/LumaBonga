@@ -1271,10 +1271,8 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                         </div>
 
                         <button onClick={() => {
-                          store.approveDraftAsBase(p.id);
-                          store.approveSopDraftAsBase(p.id);
-                          store.startDraft(p.id);
-                          store.startSopDraft(p.id);
+                          store.approveDraftAsBaseAndRestart(p.id);
+                          store.approveSopDraftAsBaseAndRestart(p.id);
                         }} style={{
                           width: '100%', marginTop: 10, padding: '11px', borderRadius: 10, cursor: 'pointer', border: 'none',
                           background: tc, color: '#ffffff', fontFamily: creaSans, fontSize: 13, fontWeight: 700,

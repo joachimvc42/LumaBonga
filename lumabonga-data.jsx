@@ -879,6 +879,18 @@ function useLumaStore(seed, shareLumaya) {
     setRecipes((rs) => ({ ...rs, [pid]: { ingredients: d.ingredients, labor: d.labor } }));
     discardDraft(pid);
   };
+  // Like approveDraftAsBase, but immediately reseeds the draft as a fresh copy
+  // of the same new base — for the Test-composition "Valider" flow, where
+  // testing continues right after promoting. Computes `next` once and uses it
+  // for both writes so the reseeded draft never reads stale `recipes` state
+  // from before this same click's setRecipes has taken effect.
+  const approveDraftAsBaseAndRestart = (pid) => {
+    const d = recipeDrafts[pid];
+    if (!d) return;
+    const next = { ingredients: d.ingredients.map((i) => ({ ...i })), labor: (d.labor || []).map((l) => ({ ...l })) };
+    setRecipes((rs) => ({ ...rs, [pid]: next }));
+    setRecipeDrafts((ds) => ({ ...ds, [pid]: { ingredients: next.ingredients.map((i) => ({ ...i })), labor: next.labor.map((l) => ({ ...l })) } }));
+  };
   // Draft becomes the new base recipe AND the product is validated as Ready.
   const approveDraftAsReady = (pid) => {
     if (!recipeDrafts[pid]) return;
@@ -1176,6 +1188,14 @@ function useLumaStore(seed, shareLumaya) {
     setSops((s) => ({ ...s, [pid]: { steps: d.steps.map((step) => ({ ...step, text: step.text.trim() })) } }));
     setSopDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
   };
+  // Same idea as approveDraftAsBaseAndRestart, for the SOP side.
+  const approveSopDraftAsBaseAndRestart = (pid) => {
+    const d = sopDrafts[pid];
+    if (!d) return;
+    const next = { steps: d.steps.map((step) => ({ ...step, text: step.text.trim(), items: (step.items || []).map((i) => ({ ...i })) })) };
+    setSops((s) => ({ ...s, [pid]: next }));
+    setSopDrafts((ds) => ({ ...ds, [pid]: { steps: next.steps.map((step) => ({ ...step, items: step.items.map((i) => ({ ...i })) })) } }));
+  };
   const discardSopDraft = (pid) => setSopDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
 
   // ── To-do actions ──────────────────────────────────────────
@@ -1241,9 +1261,9 @@ function useLumaStore(seed, shareLumaya) {
     recipes, recipeFor, unitCostFor,
     recipeDrafts, draftFor, startDraft, discardDraft,
     addDraftIngredient, updateDraftIngredient, removeDraftIngredient,
-    approveDraftAsBase, approveDraftAsReady,
+    approveDraftAsBase, approveDraftAsReady, approveDraftAsBaseAndRestart,
     sops, setSop, removeSop,
-    sopDrafts, sopDraftFor, startSopDraft, setSopDraftSteps, approveSopDraftAsBase, discardSopDraft,
+    sopDrafts, sopDraftFor, startSopDraft, setSopDraftSteps, approveSopDraftAsBase, approveSopDraftAsBaseAndRestart, discardSopDraft,
     todos, addTodo, updateTodo, toggleTodo, removeTodo,
     team, addTeamMember, removeTeamMember, toPurchase,
     materialStock, finishedStock, producibleFor, bottleneckFor,
