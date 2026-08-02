@@ -160,9 +160,6 @@ const LB_EN = {
     'A new material is created from Purchases, at the time of its first purchase.',
   'Le prix de cet achat devient le prix de référence de la matière.':
     'This purchase price becomes the material’s reference price.',
-  // Formula suggestions (Test status)
-  'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':
-    'Composition locked while in Test — use "Suggest a correction".',
   'Combien d’unités veux-tu produire ?': 'How many units do you want to make?',
   'Quantité à produire': 'Quantity to make', 'unités': 'units',
   '1 unité ≈ {x} g': '1 unit ≈ {x} g',
@@ -256,8 +253,6 @@ const LB_ID = {
   'Coût / unité': 'Biaya / unit', 'Marge nette': 'Margin bersih', 'Marge %': 'Margin %',
   'En stock': 'Stok tersedia', 'Produisibles': 'Dapat diproduksi', 'limité par {name}': 'dibatasi oleh {name}',
   'Coût de production · 1 unité': 'Biaya produksi · 1 unit', 'Produire': 'Produksi',
-  'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':
-    'Komposisi terkunci selama status Test — gunakan "Sarankan koreksi".',
   'Ajouter un composant': 'Tambah komponen', 'Éditer la SOP': 'Edit SOP', 'Nouveau produit': 'Produk baru',
 
   // ── To do ──

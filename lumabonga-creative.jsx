@@ -1142,7 +1142,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 )}
                 {edit && productStatus(p) === 'test' && (
                   <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft, padding: '4px 0 2px', fontStyle: 'italic' }}>
-                    {tr('Composition verrouillée pendant Test — utilise « Suggérer une correction ».')}
+                    {tr('Composition verrouillée pendant Test.')}
                   </div>
                 )}
                 {edit && productStatus(p) !== 'test'
