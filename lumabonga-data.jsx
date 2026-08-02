@@ -161,22 +161,8 @@ const LB_EN = {
   'Le prix de cet achat devient le prix de référence de la matière.':
     'This purchase price becomes the material’s reference price.',
   // Formula suggestions (Test status)
-  'Revoir la suggestion': 'Review suggestion', 'Suggérer une correction': 'Suggest a correction',
   'Composition verrouillée pendant Test — utilise « Suggérer une correction ».':
     'Composition locked while in Test — use "Suggest a correction".',
-  'Formule testée (actuelle)': 'Tested formula (current)',
-  'Une suggestion part d’une copie de la formule testée : ajuste les quantités, ajoute ou retire des composants, sans jamais modifier la formule actuelle tant qu’elle n’est pas approuvée.':
-    'A suggestion starts as a copy of the tested formula: adjust quantities, add or remove components, without ever touching the current formula until it’s approved.',
-  'Démarrer une suggestion': 'Start a suggestion', 'Testée': 'Tested', 'À tester': 'To test',
-  'Approuver comme formule Ready': 'Approve as Ready formula',
-  'Approuver comme nouvelle base à tester': 'Approve as new base to test',
-  'Supprimer la suggestion': 'Discard suggestion',
-  'Suggérer une correction (SOP)': 'Suggest a correction (SOP)',
-  'Revoir la suggestion (SOP)': 'Review suggestion (SOP)',
-  'Étapes testées (actuelles)': 'Tested steps (current)',
-  'Aucune étape': 'No steps',
-  'Une suggestion part d’une copie des étapes testées : ajuste, ajoute ou retire des étapes, sans jamais modifier la version actuelle tant qu’elle n’est pas approuvée.':
-    'A suggestion starts as a copy of the tested steps: adjust, add or remove steps, without ever touching the current version until it’s approved.',
   'Combien d’unités veux-tu produire ?': 'How many units do you want to make?',
   'Quantité à produire': 'Quantity to make', 'unités': 'units',
   '1 unité ≈ {x} g': '1 unit ≈ {x} g',
@@ -266,7 +252,6 @@ const LB_ID = {
   // ── Products ──
   'Coût': 'Biaya', 'Vente {x} {cur}': 'Jual {x} {cur}', 'Créer la SOP': 'Buat SOP',
   'Réduire': 'Ciutkan', 'Développer': 'Perluas',
-  'Revoir la suggestion': 'Tinjau saran', 'Suggérer une correction': 'Sarankan koreksi',
   'Commentaire (optionnel)…': 'Komentar (opsional)…',
   'Coût / unité': 'Biaya / unit', 'Marge nette': 'Margin bersih', 'Marge %': 'Margin %',
   'En stock': 'Stok tersedia', 'Produisibles': 'Dapat diproduksi', 'limité par {name}': 'dibatasi oleh {name}',
@@ -330,19 +315,6 @@ const LB_ID = {
   'Attention : la SOP ne couvre pas 100% de chaque ingrédient.': 'Perhatian: SOP belum mencakup 100% setiap bahan.',
   'Supprimer cette étape': 'Hapus langkah ini', 'Décris cette étape…': 'Jelaskan langkah ini…',
   'Ingrédients concernés (optionnel)': 'Bahan terkait (opsional)', 'Ajouter une étape': 'Tambah langkah',
-  'Formule testée (actuelle)': 'Formula teruji (saat ini)',
-  'Une suggestion part d’une copie de la formule testée : ajuste les quantités, ajoute ou retire des composants, sans jamais modifier la formule actuelle tant qu’elle n’est pas approuvée.':
-    'Saran dimulai dari salinan formula teruji: sesuaikan jumlah, tambah atau hapus komponen, tanpa pernah mengubah formula saat ini sampai disetujui.',
-  'Démarrer une suggestion': 'Mulai saran', 'Testée': 'Teruji', 'À tester': 'Untuk diuji',
-  'Approuver comme formule Ready': 'Setujui sebagai formula Ready',
-  'Approuver comme nouvelle base à tester': 'Setujui sebagai basis baru untuk diuji',
-  'Supprimer la suggestion': 'Hapus saran',
-  'Suggérer une correction (SOP)': 'Sarankan koreksi (SOP)',
-  'Revoir la suggestion (SOP)': 'Tinjau saran (SOP)',
-  'Étapes testées (actuelles)': 'Langkah teruji (saat ini)',
-  'Aucune étape': 'Belum ada langkah',
-  'Une suggestion part d’une copie des étapes testées : ajuste, ajoute ou retire des étapes, sans jamais modifier la version actuelle tant qu’elle n’est pas approuvée.':
-    'Saran dimulai dari salinan langkah teruji: sesuaikan, tambah, atau hapus langkah, tanpa pernah mengubah versi saat ini sampai disetujui.',
 
   // ── Stock / Purchases (lumabonga-stock.jsx) ──
   'Achats matières': 'Pembelian bahan', '{n} factures': '{n} faktur', '{n} charges': '{n} beban',
@@ -891,12 +863,6 @@ function useLumaStore(seed, shareLumaya) {
     setRecipes((rs) => ({ ...rs, [pid]: next }));
     setRecipeDrafts((ds) => ({ ...ds, [pid]: { ingredients: next.ingredients.map((i) => ({ ...i })), labor: next.labor.map((l) => ({ ...l })) } }));
   };
-  // Draft becomes the new base recipe AND the product is validated as Ready.
-  const approveDraftAsReady = (pid) => {
-    if (!recipeDrafts[pid]) return;
-    approveDraftAsBase(pid);
-    setProducts((xs) => xs.map((p) => p.id === pid ? { ...p, status: 'ready' } : p));
-  };
 
   const addProduct = (p) => {
     const id = 'p_' + Math.random().toString(36).slice(2, 8);
@@ -1172,7 +1138,7 @@ function useLumaStore(seed, shareLumaya) {
   // ── SOP draft actions ("suggest a correction") ───────────────────
   // Independent of recipe drafts: no "approve as Ready" here, because SOPs
   // have no Ready/Test status of their own — only the product does, and
-  // that flag is owned entirely by the recipe side (approveDraftAsReady).
+  // that flag is owned entirely by the recipe side.
   const sopDraftFor = (pid) => sopDrafts[pid] || null;
   const startSopDraft = (pid) => setSopDrafts((ds) => ds[pid] ? ds : {
     ...ds,
@@ -1261,7 +1227,7 @@ function useLumaStore(seed, shareLumaya) {
     recipes, recipeFor, unitCostFor,
     recipeDrafts, draftFor, startDraft, discardDraft,
     addDraftIngredient, updateDraftIngredient, removeDraftIngredient,
-    approveDraftAsBase, approveDraftAsReady, approveDraftAsBaseAndRestart,
+    approveDraftAsBase, approveDraftAsBaseAndRestart,
     sops, setSop, removeSop,
     sopDrafts, sopDraftFor, startSopDraft, setSopDraftSteps, approveSopDraftAsBase, approveSopDraftAsBaseAndRestart, discardSopDraft,
     todos, addTodo, updateTodo, toggleTodo, removeTodo,
