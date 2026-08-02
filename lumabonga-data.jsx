@@ -195,6 +195,21 @@ const LB_EN = {
   'Mélange': 'Mixing', 'Chauffe & mélange': 'Heating & mixing', 'Coulage': 'Pouring',
   'Conditionnement': 'Packaging', 'Étiquetage': 'Labeling', 'Teinture': 'Dyeing',
   'Impression cire': 'Wax printing', 'Contrôle qualité': 'Quality control', 'Transport': 'Transport',
+  // Test composition section (product card)
+  'Test composition': 'Test composition',
+  'Aucun test en cours pour ce produit.': 'No test in progress for this product.',
+  'Démarrer le test': 'Start test',
+  'Voir la SOP (test)': 'View SOP (test)',
+  'Éditer la SOP (test)': 'Edit SOP (test)',
+  'Créer la SOP (test)': 'Create SOP (test)',
+  'Valider comme nouvelle base': 'Validate as new base',
+  'Procédure (SOP) — Test': 'Procedure (SOP) — Test',
+  'Choisir la version définitive': 'Choose the final version',
+  'Le passage en Ready nécessite de choisir une version définitive. La version non choisie sera supprimée définitivement. Cette action est irréversible.':
+    'Switching to Ready requires choosing a final version. The version not chosen will be permanently deleted. This action cannot be undone.',
+  'Garder la version de test': 'Keep the test version',
+  'Garder la version de base': 'Keep the base version',
+  'Composition verrouillée pendant Test.': 'Composition locked while in Test.',
 };
 // Indonesian — originally scoped to level-1 (public) screens only; now
 // covers the whole app (French must not leak anywhere, any language mode).
@@ -328,6 +343,22 @@ const LB_ID = {
   'Mélange': 'Pencampuran', 'Chauffe & mélange': 'Pemanasan & pencampuran', 'Coulage': 'Penuangan',
   'Conditionnement': 'Pengemasan', 'Étiquetage': 'Pelabelan', 'Teinture': 'Pewarnaan',
   'Impression cire': 'Cetak lilin', 'Contrôle qualité': 'Kontrol kualitas', 'Transport': 'Transportasi',
+
+  // ── Test composition section (product card) ──
+  'Test composition': 'Komposisi uji',
+  'Aucun test en cours pour ce produit.': 'Belum ada uji coba untuk produk ini.',
+  'Démarrer le test': 'Mulai uji coba',
+  'Voir la SOP (test)': 'Lihat SOP (uji)',
+  'Éditer la SOP (test)': 'Edit SOP (uji)',
+  'Créer la SOP (test)': 'Buat SOP (uji)',
+  'Valider comme nouvelle base': 'Jadikan versi dasar baru',
+  'Procédure (SOP) — Test': 'Prosedur (SOP) — Uji',
+  'Choisir la version définitive': 'Pilih versi final',
+  'Le passage en Ready nécessite de choisir une version définitive. La version non choisie sera supprimée définitivement. Cette action est irréversible.':
+    'Beralih ke Ready mengharuskan memilih satu versi final. Versi yang tidak dipilih akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
+  'Garder la version de test': 'Simpan versi uji',
+  'Garder la version de base': 'Simpan versi dasar',
+  'Composition verrouillée pendant Test.': 'Komposisi terkunci selama status Test.',
 };
 // Normalise apostrophes so straight ' and curly ’ in the source both match.
 const _lbNorm = (s) => String(s).replace(/’/g, "'");
