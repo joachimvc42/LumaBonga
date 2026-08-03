@@ -1559,17 +1559,29 @@ function CreaTodos({ store, dark, t }) {
 
       {/* Task list */}
       <CreaSection title={tr('Tâches')} right={`${open.length}`} dark={dark} t={t} />
-      {/* Filter by person — tap a name to show only their tasks, tap again to clear. */}
+      {/* Filter by person — tap a name to show only their tasks, tap again to
+          clear. The small × removes someone from the team roster entirely;
+          existing todos keep their assignee name either way (historical
+          record, not a live reference). */}
       <div style={{ padding: '0 22px 8px', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {store.team.map((name) => {
           const sel = personFilter === name;
           return (
-            <button key={name} onClick={() => setPersonFilter(sel ? null : name)} style={{
-              padding: '5px 12px', borderRadius: 999, cursor: 'pointer',
-              border: `1px solid ${sel ? c.accent : c.border}`,
-              background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.muted,
-              fontFamily: creaSans, fontSize: 11.5, fontWeight: 600,
-            }}>{name}</button>
+            <span key={name} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              <button onClick={() => setPersonFilter(sel ? null : name)} style={{
+                padding: '5px 12px', borderRadius: '999px 0 0 999px', cursor: 'pointer',
+                border: `1px solid ${sel ? c.accent : c.border}`, borderRight: 'none',
+                background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.muted,
+                fontFamily: creaSans, fontSize: 11.5, fontWeight: 600,
+              }}>{name}</button>
+              <button onClick={() => { if (personFilter === name) setPersonFilter(null); store.removeTeamMember(name); }}
+                aria-label={tr('Retirer {name}', { name })} style={{
+                padding: '5px 8px', borderRadius: '0 999px 999px 0', cursor: 'pointer',
+                border: `1px solid ${sel ? c.accent : c.border}`,
+                background: sel ? c.accent : c.panel2, color: sel ? c.inkContrast : c.muted,
+                fontFamily: creaSans, fontSize: 11.5, display: 'flex', alignItems: 'center',
+              }}><Icon.close width={11} height={11} /></button>
+            </span>
           );
         })}
       </div>
