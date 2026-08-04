@@ -424,6 +424,13 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
   const settled = !owedToLumaya && !owedToGawah;
   const creditor = owedToLumaya ? 'Lumaya' : owedToGawah ? 'GawahBonga' : null;
   const owedAmount = Math.abs(owedToLumaya ? totals.balance.lumaya : totals.balance.gawah);
+  // No settlement is suggested until both orgs are individually
+  // profitable on their own trading activity (see grossHeld, totals memo).
+  const bothProfitable = totals.grossHeld.lumaya > 0 && totals.grossHeld.gawah > 0;
+  const unprofitableNames = [
+    totals.grossHeld.lumaya <= 0 ? 'Lumaya' : null,
+    totals.grossHeld.gawah <= 0 ? 'GawahBonga' : null,
+  ].filter(Boolean).join(' · ');
 
   const card = { background: c.panel, border: `1px solid ${c.border}`, borderRadius: 14 };
   const kpiTiles = [
@@ -499,9 +506,13 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
       {/* Account balance */}
       <div>
         <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-          <span style={{ width: 8, height: 8, borderRadius: 999, background: settled ? c.mutedSoft : c.rose, flexShrink: 0 }} />
+          <span style={{ width: 8, height: 8, borderRadius: 999, background: (!bothProfitable || settled) ? c.mutedSoft : c.rose, flexShrink: 0 }} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            {settled ? (
+            {!bothProfitable ? (
+              <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.muted, lineHeight: 1.45 }}>
+                {tr('Pas de règlement pour l’instant — {names} pas encore en bénéfices.', { names: unprofitableNames })}
+              </span>
+            ) : settled ? (
               <span style={{ fontFamily: creaSans, fontSize: 13.5, color: c.muted }}>{tr('Comptes équilibrés')}</span>
             ) : (
               <React.Fragment>
@@ -514,10 +525,12 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
               </React.Fragment>
             )}
           </div>
-          <button onClick={() => onAdd && onAdd('settlement')} style={{
-            padding: '9px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
-            background: c.ink, color: c.inkContrast, fontFamily: creaSans, fontSize: 12.5, fontWeight: 600, flexShrink: 0,
-          }}>{tr('Régler')}</button>
+          {bothProfitable && (
+            <button onClick={() => onAdd && onAdd('settlement')} style={{
+              padding: '9px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
+              background: c.ink, color: c.inkContrast, fontFamily: creaSans, fontSize: 12.5, fontWeight: 600, flexShrink: 0,
+            }}>{tr('Régler')}</button>
+          )}
         </div>
         {store.settlements.length > 0 && (
           <button onClick={() => setShowSettlements((v) => !v)} style={{
