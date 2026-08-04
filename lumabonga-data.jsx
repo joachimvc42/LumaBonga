@@ -210,6 +210,7 @@ const LB_EN = {
   'Garder la version de test': 'Keep the test version',
   'Garder la version de base': 'Keep the base version',
   'Composition verrouillée pendant Test.': 'Composition locked while in Test.',
+  'SOP verrouillée pendant Test — utilise la section Test composition ci-dessous.': 'SOP locked during Test — use the Test composition section below.',
 };
 // Indonesian — originally scoped to level-1 (public) screens only; now
 // covers the whole app (French must not leak anywhere, any language mode).
@@ -359,6 +360,7 @@ const LB_ID = {
   'Garder la version de test': 'Simpan versi uji',
   'Garder la version de base': 'Simpan versi dasar',
   'Composition verrouillée pendant Test.': 'Komposisi terkunci selama status Test.',
+  'SOP verrouillée pendant Test — utilise la section Test composition ci-dessous.': 'SOP terkunci selama status Test — gunakan bagian Test composition di bawah.',
 };
 // Normalise apostrophes so straight ' and curly ’ in the source both match.
 const _lbNorm = (s) => String(s).replace(/’/g, "'");

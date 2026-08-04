@@ -964,7 +964,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 {(hasSop || !readonly) && (() => {
                   const sopColor = !hasSop ? c.mutedSoft : (productStatus(p) === 'ready' ? (c.pos || c.accent) : c.amber);
                   return (
-                    <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : setSopEdit(p); }}
+                    <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : (productStatus(p) !== 'test' && setSopEdit(p)); }}
                       aria-label={hasSop ? tr('Voir la SOP') : tr('Créer la SOP')} style={{
                       flexShrink: 0, padding: expanded ? '7px 12px' : '4px 9px', borderRadius: 999, cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 5,
@@ -1174,7 +1174,12 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 )}
               </div>
 
-              {/* SOP — production procedure */}
+              {/* SOP — production procedure. Editing (not viewing) is locked
+                  during Test, same reasoning as the Composition lock above:
+                  a SOP draft is auto-snapshotted the moment Test starts, and
+                  editing the base directly would silently diverge from (and
+                  later be overwritten by) that snapshot. Use the Test
+                  composition section's own SOP buttons during Test instead. */}
               {(() => {
                 if (!hasSop && readonly) return null;
                 const btn = (label, onClick, solid) => (
@@ -1187,11 +1192,19 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}><Icon.list width={15} height={15} /> {label}</button>
                 );
+                const locked = productStatus(p) === 'test';
                 return (
-                  <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-                    {hasSop && btn(tr('Voir la SOP'), () => setSopView(p), true)}
-                    {!readonly && btn(hasSop ? tr('Éditer la SOP') : tr('Créer la SOP'), () => setSopEdit(p), false)}
-                  </div>
+                  <React.Fragment>
+                    {locked && !readonly && (
+                      <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft, padding: '4px 0 2px', fontStyle: 'italic' }}>
+                        {tr('SOP verrouillée pendant Test — utilise la section Test composition ci-dessous.')}
+                      </div>
+                    )}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                      {hasSop && btn(tr('Voir la SOP'), () => setSopView(p), true)}
+                      {!readonly && !locked && btn(hasSop ? tr('Éditer la SOP') : tr('Créer la SOP'), () => setSopEdit(p), false)}
+                    </div>
+                  </React.Fragment>
                 );
               })()}
 
@@ -1216,7 +1229,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                         </div>
                         <button onClick={() => { store.startDraft(p.id); store.startSopDraft(p.id); }} style={{
                           width: '100%', padding: '9px', borderRadius: 10, cursor: 'pointer', border: 'none',
-                          background: tc, color: '#ffffff', fontFamily: creaSans, fontSize: 12, fontWeight: 700,
+                          background: tc, color: c.inkContrast, fontFamily: creaSans, fontSize: 12, fontWeight: 700,
                         }}>{tr('Démarrer le test')}</button>
                       </React.Fragment>
                     ) : (
@@ -1246,7 +1259,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                             }}><Icon.list width={15} height={15} /> {tr('Voir la SOP (test)')}</button>
                           )}
-                          <button onClick={() => setSopDraftEdit(p)} style={{
+                          <button onClick={() => { store.startSopDraft(p.id); setSopDraftEdit(p); }} style={{
                             flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
                             border: `1px solid ${tc}55`, background: 'transparent', color: tc,
                             fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
@@ -1259,7 +1272,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                           store.approveSopDraftAsBaseAndRestart(p.id);
                         }} style={{
                           width: '100%', marginTop: 10, padding: '11px', borderRadius: 10, cursor: 'pointer', border: 'none',
-                          background: tc, color: '#ffffff', fontFamily: creaSans, fontSize: 13, fontWeight: 700,
+                          background: tc, color: c.inkContrast, fontFamily: creaSans, fontSize: 13, fontWeight: 700,
                         }}>{tr('Valider comme nouvelle base')}</button>
                       </React.Fragment>
                     )}
@@ -1412,7 +1425,7 @@ function CreaFinalizeVersionConfirm({ store, c, product, onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
           <button onClick={keepTest} style={{
             width: '100%', padding: '13px', borderRadius: 999, cursor: 'pointer', border: 'none',
-            background: c.testAccent, color: '#ffffff', fontFamily: creaSans, fontSize: 14, fontWeight: 700,
+            background: c.testAccent, color: c.inkContrast, fontFamily: creaSans, fontSize: 14, fontWeight: 700,
           }}>{tr('Garder la version de test')}</button>
           <button onClick={keepBase} style={{
             width: '100%', padding: '13px', borderRadius: 999, cursor: 'pointer',
