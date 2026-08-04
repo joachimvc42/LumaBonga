@@ -1139,10 +1139,20 @@ function useLumaStore(seed, shareLumaya) {
     const entitledLumaya = lumayaFromSales - (achats + charges) * defaultSl;
     const entitled = { lumaya: entitledLumaya, gawah: distributable - entitledLumaya };
     const held = { lumaya: 0, gawah: 0 };
+    const ventesByOrg = { lumaya: 0, gawah: 0 };
+    const achatsByOrg = { lumaya: 0, gawah: 0 };
+    const chargesByOrg = { lumaya: 0, gawah: 0 };
     const orgOf = (x) => (x && x.org === 'gawah') ? 'gawah' : 'lumaya';
-    for (const s of sales) held[orgOf(s)] += s.qty * s.price;
-    for (const p of purchases) held[orgOf(p)] -= (Number(p.qty) || 0) * (Number(p.price) || 0);
-    for (const c of costs) held[orgOf(c)] -= Number(c.amount) || 0;
+    for (const s of sales) { const v = s.qty * s.price; held[orgOf(s)] += v; ventesByOrg[orgOf(s)] += v; }
+    for (const p of purchases) { const v = (Number(p.qty) || 0) * (Number(p.price) || 0); held[orgOf(p)] -= v; achatsByOrg[orgOf(p)] += v; }
+    for (const c of costs) { const v = Number(c.amount) || 0; held[orgOf(c)] -= v; chargesByOrg[orgOf(c)] += v; }
+    // Snapshot each org's own trading result — sales minus its own
+    // purchases and charges — BEFORE settlement transfers are netted into
+    // `held` below. Used to gate the settlement suggestion on both orgs
+    // being individually profitable. `held` keeps including settlements
+    // (money already paid/received) because it answers a different
+    // question: "how much cash does this org have right now."
+    const grossHeld = { ...held };
     for (const st of settlements) {
       const amt = Number(st.amount) || 0;
       if (st.from === 'lumaya') held.lumaya -= amt; else if (st.from === 'gawah') held.gawah -= amt;
@@ -1154,7 +1164,7 @@ function useLumaStore(seed, shareLumaya) {
       ventes, achats, charges, cogs, profit, marge,
       profitMonth, margeMonth, ventesM, achatsM, chargesM, cogsM, deltaStockMonth,
       valMatieres, valProduits, valStock: valMatieres + valProduits,
-      entitled, held, balance,
+      entitled, held, balance, grossHeld, ventesByOrg, achatsByOrg, chargesByOrg,
     };
   }, [sales, purchases, costs, settlements, recipes, materialById, materials, products, productById, materialStock, finishedStock, materialPrices, unitCostFor, cogsOf, shareLumaya, period]);
 
