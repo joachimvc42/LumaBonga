@@ -472,6 +472,30 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
         ))}
       </div>
 
+      {/* Per-party profit/loss — always visible regardless of whether a
+          settlement is currently suggested below; each party's own sales
+          minus its own purchases and charges (all-time, not period-scoped,
+          matching how the settlement/balance figures below are all-time). */}
+      <div style={{ ...card, padding: '13px 15px' }}>
+        <div style={{ fontFamily: creaSans, fontSize: 11, fontWeight: 600, color: c.muted, marginBottom: 10 }}>{tr('Perte / Profit par partie')}</div>
+        <div style={{ display: 'flex', gap: 14 }}>
+          {[
+            { name: 'Lumaya', color: c.accent, v: totals.grossHeld.lumaya, ventes: totals.ventesByOrg.lumaya, achats: totals.achatsByOrg.lumaya, charges: totals.chargesByOrg.lumaya },
+            { name: 'GawahBonga', color: c.purple, v: totals.grossHeld.gawah, ventes: totals.ventesByOrg.gawah, achats: totals.achatsByOrg.gawah, charges: totals.chargesByOrg.gawah },
+          ].map((o) => (
+            <div key={o.name} style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontFamily: creaSans, fontSize: 11.5, fontWeight: 700, color: o.color, marginBottom: 4 }}>{o.name}</div>
+              <div style={{ fontFamily: creaDisplay, fontSize: 18, fontWeight: 700, color: o.v >= 0 ? c.pos : c.rose, letterSpacing: -0.4, fontVariantNumeric: 'tabular-nums' }}>
+                {o.v >= 0 ? '+' : '−'}{fmtNum(Math.abs(o.v))} <span style={{ fontFamily: creaMono, fontSize: 10, color: c.mutedSoft, fontWeight: 400 }}>{t.currency}</span>
+              </div>
+              <div style={{ fontFamily: creaMono, fontSize: 9.5, color: c.mutedSoft, marginTop: 3, lineHeight: 1.5 }}>
+                {tr('Ventes')} {fmtNum(o.ventes)} · {tr('Achats')} {fmtNum(o.achats)} · {tr('Charges')} {fmtNum(o.charges)}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Account balance */}
       <div>
         <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
