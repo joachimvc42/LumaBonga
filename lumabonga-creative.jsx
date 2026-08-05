@@ -426,10 +426,10 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
   const owedAmount = Math.abs(owedToLumaya ? totals.balance.lumaya : totals.balance.gawah);
   // No settlement is suggested until both orgs are individually
   // profitable on their own trading activity (see grossHeld, totals memo).
-  const bothProfitable = totals.grossHeld.lumaya > 0 && totals.grossHeld.gawah > 0;
+  const bothProfitable = totals.grossHeld.lumaya > 0.5 && totals.grossHeld.gawah > 0.5;
   const unprofitableNames = [
-    totals.grossHeld.lumaya <= 0 ? 'Lumaya' : null,
-    totals.grossHeld.gawah <= 0 ? 'GawahBonga' : null,
+    totals.grossHeld.lumaya <= 0.5 ? 'Lumaya' : null,
+    totals.grossHeld.gawah <= 0.5 ? 'GawahBonga' : null,
   ].filter(Boolean).join(' · ');
 
   const card = { background: c.panel, border: `1px solid ${c.border}`, borderRadius: 14 };
@@ -484,7 +484,7 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
           minus its own purchases and charges (all-time, not period-scoped,
           matching how the settlement/balance figures below are all-time). */}
       <div style={{ ...card, padding: '13px 15px' }}>
-        <div style={{ fontFamily: creaSans, fontSize: 11, fontWeight: 600, color: c.muted, marginBottom: 10 }}>{tr('Perte / Profit par partie')}</div>
+        <div style={{ fontFamily: creaSans, fontSize: 11, fontWeight: 600, color: c.muted, marginBottom: 10 }}>{tr('Perte / Profit par partie')} · {tr('depuis le début')}</div>
         <div style={{ display: 'flex', gap: 14 }}>
           {[
             { name: 'Lumaya', color: c.accent, v: totals.grossHeld.lumaya, ventes: totals.ventesByOrg.lumaya, achats: totals.achatsByOrg.lumaya, charges: totals.chargesByOrg.lumaya },
@@ -525,12 +525,19 @@ function CreaDashboard({ store, dark, t, onAdd, onEdit }) {
               </React.Fragment>
             )}
           </div>
-          {bothProfitable && (
-            <button onClick={() => onAdd && onAdd('settlement')} style={{
-              padding: '9px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
-              background: c.ink, color: c.inkContrast, fontFamily: creaSans, fontSize: 12.5, fontWeight: 600, flexShrink: 0,
-            }}>{tr('Régler')}</button>
-          )}
+          {/* Always available — this is the only entry point to record a
+              settlement transfer (the generic add-sheet hides the
+              'settlement' kind from its picker). The gate above only
+              suppresses the *suggested* amount; recording a real,
+              already-happened transfer must stay possible regardless. */}
+          <button onClick={() => onAdd && onAdd('settlement')} style={bothProfitable ? {
+            padding: '9px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
+            background: c.ink, color: c.inkContrast, fontFamily: creaSans, fontSize: 12.5, fontWeight: 600, flexShrink: 0,
+          } : {
+            padding: '9px 16px', borderRadius: 999, cursor: 'pointer',
+            background: 'transparent', color: c.muted, border: `1px solid ${c.border}`,
+            fontFamily: creaSans, fontSize: 12.5, fontWeight: 600, flexShrink: 0,
+          }}>{tr(bothProfitable ? 'Régler' : 'Enregistrer un règlement')}</button>
         </div>
         {store.settlements.length > 0 && (
           <button onClick={() => setShowSettlements((v) => !v)} style={{
