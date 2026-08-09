@@ -1511,6 +1511,8 @@ function CreaTodos({ store, dark, t }) {
   const [text, setText] = React.useState('');
   const [assignees, setAssignees] = React.useState(() => store.team[0] ? [store.team[0]] : []);
   const [priority, setPriority] = React.useState('medium');
+  const [dueDate, setDueDate] = React.useState('');  // "" = no deadline; the add form and the calendar strip below share this one field
+  const [time, setTime] = React.useState('');        // "" = no specific time; only meaningful alongside dueDate
   const [addingMember, setAddingMember] = React.useState(false);
   const [memberDraft, setMemberDraft] = React.useState('');
   const [editingId, setEditingId] = React.useState(null);
@@ -1528,9 +1530,14 @@ function CreaTodos({ store, dark, t }) {
   const add = () => {
     const txt = text.trim();
     if (!txt || !assignees.length) return;
-    store.addTodo({ text: txt, assignees, priority });
+    const patch = { text: txt, assignees, priority };
+    if (dueDate) patch.dueDate = dueDate;
+    if (dueDate && time) patch.time = time;
+    store.addTodo(patch);
     setText('');
     setPriority('medium');
+    setDueDate('');
+    setTime('');
   };
   const confirmMember = () => {
     const n = memberDraft.trim();
@@ -1604,6 +1611,21 @@ function CreaTodos({ store, dark, t }) {
                 }}>{tr(p.label)}</button>
               );
             })}
+          </div>
+          <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
+            {tr('Échéance (optionnel)')}
+          </div>
+          <div style={{ display: 'flex', gap: 7 }}>
+            <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{
+              flex: 1, boxSizing: 'border-box', background: c.panel2, color: c.text,
+              border: `1px solid ${c.border}`, borderRadius: 10, padding: '9px 11px',
+              fontFamily: creaSans, fontSize: 13, outline: 'none',
+            }} />
+            <input type="time" value={time} onChange={(e) => setTime(e.target.value)} disabled={!dueDate} style={{
+              width: 100, boxSizing: 'border-box', background: c.panel2, color: c.text,
+              border: `1px solid ${c.border}`, borderRadius: 10, padding: '9px 11px',
+              fontFamily: creaSans, fontSize: 13, outline: 'none', opacity: dueDate ? 1 : 0.5,
+            }} />
           </div>
           <button onClick={add} disabled={!text.trim() || !assignees.length} style={{
             width: '100%', marginTop: 12, padding: '12px', borderRadius: 999,
@@ -1723,11 +1745,15 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
   const [text, setText] = React.useState(td.text);
   const [assignees, setAssignees] = React.useState(() => td.assignees || (td.assignee ? [td.assignee] : []));
   const [priority, setPriority] = React.useState(td.priority || 'medium');
+  const [dueDate, setDueDate] = React.useState(td.dueDate || '');
+  const [time, setTime] = React.useState(td.time || '');
   React.useEffect(() => {
     if (editing) {
       setText(td.text);
       setAssignees(td.assignees || (td.assignee ? [td.assignee] : []));
       setPriority(td.priority || 'medium');
+      setDueDate(td.dueDate || '');
+      setTime(td.time || '');
     }
   }, [editing]);
 
@@ -1737,7 +1763,14 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
   const save = () => {
     const txt = text.trim();
     if (!txt || !assignees.length) return;
-    store.updateTodo(td.id, { text: txt, assignees, priority });
+    // Unlike the add form (which just omits the keys when empty), edit must
+    // be able to CLEAR a previously-set deadline — so empty here writes
+    // null explicitly rather than omitting the key.
+    store.updateTodo(td.id, {
+      text: txt, assignees, priority,
+      dueDate: dueDate || null,
+      time: (dueDate && time) ? time : null,
+    });
     onCloseEdit();
   };
 
@@ -1777,6 +1810,18 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
             );
           })}
         </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{
+            flex: 1, boxSizing: 'border-box', background: c.panel2, color: c.text,
+            border: `1px solid ${c.border}`, borderRadius: 10, padding: '8px 10px',
+            fontFamily: creaSans, fontSize: 12.5, outline: 'none',
+          }} />
+          <input type="time" value={time} onChange={(e) => setTime(e.target.value)} disabled={!dueDate} style={{
+            width: 92, boxSizing: 'border-box', background: c.panel2, color: c.text,
+            border: `1px solid ${c.border}`, borderRadius: 10, padding: '8px 10px',
+            fontFamily: creaSans, fontSize: 12.5, outline: 'none', opacity: dueDate ? 1 : 0.5,
+          }} />
+        </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
           <button onClick={onCloseEdit} style={{
             flex: 1, padding: '10px', borderRadius: 999, cursor: 'pointer',
@@ -1796,9 +1841,13 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
   const pid = td.priority || 'medium';
   const pc = prioColor(c, pid);
   const pLabel = (TODO_PRIORITIES.find((p) => p.id === pid) || TODO_PRIORITIES[1]).label;
+  // Overdue = has a deadline, it's in the past, and it's not done yet —
+  // takes visual precedence over the priority tint (25 = same red hue as
+  // "high" priority, prioHue('high')) since it's a more urgent signal.
+  const overdue = !!(td.dueDate && td.dueDate < todayISO() && !td.done);
 
   return (
-    <div style={{ ...card, ...softTintBar(dark, prioHue(pid)), display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
+    <div style={{ ...card, ...softTintBar(dark, overdue ? 25 : prioHue(pid)), display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
       <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
         width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
         border: `1.5px solid ${td.done ? c.accent : c.border}`,
@@ -1807,8 +1856,11 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
       }}>{td.done && <Icon.check width={13} height={13} />}</button>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
-        <div style={{ fontFamily: creaMono, fontSize: 10.5, color: c.muted, marginTop: 1 }}>
+        <div style={{ fontFamily: creaMono, fontSize: 10.5, color: overdue ? c.rose : c.muted, marginTop: 1, fontWeight: overdue ? 700 : 400 }}>
           {(td.assignees || (td.assignee ? [td.assignee] : [])).join(', ')} · {fmtDate(td.date)}
+          {td.dueDate && (
+            <React.Fragment> · {tr('Échéance')} {fmtDay(td.dueDate)}{td.time ? ` ${td.time}` : ''}</React.Fragment>
+          )}
         </div>
       </div>
       <span style={{
