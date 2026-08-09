@@ -1524,6 +1524,37 @@ function CreaTodos({ store, dark, t }) {
   const open = byPriority(store.todos.filter((x) => !x.done && matchesFilter(x)));
   const done = byPriority(store.todos.filter((x) => x.done && matchesFilter(x)));
 
+  // ── Calendar day strip: today + next 6 days, fixed window (no
+  // scroll-to-discover-more). Selecting a day both shows that day's todos
+  // below the strip AND sets the add form's dueDate above it, so adding a
+  // task while a day is selected schedules it there — no separate creation
+  // flow needed.
+  const [selectedDay, setSelectedDay] = React.useState(todayISO());
+  const next7Days = React.useMemo(() => {
+    const days = [];
+    const base = new Date();
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
+      days.push(d.toISOString().slice(0, 10));
+    }
+    return days;
+  }, []);
+  // Chronological, not priority-ordered — a calendar day view should read
+  // top-to-bottom in time order. Untimed ("all-day") entries sort first,
+  // matching how Google Calendar puts all-day events above the timed grid.
+  const byTime = (xs) => [...xs].sort((a, b) => {
+    const ta = a.time || ''; const tb = b.time || '';
+    if (!ta && tb) return -1;
+    if (ta && !tb) return 1;
+    return ta.localeCompare(tb);
+  });
+  const dayTodosAll = store.todos.filter((x) => x.dueDate === selectedDay);
+  const dayOpen = byTime(dayTodosAll.filter((x) => !x.done));
+  const dayDone = byTime(dayTodosAll.filter((x) => x.done));
+  const overdueTodos = selectedDay === todayISO()
+    ? byTime(store.todos.filter((x) => x.dueDate && x.dueDate < todayISO() && !x.done))
+    : [];
+
   const toggleAssignee = (name) => setAssignees((xs) =>
     xs.includes(name) ? xs.filter((x) => x !== name) : [...xs, name]);
 
@@ -1634,6 +1665,68 @@ function CreaTodos({ store, dark, t }) {
             fontFamily: creaSans, fontSize: 14, fontWeight: 700,
           }}>{tr('Ajouter')}</button>
         </div>
+      </div>
+
+      {/* Calendar day strip — today + next 6 days, today emphasized. Tap a
+          day to see its scheduled tasks below; only todos with a dueDate
+          show here, undated todos stay exclusively in the plain list
+          further down. */}
+      <div style={{ padding: '14px 22px 10px', display: 'flex', gap: 6 }}>
+        {next7Days.map((iso, i) => {
+          const isToday = i === 0;
+          const sel = selectedDay === iso;
+          const hasTasks = store.todos.some((x) => x.dueDate === iso);
+          return (
+            <button key={iso} onClick={() => { setSelectedDay(iso); setDueDate(iso); }} style={{
+              flex: isToday ? '0 0 60px' : 1,
+              padding: isToday ? '10px 4px' : '7px 2px',
+              borderRadius: 14, cursor: 'pointer',
+              border: `1px solid ${sel ? c.accent : c.border}`,
+              background: sel ? `${c.accent}1c` : c.panel2,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            }}>
+              <span style={{ fontFamily: creaSans, fontSize: isToday ? 11 : 9.5, fontWeight: 700, color: sel ? c.accent : c.mutedSoft, textTransform: 'uppercase' }}>
+                {new Date(iso).toLocaleDateString(LB_LOCALE, { weekday: 'short' })}
+              </span>
+              <span style={{ fontFamily: creaDisplay, fontSize: isToday ? 20 : 15, fontWeight: 700, color: sel ? c.accent : c.text }}>
+                {iso.slice(8, 10)}
+              </span>
+              <span style={{ width: 5, height: 5, borderRadius: 999, background: hasTasks ? (sel ? c.accent : c.mutedSoft) : 'transparent' }} />
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ padding: '0 22px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {overdueTodos.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.rose, fontWeight: 700, fontFamily: creaSans, marginBottom: 6 }}>
+              {tr('En retard')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {overdueTodos.map((td) => (
+                <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
+                  editing={editingId === td.id}
+                  onEdit={() => setEditingId(td.id)}
+                  onCloseEdit={() => setEditingId(null)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {dayOpen.length === 0 && dayDone.length === 0 && overdueTodos.length === 0 && (
+          <div style={{ fontFamily: creaSans, fontSize: 12.5, color: c.mutedSoft, padding: '4px 0' }}>{tr('Rien de prévu ce jour-là.')}</div>
+        )}
+        {dayOpen.map((td) => (
+          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
+            editing={editingId === td.id}
+            onEdit={() => setEditingId(td.id)}
+            onCloseEdit={() => setEditingId(null)} />
+        ))}
+        {dayDone.map((td) => (
+          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
+            editing={editingId === td.id}
+            onEdit={() => setEditingId(td.id)}
+            onCloseEdit={() => setEditingId(null)} />
+        ))}
       </div>
 
       {/* Task list */}
