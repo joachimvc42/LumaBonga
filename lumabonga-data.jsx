@@ -189,6 +189,10 @@ const LB_EN = {
     '"{name}" will be permanently deleted, along with its recipe, SOP and suggestion history. This cannot be undone.',
   'Nouveau membre…': 'New member…', 'Équipe': 'Team',
   'Aucune tâche. Ajoute la première !': 'No tasks yet. Add the first one!',
+  'Échéance (optionnel)': 'Deadline (optional)',
+  'Échéance': 'Deadline',
+  'En retard': 'Overdue',
+  'Rien de prévu ce jour-là.': 'Nothing scheduled for this day.',
   'À acheter': 'To purchase',
   'Stock insuffisant pour produire 10 unités': 'Not enough stock to make 10 units',
   'manquant': 'missing', 'pour 10× {name}': 'for 10× {name}',
@@ -290,6 +294,10 @@ const LB_ID = {
   '« {name} » sera supprimé définitivement, avec sa recette, sa SOP et son historique de suggestions. Cette action est irréversible.':
     '"{name}" akan dihapus permanen, beserta resep, SOP, dan riwayat sarannya. Tindakan ini tidak bisa dibatalkan.',
   'Aucune tâche. Ajoute la première !': 'Belum ada tugas. Tambahkan yang pertama!',
+  'Échéance (optionnel)': 'Tenggat (opsional)',
+  'Échéance': 'Tenggat',
+  'En retard': 'Terlambat',
+  'Rien de prévu ce jour-là.': 'Tidak ada rencana hari itu.',
   'À acheter': 'Perlu dibeli', 'Stock insuffisant pour produire 10 unités': 'Stok tidak cukup untuk membuat 10 unit',
   'Rien à acheter — les stocks couvrent 10 unités de chaque produit.':
     'Tidak ada yang perlu dibeli — stok cukup untuk 10 unit setiap produk.',
