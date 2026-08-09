@@ -1532,10 +1532,9 @@ function CreaTodos({ store, dark, t }) {
   const [selectedDay, setSelectedDay] = React.useState(todayISO());
   const next7Days = React.useMemo(() => {
     const days = [];
-    const base = new Date();
+    const [y, m, d] = todayISO().split('-').map(Number);
     for (let i = 0; i < 7; i++) {
-      const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + i);
-      days.push(d.toISOString().slice(0, 10));
+      days.push(new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10));
     }
     return days;
   }, []);
@@ -1686,7 +1685,7 @@ function CreaTodos({ store, dark, t }) {
               display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
             }}>
               <span style={{ fontFamily: creaSans, fontSize: isToday ? 11 : 9.5, fontWeight: 700, color: sel ? c.accent : c.mutedSoft, textTransform: 'uppercase' }}>
-                {new Date(iso).toLocaleDateString(LB_LOCALE, { weekday: 'short' })}
+                {new Date(iso).toLocaleDateString(LB_LOCALE, { weekday: 'short', timeZone: 'UTC' })}
               </span>
               <span style={{ fontFamily: creaDisplay, fontSize: isToday ? 20 : 15, fontWeight: 700, color: sel ? c.accent : c.text }}>
                 {iso.slice(8, 10)}
