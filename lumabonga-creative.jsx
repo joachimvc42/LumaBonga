@@ -1655,26 +1655,45 @@ function CreaTodos({ store, dark, t }) {
         {next14Days.map((iso, i) => {
           const isToday = iso === today;
           const sel = selectedDay === iso;
-          const dayItems = store.todos.filter((x) => x.dueDate === iso);
-          const hasTask = dayItems.some((x) => x.kind !== 'activity');
-          const hasActivity = dayItems.some((x) => x.kind === 'activity');
+          // Text preview, not just a dot: up to 4 lines per cell. More than
+          // 4 items that day shows the first 3 plus a "+N" line (bare
+          // number, no tr() needed) rather than growing the cell — every
+          // non-today cell must stay the same height so the grid doesn't
+          // jump as items are added/removed on other days.
+          const dayItems = byTime(store.todos.filter((x) => x.dueDate === iso));
+          const overflowN = dayItems.length > 4 ? dayItems.length - 3 : 0;
+          const previewItems = overflowN > 0 ? dayItems.slice(0, 3) : dayItems;
+          const lineH = isToday ? 13 : 10;
           return (
             <button key={iso} onClick={() => { setSelectedDay(iso); setDueDate(iso); }} style={{
-              padding: isToday ? '9px 3px' : '6px 2px',
+              padding: isToday ? '9px 4px' : '6px 3px',
               borderRadius: 12, cursor: 'pointer',
               border: `1px solid ${sel ? c.accent : c.border}`,
               background: sel ? `${c.accent}1c` : c.panel2,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+              display: 'flex', flexDirection: 'column', alignItems: 'stretch', gap: 2,
+              minWidth: 0,
             }}>
-              <span style={{ fontFamily: creaSans, fontSize: isToday ? 10.5 : 8.5, fontWeight: 700, color: sel ? c.accent : c.mutedSoft, textTransform: 'uppercase' }}>
+              <span style={{ fontFamily: creaSans, fontSize: isToday ? 10.5 : 8.5, fontWeight: 700, color: sel ? c.accent : c.mutedSoft, textTransform: 'uppercase', textAlign: 'center' }}>
                 {new Date(iso).toLocaleDateString(LB_LOCALE, { weekday: 'short', timeZone: 'UTC' })}
               </span>
-              <span style={{ fontFamily: creaDisplay, fontSize: isToday ? 18 : 13, fontWeight: 700, color: sel ? c.accent : c.text }}>
+              <span style={{ fontFamily: creaDisplay, fontSize: isToday ? 20 : 13, fontWeight: 700, color: sel ? c.accent : c.text, textAlign: 'center' }}>
                 {iso.slice(8, 10)}
               </span>
-              <span style={{ display: 'flex', gap: 3, height: 5 }}>
-                <span style={{ width: 5, height: 5, borderRadius: 999, background: hasTask ? c.rose : 'transparent' }} />
-                <span style={{ width: 5, height: 5, borderRadius: 999, background: hasActivity ? c.mutedSoft : 'transparent' }} />
+              <span style={{ display: 'flex', flexDirection: 'column', gap: 1, height: lineH * 4, marginTop: 2, width: '100%', minWidth: 0 }}>
+                {previewItems.map((x) => (
+                  <span key={x.id} style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
+                    <span style={{ width: 4, height: 4, borderRadius: 999, flexShrink: 0, background: x.kind === 'activity' ? c.mutedSoft : c.rose }} />
+                    <span style={{
+                      flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      fontFamily: creaSans, fontSize: isToday ? 8.5 : 7, fontWeight: 600, color: c.text, lineHeight: `${lineH}px`,
+                    }}>{x.text}</span>
+                  </span>
+                ))}
+                {overflowN > 0 && (
+                  <span style={{ fontFamily: creaMono, fontSize: isToday ? 8.5 : 7, fontWeight: 700, lineHeight: `${lineH}px`, color: c.mutedSoft }}>
+                    +{overflowN}
+                  </span>
+                )}
               </span>
             </button>
           );
