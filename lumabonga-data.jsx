@@ -70,6 +70,7 @@ const LB_EN = {
   'Produit': 'Product', 'Matière première': 'Raw material',
   // nav
   'Profit': 'Profit', 'Ventes': 'Sales', 'Achats': 'Purchases', 'Stock': 'Stock', 'Produits': 'Products',
+  'To do': 'To do',
   // dashboard
   'Profit net': 'Net profit', 'marge {p}%': 'margin {p}%',
   'Profit ce mois': 'Profit this month', 'Profit total': 'Total profit',
@@ -171,6 +172,10 @@ const LB_EN = {
   'Commentaire (optionnel)…': 'Comment (optional)…',
   'Réduire': 'Collapse', 'Développer': 'Expand',
   'Nouvelle catégorie…': 'New category…', 'Nouvelle': 'New', 'Autre': 'Other',
+  // Material/product category tags (MATERIAL_CAT_LABELS / PRODUCT_CAT_LABELS
+  // in lumabonga-data.jsx) — already English in the source, identity here.
+  'Wax': 'Wax', 'Oil': 'Oil', 'EO': 'EO',
+  'Surf': 'Surf', 'Baby': 'Baby', 'Atma': 'Atma', 'Balm': 'Balm', 'Spray': 'Spray', 'Bathroom': 'Bathroom',
   'Une nouvelle matière se crée depuis Achats, au moment du premier achat.':
     'A new material is created from Purchases, at the time of its first purchase.',
   'Le prix de cet achat devient le prix de référence de la matière.':
@@ -277,8 +282,14 @@ const LB_ID = {
   'Vente': 'Penjualan', 'Charge': 'Beban', 'Production': 'Produksi', 'Achat': 'Pembelian',
   'Matière': 'Bahan', 'Emballage': 'Kemasan', 'matière': 'bahan', 'emballage': 'kemasan', 'unité': 'satuan',
   'Autre': 'Lainnya',
+  // Material/product category tags — kept in English (identity), same
+  // judgment call as 'Profit': 'Profit' above: short brand/business-loanword
+  // tags this file has no established Indonesian rendering for.
+  'Wax': 'Wax', 'Oil': 'Oil', 'EO': 'EO',
+  'Surf': 'Surf', 'Baby': 'Baby', 'Atma': 'Atma', 'Balm': 'Balm', 'Spray': 'Spray', 'Bathroom': 'Bathroom',
   '{n} unités produites': '{n} unit diproduksi',
   'Ventes': 'Penjualan', 'Achats': 'Pembelian', 'Charges': 'Beban', 'Valeur stock': 'Nilai stok',
+  'Profit': 'Profit', 'Stock': 'Stok', 'To do': 'Agenda',
   'Profit net': 'Laba bersih', 'Comptes équilibrés': 'Akun seimbang', 'doit recevoir': 'harus menerima',
   'Régler': 'Selesaikan', 'Historique des règlements ({n})': 'Riwayat penyelesaian ({n})',
   'Stock faible': 'Stok menipis', 'à produire': 'untuk diproduksi', 'rupture': 'habis',
