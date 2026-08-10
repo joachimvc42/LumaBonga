@@ -38,6 +38,17 @@ const fmtDay = (iso) => {
   return d.toLocaleDateString(LB_LOCALE, { weekday: 'short', day: '2-digit', month: 'short' });
 };
 const todayISO = () => new Date().toISOString().slice(0, 10);
+// Local-calendar-date version of todayISO(). todayISO() is UTC-based and
+// stays that way for its existing callers (historical record-stamping,
+// where an hours-scale skew is harmless). But for any user-facing "which
+// day is today" comparison, UTC silently disagrees with the browser's
+// local clock for part of every day at any non-zero UTC offset — this
+// bit the to-do calendar's first version for exactly this app's real
+// (UTC+8) users. Use this instead for every such comparison.
+const todayLocalISO = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+};
 
 // ── i18n ─────────────────────────────────────────────────────
 // French strings are the keys. tr() returns English when lang==='en',
