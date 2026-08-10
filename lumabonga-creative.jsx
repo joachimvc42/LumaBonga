@@ -1495,6 +1495,14 @@ const TODO_PRIORITIES = [
   { id: 'medium', label: 'Moyenne' },
   { id: 'low', label: 'Basse' },
 ];
+// 'task' = normal to-do (assignable, prioritized, completable). 'activity'
+// = a busy-time block (a meeting, a delivery window) — still assignable
+// (marks specific people unavailable), but no urgency/priority concept and
+// no completion state. Both live in the same store.todos array.
+const TODO_KINDS = [
+  { id: 'task', label: 'Tâche' },
+  { id: 'activity', label: 'Activité' },
+];
 const prioColor = (c, p) => p === 'high' ? c.prioHigh : p === 'low' ? c.prioLow : c.prioMed;
 // Same scale as oklch hues, for whole-row washes (red / orange / yellow).
 const prioHue = (p) => p === 'high' ? 25 : p === 'low' ? 85 : 60;
@@ -1509,9 +1517,10 @@ const byPriority = (xs) => [...xs].sort((a, b) => prioRank[a.priority || 'medium
 function CreaTodos({ store, dark, t }) {
   const c = creaTheme(dark, t.accent);
   const [text, setText] = React.useState('');
+  const [kind, setKind] = React.useState('task');    // 'task' or 'activity' — see TODO_KINDS below
   const [assignees, setAssignees] = React.useState(() => store.team[0] ? [store.team[0]] : []);
   const [priority, setPriority] = React.useState('medium');
-  const [dueDate, setDueDate] = React.useState('');  // "" = no deadline; the add form and the calendar strip below share this one field
+  const [dueDate, setDueDate] = React.useState('');  // "" = no deadline; the add form and the calendar grid below share this one field
   const [time, setTime] = React.useState('');        // "" = no specific time; only meaningful alongside dueDate
   const [addingMember, setAddingMember] = React.useState(false);
   const [memberDraft, setMemberDraft] = React.useState('');
@@ -1560,11 +1569,14 @@ function CreaTodos({ store, dark, t }) {
   const add = () => {
     const txt = text.trim();
     if (!txt || !assignees.length) return;
-    const patch = { text: txt, assignees, priority };
+    const patch = { text: txt, assignees };
+    if (kind === 'activity') patch.kind = 'activity';
+    else patch.priority = priority;  // activities have no priority concept
     if (dueDate) patch.dueDate = dueDate;
     if (dueDate && time) patch.time = time;
     store.addTodo(patch);
     setText('');
+    setKind('task');
     setPriority('medium');
     setDueDate('');
     setTime('');
@@ -1592,6 +1604,19 @@ function CreaTodos({ store, dark, t }) {
               border: `1px solid ${c.border}`, borderRadius: 10, padding: '11px 13px',
               fontFamily: creaSans, fontSize: 14, outline: 'none',
             }} />
+          <div style={{ display: 'flex', gap: 7, marginTop: 10 }}>
+            {TODO_KINDS.map((k) => {
+              const sel = kind === k.id;
+              return (
+                <button key={k.id} onClick={() => setKind(k.id)} style={{
+                  flex: 1, padding: '7px 0', borderRadius: 999, cursor: 'pointer',
+                  border: `1px solid ${sel ? c.accent : c.border}`,
+                  background: sel ? `${c.accent}22` : c.panel2, color: sel ? c.accent : c.text,
+                  fontFamily: creaSans, fontSize: 12.5, fontWeight: 700,
+                }}>{tr(k.label)}</button>
+              );
+            })}
+          </div>
           <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
             {tr('Assigner à')}
           </div>
@@ -1625,23 +1650,27 @@ function CreaTodos({ store, dark, t }) {
               }}><Icon.plus width={13} height={13} /></button>
             )}
           </div>
-          <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
-            {tr('Priorité')}
-          </div>
-          <div style={{ display: 'flex', gap: 7 }}>
-            {TODO_PRIORITIES.map((p) => {
-              const sel = priority === p.id;
-              const pc = prioColor(c, p.id);
-              return (
-                <button key={p.id} onClick={() => setPriority(p.id)} style={{
-                  flex: 1, padding: '7px 0', borderRadius: 999, cursor: 'pointer',
-                  border: `1px solid ${sel ? pc : c.border}`,
-                  background: sel ? `${pc}22` : c.panel2, color: sel ? pc : c.text,
-                  fontFamily: creaSans, fontSize: 12.5, fontWeight: 700,
-                }}>{tr(p.label)}</button>
-              );
-            })}
-          </div>
+          {kind === 'task' && (
+            <React.Fragment>
+              <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
+                {tr('Priorité')}
+              </div>
+              <div style={{ display: 'flex', gap: 7 }}>
+                {TODO_PRIORITIES.map((p) => {
+                  const sel = priority === p.id;
+                  const pc = prioColor(c, p.id);
+                  return (
+                    <button key={p.id} onClick={() => setPriority(p.id)} style={{
+                      flex: 1, padding: '7px 0', borderRadius: 999, cursor: 'pointer',
+                      border: `1px solid ${sel ? pc : c.border}`,
+                      background: sel ? `${pc}22` : c.panel2, color: sel ? pc : c.text,
+                      fontFamily: creaSans, fontSize: 12.5, fontWeight: 700,
+                    }}>{tr(p.label)}</button>
+                  );
+                })}
+              </div>
+            </React.Fragment>
+          )}
           <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
             {tr('Échéance (optionnel)')}
           </div>
@@ -1833,8 +1862,9 @@ function CreaTodos({ store, dark, t }) {
 // One To do row — static display, or an inline edit form (text, assignees,
 // priority) when `editing`. Split out so its draft state doesn't leak into
 // the parent (and reset) when a different row is edited.
-function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit }) {
+function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit, calendarView }) {
   const [text, setText] = React.useState(td.text);
+  const [kind, setKind] = React.useState(td.kind === 'activity' ? 'activity' : 'task');
   const [assignees, setAssignees] = React.useState(() => td.assignees || (td.assignee ? [td.assignee] : []));
   const [priority, setPriority] = React.useState(td.priority || 'medium');
   const [dueDate, setDueDate] = React.useState(td.dueDate || '');
@@ -1842,6 +1872,7 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
   React.useEffect(() => {
     if (editing) {
       setText(td.text);
+      setKind(td.kind === 'activity' ? 'activity' : 'task');
       setAssignees(td.assignees || (td.assignee ? [td.assignee] : []));
       setPriority(td.priority || 'medium');
       setDueDate(td.dueDate || '');
@@ -1857,9 +1888,12 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
     if (!txt || !assignees.length) return;
     // Unlike the add form (which just omits the keys when empty), edit must
     // be able to CLEAR a previously-set deadline — so empty here writes
-    // null explicitly rather than omitting the key.
+    // null explicitly rather than omitting the key. Same reasoning for
+    // `kind`: it must be writable both ways (task -> activity and back),
+    // so it's always written explicitly here, unlike the add form's
+    // omit-when-default approach.
     store.updateTodo(td.id, {
-      text: txt, assignees, priority,
+      text: txt, kind, assignees, priority,
       dueDate: dueDate || null,
       time: (dueDate && time) ? time : null,
     });
@@ -1875,6 +1909,19 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
             border: `1px solid ${c.border}`, borderRadius: 10, padding: '9px 12px',
             fontFamily: creaSans, fontSize: 13.5, outline: 'none',
           }} />
+        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+          {TODO_KINDS.map((k) => {
+            const sel = kind === k.id;
+            return (
+              <button key={k.id} onClick={() => setKind(k.id)} style={{
+                flex: 1, padding: '6px 0', borderRadius: 999, cursor: 'pointer',
+                border: `1px solid ${sel ? c.accent : c.border}`,
+                background: sel ? `${c.accent}22` : c.panel2, color: sel ? c.accent : c.text,
+                fontFamily: creaSans, fontSize: 11.5, fontWeight: 700,
+              }}>{tr(k.label)}</button>
+            );
+          })}
+        </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
           {store.team.map((name) => {
             const sel = assignees.includes(name);
@@ -1888,20 +1935,22 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
             );
           })}
         </div>
-        <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
-          {TODO_PRIORITIES.map((p) => {
-            const sel = priority === p.id;
-            const pc = prioColor(c, p.id);
-            return (
-              <button key={p.id} onClick={() => setPriority(p.id)} style={{
-                flex: 1, padding: '6px 0', borderRadius: 999, cursor: 'pointer',
-                border: `1px solid ${sel ? pc : c.border}`,
-                background: sel ? `${pc}22` : c.panel2, color: sel ? pc : c.text,
-                fontFamily: creaSans, fontSize: 11.5, fontWeight: 700,
-              }}>{tr(p.label)}</button>
-            );
-          })}
-        </div>
+        {kind === 'task' && (
+          <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
+            {TODO_PRIORITIES.map((p) => {
+              const sel = priority === p.id;
+              const pc = prioColor(c, p.id);
+              return (
+                <button key={p.id} onClick={() => setPriority(p.id)} style={{
+                  flex: 1, padding: '6px 0', borderRadius: 999, cursor: 'pointer',
+                  border: `1px solid ${sel ? pc : c.border}`,
+                  background: sel ? `${pc}22` : c.panel2, color: sel ? pc : c.text,
+                  fontFamily: creaSans, fontSize: 11.5, fontWeight: 700,
+                }}>{tr(p.label)}</button>
+              );
+            })}
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 6, marginTop: 10 }}>
           <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{
             flex: 1, boxSizing: 'border-box', background: c.panel2, color: c.text,
@@ -1930,22 +1979,30 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
     );
   }
 
+  const isActivity = td.kind === 'activity';
   const pid = td.priority || 'medium';
   const pc = prioColor(c, pid);
   const pLabel = (TODO_PRIORITIES.find((p) => p.id === pid) || TODO_PRIORITIES[1]).label;
-  // Overdue = has a deadline, it's in the past, and it's not done yet —
-  // takes visual precedence over the priority tint (25 = same red hue as
-  // "high" priority, prioHue('high')) since it's a more urgent signal.
-  const overdue = !!(td.dueDate && td.dueDate < todayISO() && !td.done);
+  // Overdue only applies to tasks — activities have no urgency concept.
+  const overdue = !!(!isActivity && td.dueDate && td.dueDate < todayLocalISO() && !td.done);
+  // Tinting has two schemes: the plain list (calendarView=false, unchanged
+  // from before this task) keeps priority/overdue-based coloring; inside
+  // the calendar (calendarView=true, wired up in the next task) every task
+  // is a consistent light red and every activity is neutral, so the two
+  // kinds read apart from across the whole grid at a glance rather than
+  // varying by priority.
+  const tintStyle = isActivity ? {} : (calendarView ? softTintBar(dark, 25) : softTintBar(dark, overdue ? 25 : prioHue(pid)));
 
   return (
-    <div style={{ ...card, ...softTintBar(dark, overdue ? 25 : prioHue(pid)), display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
-      <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
-        width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
-        border: `1.5px solid ${td.done ? c.accent : c.border}`,
-        background: td.done ? c.accent : 'transparent',
-        color: c.inkContrast, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>{td.done && <Icon.check width={13} height={13} />}</button>
+    <div style={{ ...card, ...tintStyle, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
+      {!isActivity && (
+        <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
+          width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
+          border: `1.5px solid ${td.done ? c.accent : c.border}`,
+          background: td.done ? c.accent : 'transparent',
+          color: c.inkContrast, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>{td.done && <Icon.check width={13} height={13} />}</button>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
         <div style={{ fontFamily: creaMono, fontSize: 10.5, color: overdue ? c.rose : c.muted, marginTop: 1, fontWeight: overdue ? 700 : 400 }}>
@@ -1955,11 +2012,13 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit })
           )}
         </div>
       </div>
-      <span style={{
-        flexShrink: 0, padding: '3px 9px', borderRadius: 999,
-        border: `1px solid ${pc}`, background: `${pc}22`, color: pc,
-        fontFamily: creaSans, fontSize: 10, fontWeight: 700,
-      }}>{tr(pLabel)}</span>
+      {!isActivity && (
+        <span style={{
+          flexShrink: 0, padding: '3px 9px', borderRadius: 999,
+          border: `1px solid ${pc}`, background: `${pc}22`, color: pc,
+          fontFamily: creaSans, fontSize: 10, fontWeight: 700,
+        }}>{tr(pLabel)}</span>
+      )}
       <button onClick={onEdit} aria-label="edit" style={{
         background: 'none', border: 'none', color: c.mutedSoft, cursor: 'pointer', padding: 4, display: 'flex', flexShrink: 0,
       }}><Icon.edit width={15} height={15} /></button>
