@@ -1541,6 +1541,7 @@ function CreaTodos({ store, dark, t }) {
   const matchesFilter = (td) => !personFilter || assigneesOf(td).includes(personFilter);
   const open = byPriority(store.todos.filter((x) => !x.done && matchesFilter(x)));
   const done = byPriority(store.todos.filter((x) => x.done && matchesFilter(x)));
+  const openTasks = open.filter((x) => x.kind !== 'activity');
 
   // ── Calendar grid: today + next 13 days (14 total, 7 columns × 2 rows),
   // fixed window, not calendar-week-aligned. Selecting a day shows that
@@ -1557,14 +1558,29 @@ function CreaTodos({ store, dark, t }) {
   // simultaneously, with autoFocus landing on whichever mounted last. The
   // calendar section and the plain list now track their own editing todo.
   const [calEditingId, setCalEditingId] = React.useState(null);
+  // "Today" as of the last time it was checked — refreshed on tab
+  // visibility/focus so a PWA left open past midnight doesn't keep
+  // treating yesterday as today (which would freeze the grid window,
+  // silently drop the "En retard" group, and arm new items with a
+  // stale date).
+  const [today, setToday] = React.useState(todayLocalISO());
+  React.useEffect(() => {
+    const check = () => setToday(todayLocalISO());
+    document.addEventListener('visibilitychange', check);
+    window.addEventListener('focus', check);
+    return () => {
+      document.removeEventListener('visibilitychange', check);
+      window.removeEventListener('focus', check);
+    };
+  }, []);
   const next14Days = React.useMemo(() => {
     const days = [];
-    const [y, m, d] = todayLocalISO().split('-').map(Number);
+    const [y, m, d] = today.split('-').map(Number);
     for (let i = 0; i < 14; i++) {
       days.push(new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10));
     }
     return days;
-  }, []);
+  }, [today]);
   // Chronological, not priority-ordered — a calendar day view should read
   // top-to-bottom in time order. Untimed ("all-day") entries sort first,
   // matching how Google Calendar puts all-day events above the timed grid.
@@ -1577,8 +1593,8 @@ function CreaTodos({ store, dark, t }) {
   const dayTodosAll = store.todos.filter((x) => x.dueDate === selectedDay);
   const dayOpen = byTime(dayTodosAll.filter((x) => !x.done));
   const dayDone = byTime(dayTodosAll.filter((x) => x.done));
-  const overdueTodos = selectedDay === todayLocalISO()
-    ? byTime(store.todos.filter((x) => x.kind !== 'activity' && x.dueDate && x.dueDate < todayLocalISO() && !x.done))
+  const overdueTodos = selectedDay === today
+    ? byTime(store.todos.filter((x) => x.kind !== 'activity' && x.dueDate && x.dueDate < today && !x.done))
     : [];
 
   const toggleAssignee = (name) => setAssignees((xs) =>
@@ -1622,7 +1638,7 @@ function CreaTodos({ store, dark, t }) {
           the whole grid at a glance. */}
       <div style={{ padding: '18px 22px 4px', display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
         {next14Days.map((iso, i) => {
-          const isToday = i === 0;
+          const isToday = iso === today;
           const sel = selectedDay === iso;
           const dayItems = store.todos.filter((x) => x.dueDate === iso);
           const hasTask = dayItems.some((x) => x.kind !== 'activity');
@@ -1682,7 +1698,7 @@ function CreaTodos({ store, dark, t }) {
         ))}
       </div>
 
-      <CreaHero label={tr('Tâches')} value={open.length} sub={tr('à faire')} color={c.amber} t={t} dark={dark} unit="" />
+      <CreaHero label={tr('Tâches')} value={openTasks.length} sub={tr('à faire')} color={c.amber} t={t} dark={dark} unit="" />
 
       {/* New task */}
       <div style={{ padding: '0 22px' }}>
@@ -1763,7 +1779,7 @@ function CreaTodos({ store, dark, t }) {
             </React.Fragment>
           )}
           <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.mutedSoft, fontWeight: 600, fontFamily: creaSans, margin: '10px 0 6px' }}>
-            {tr('Échéance (optionnel)')}
+            {tr(kind === 'activity' ? 'Quand (optionnel)' : 'Échéance (optionnel)')}
           </div>
           <div style={{ display: 'flex', gap: 7 }}>
             <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={{
@@ -1787,7 +1803,7 @@ function CreaTodos({ store, dark, t }) {
       </div>
 
       {/* Task list */}
-      <CreaSection title={tr('Tâches')} right={`${open.length}`} dark={dark} t={t} />
+      <CreaSection title={tr('Tâches')} right={`${openTasks.length}`} dark={dark} t={t} />
       {/* Filter by person — tap a name to show only their tasks, tap again to
           clear. The small × removes someone from the team roster entirely;
           existing todos keep their assignee name either way (historical
@@ -1925,6 +1941,7 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit, c
       text: txt, kind, assignees, priority,
       dueDate: dueDate || null,
       time: (dueDate && time) ? time : null,
+      done: kind === 'activity' ? false : td.done,
     });
     onCloseEdit();
   };
@@ -2023,7 +2040,7 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit, c
   const tintStyle = isActivity ? {} : (calendarView ? softTintBar(dark, 25) : softTintBar(dark, overdue ? 25 : prioHue(pid)));
 
   return (
-    <div style={{ ...card, ...tintStyle, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: td.done ? 0.55 : 1 }}>
+    <div style={{ ...card, ...tintStyle, display: 'flex', alignItems: 'center', gap: 12, padding: '11px 13px', opacity: (td.done && !isActivity) ? 0.55 : 1 }}>
       {!isActivity && (
         <button onClick={() => store.toggleTodo(td.id)} aria-label="toggle" style={{
           width: 24, height: 24, borderRadius: 999, flexShrink: 0, cursor: 'pointer',
@@ -2033,11 +2050,11 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit, c
         }}>{td.done && <Icon.check width={13} height={13} />}</button>
       )}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: td.done ? 'line-through' : 'none' }}>{td.text}</div>
+        <div style={{ fontFamily: creaSans, fontSize: 13.5, color: c.text, fontWeight: 500, textDecoration: (td.done && !isActivity) ? 'line-through' : 'none' }}>{td.text}</div>
         <div style={{ fontFamily: creaMono, fontSize: 10.5, color: overdue ? c.rose : c.muted, marginTop: 1, fontWeight: overdue ? 700 : 400 }}>
           {(td.assignees || (td.assignee ? [td.assignee] : [])).join(', ')} · {fmtDate(td.date)}
           {td.dueDate && (
-            <React.Fragment> · {tr('Échéance')} {fmtDay(td.dueDate)}{td.time ? ` ${td.time}` : ''}</React.Fragment>
+            <React.Fragment> · {tr(isActivity ? 'Prévu le' : 'Échéance')} {fmtDay(td.dueDate)}{td.time ? ` ${td.time}` : ''}</React.Fragment>
           )}
         </div>
       </div>
