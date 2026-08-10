@@ -1573,6 +1573,21 @@ function CreaTodos({ store, dark, t }) {
       window.removeEventListener('focus', check);
     };
   }, []);
+  // Roll `selectedDay`/`dueDate` forward together with `today` when they
+  // were still tracking "today" — otherwise a midnight rollover leaves
+  // both pointing at yesterday: no grid cell reads as selected, the
+  // "En retard" group vanishes (its guard is `selectedDay === today`),
+  // and a newly-added item lands one day in the past. If the user had
+  // deliberately selected some other day, leave it alone.
+  const todayRef = React.useRef(today);
+  React.useEffect(() => {
+    if (today !== todayRef.current) {
+      const prevToday = todayRef.current;
+      setSelectedDay((d) => (d === prevToday ? today : d));
+      setDueDate((d) => (d === prevToday ? today : d));
+      todayRef.current = today;
+    }
+  }, [today]);
   const next14Days = React.useMemo(() => {
     const days = [];
     const [y, m, d] = today.split('-').map(Number);
