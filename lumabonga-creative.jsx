@@ -1512,7 +1512,16 @@ const prioHue = (p) => p === 'high' ? 25 : p === 'low' ? 85 : 60;
 // up there, so the two screens agree on what "urgent" looks like.
 const purchaseHue = (units) => units <= 1 ? 25 : units < 5 ? 60 : 85;
 const prioRank = { high: 0, medium: 1, low: 2 };
-const byPriority = (xs) => [...xs].sort((a, b) => prioRank[a.priority || 'medium'] - prioRank[b.priority || 'medium']);
+// Activities always sort after every task, regardless of whatever
+// `priority` value they happen to be carrying (preserved only so a
+// conversion back to a task restores it — see CreaTodoRow's edit-form
+// useEffect — never shown or editable while the item is an activity, so
+// it must not silently affect where an activity lands in this list).
+const byPriority = (xs) => [...xs].sort((a, b) => {
+  const ra = a.kind === 'activity' ? 3 : prioRank[a.priority || 'medium'];
+  const rb = b.kind === 'activity' ? 3 : prioRank[b.priority || 'medium'];
+  return ra - rb;
+});
 
 function CreaTodos({ store, dark, t }) {
   const c = creaTheme(dark, t.accent);
@@ -1533,16 +1542,25 @@ function CreaTodos({ store, dark, t }) {
   const open = byPriority(store.todos.filter((x) => !x.done && matchesFilter(x)));
   const done = byPriority(store.todos.filter((x) => x.done && matchesFilter(x)));
 
-  // ── Calendar day strip: today + next 6 days, fixed window (no
-  // scroll-to-discover-more). Selecting a day both shows that day's todos
-  // below the strip AND sets the add form's dueDate above it, so adding a
-  // task while a day is selected schedules it there — no separate creation
-  // flow needed.
-  const [selectedDay, setSelectedDay] = React.useState(todayISO());
-  const next7Days = React.useMemo(() => {
+  // ── Calendar grid: today + next 13 days (14 total, 7 columns × 2 rows),
+  // fixed window, not calendar-week-aligned. Selecting a day shows that
+  // day's items below the grid AND sets the add form's dueDate above it —
+  // "arming" it — so adding an item while a day is selected schedules it
+  // there. The armed date and the visibly-selected cell are kept in sync
+  // in both directions (see Step 3's `add()` and this state's own init)
+  // — v1 let them drift apart after the first add, which is fixed here.
+  const [selectedDay, setSelectedDay] = React.useState(todayLocalISO());
+  // Two independent editing-id tracks: v1 shared one `editingId` across
+  // every render site a todo could appear in (calendar + plain list for
+  // the same dated item), so editing a todo from the calendar could open
+  // a SECOND edit form for the same todo in the plain list below,
+  // simultaneously, with autoFocus landing on whichever mounted last. The
+  // calendar section and the plain list now track their own editing todo.
+  const [calEditingId, setCalEditingId] = React.useState(null);
+  const next14Days = React.useMemo(() => {
     const days = [];
-    const [y, m, d] = todayISO().split('-').map(Number);
-    for (let i = 0; i < 7; i++) {
+    const [y, m, d] = todayLocalISO().split('-').map(Number);
+    for (let i = 0; i < 14; i++) {
       days.push(new Date(Date.UTC(y, m - 1, d + i)).toISOString().slice(0, 10));
     }
     return days;
@@ -1559,8 +1577,8 @@ function CreaTodos({ store, dark, t }) {
   const dayTodosAll = store.todos.filter((x) => x.dueDate === selectedDay);
   const dayOpen = byTime(dayTodosAll.filter((x) => !x.done));
   const dayDone = byTime(dayTodosAll.filter((x) => x.done));
-  const overdueTodos = selectedDay === todayISO()
-    ? byTime(store.todos.filter((x) => x.dueDate && x.dueDate < todayISO() && !x.done))
+  const overdueTodos = selectedDay === todayLocalISO()
+    ? byTime(store.todos.filter((x) => x.kind !== 'activity' && x.dueDate && x.dueDate < todayLocalISO() && !x.done))
     : [];
 
   const toggleAssignee = (name) => setAssignees((xs) =>
@@ -1578,7 +1596,12 @@ function CreaTodos({ store, dark, t }) {
     setText('');
     setKind('task');
     setPriority('medium');
-    setDueDate('');
+    // Re-arm for the still-selected calendar day rather than clearing —
+    // v1 cleared to '', which silently desynced the form from whichever
+    // cell was still visibly highlighted, so a second item added right
+    // after the first landed with no deadline at all even though a day
+    // was still selected.
+    setDueDate(selectedDay);
     setTime('');
   };
   const confirmMember = () => {
@@ -1591,6 +1614,74 @@ function CreaTodos({ store, dark, t }) {
 
   return (
     <div>
+      {/* Calendar grid — today + next 13 days (7 columns × 2 rows), today
+          emphasized. Tap a day to see its scheduled items below the grid;
+          only todos with a dueDate show here, undated todos stay
+          exclusively in the plain list further down. Tasks render light
+          red, activities neutral gray, so the two kinds read apart across
+          the whole grid at a glance. */}
+      <div style={{ padding: '18px 22px 4px', display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 5 }}>
+        {next14Days.map((iso, i) => {
+          const isToday = i === 0;
+          const sel = selectedDay === iso;
+          const dayItems = store.todos.filter((x) => x.dueDate === iso);
+          const hasTask = dayItems.some((x) => x.kind !== 'activity');
+          const hasActivity = dayItems.some((x) => x.kind === 'activity');
+          return (
+            <button key={iso} onClick={() => { setSelectedDay(iso); setDueDate(iso); }} style={{
+              padding: isToday ? '9px 3px' : '6px 2px',
+              borderRadius: 12, cursor: 'pointer',
+              border: `1px solid ${sel ? c.accent : c.border}`,
+              background: sel ? `${c.accent}1c` : c.panel2,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
+            }}>
+              <span style={{ fontFamily: creaSans, fontSize: isToday ? 10.5 : 8.5, fontWeight: 700, color: sel ? c.accent : c.mutedSoft, textTransform: 'uppercase' }}>
+                {new Date(iso).toLocaleDateString(LB_LOCALE, { weekday: 'short', timeZone: 'UTC' })}
+              </span>
+              <span style={{ fontFamily: creaDisplay, fontSize: isToday ? 18 : 13, fontWeight: 700, color: sel ? c.accent : c.text }}>
+                {iso.slice(8, 10)}
+              </span>
+              <span style={{ display: 'flex', gap: 3, height: 5 }}>
+                <span style={{ width: 5, height: 5, borderRadius: 999, background: hasTask ? c.rose : 'transparent' }} />
+                <span style={{ width: 5, height: 5, borderRadius: 999, background: hasActivity ? c.mutedSoft : 'transparent' }} />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <div style={{ padding: '10px 22px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {overdueTodos.length > 0 && (
+          <div>
+            <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.rose, fontWeight: 700, fontFamily: creaSans, marginBottom: 6 }}>
+              {tr('En retard')}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {overdueTodos.map((td) => (
+                <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark} calendarView
+                  editing={calEditingId === td.id}
+                  onEdit={() => setCalEditingId(td.id)}
+                  onCloseEdit={() => setCalEditingId(null)} />
+              ))}
+            </div>
+          </div>
+        )}
+        {dayOpen.length === 0 && dayDone.length === 0 && overdueTodos.length === 0 && (
+          <div style={{ fontFamily: creaSans, fontSize: 12.5, color: c.mutedSoft, padding: '4px 0' }}>{tr('Rien de prévu ce jour-là.')}</div>
+        )}
+        {dayOpen.map((td) => (
+          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark} calendarView
+            editing={calEditingId === td.id}
+            onEdit={() => setCalEditingId(td.id)}
+            onCloseEdit={() => setCalEditingId(null)} />
+        ))}
+        {dayDone.map((td) => (
+          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark} calendarView
+            editing={calEditingId === td.id}
+            onEdit={() => setCalEditingId(td.id)}
+            onCloseEdit={() => setCalEditingId(null)} />
+        ))}
+      </div>
+
       <CreaHero label={tr('Tâches')} value={open.length} sub={tr('à faire')} color={c.amber} t={t} dark={dark} unit="" />
 
       {/* New task */}
@@ -1693,68 +1784,6 @@ function CreaTodos({ store, dark, t }) {
             fontFamily: creaSans, fontSize: 14, fontWeight: 700,
           }}>{tr('Ajouter')}</button>
         </div>
-      </div>
-
-      {/* Calendar day strip — today + next 6 days, today emphasized. Tap a
-          day to see its scheduled tasks below; only todos with a dueDate
-          show here, undated todos stay exclusively in the plain list
-          further down. */}
-      <div style={{ padding: '14px 22px 10px', display: 'flex', gap: 6 }}>
-        {next7Days.map((iso, i) => {
-          const isToday = i === 0;
-          const sel = selectedDay === iso;
-          const hasTasks = store.todos.some((x) => x.dueDate === iso);
-          return (
-            <button key={iso} onClick={() => { setSelectedDay(iso); setDueDate(iso); }} style={{
-              flex: isToday ? '0 0 60px' : 1,
-              padding: isToday ? '10px 4px' : '7px 2px',
-              borderRadius: 14, cursor: 'pointer',
-              border: `1px solid ${sel ? c.accent : c.border}`,
-              background: sel ? `${c.accent}1c` : c.panel2,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-            }}>
-              <span style={{ fontFamily: creaSans, fontSize: isToday ? 11 : 9.5, fontWeight: 700, color: sel ? c.accent : c.mutedSoft, textTransform: 'uppercase' }}>
-                {new Date(iso).toLocaleDateString(LB_LOCALE, { weekday: 'short', timeZone: 'UTC' })}
-              </span>
-              <span style={{ fontFamily: creaDisplay, fontSize: isToday ? 20 : 15, fontWeight: 700, color: sel ? c.accent : c.text }}>
-                {iso.slice(8, 10)}
-              </span>
-              <span style={{ width: 5, height: 5, borderRadius: 999, background: hasTasks ? (sel ? c.accent : c.mutedSoft) : 'transparent' }} />
-            </button>
-          );
-        })}
-      </div>
-      <div style={{ padding: '0 22px 8px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {overdueTodos.length > 0 && (
-          <div>
-            <div style={{ fontSize: 10, letterSpacing: 0.7, textTransform: 'uppercase', color: c.rose, fontWeight: 700, fontFamily: creaSans, marginBottom: 6 }}>
-              {tr('En retard')}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {overdueTodos.map((td) => (
-                <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
-                  editing={editingId === td.id}
-                  onEdit={() => setEditingId(td.id)}
-                  onCloseEdit={() => setEditingId(null)} />
-              ))}
-            </div>
-          </div>
-        )}
-        {dayOpen.length === 0 && dayDone.length === 0 && overdueTodos.length === 0 && (
-          <div style={{ fontFamily: creaSans, fontSize: 12.5, color: c.mutedSoft, padding: '4px 0' }}>{tr('Rien de prévu ce jour-là.')}</div>
-        )}
-        {dayOpen.map((td) => (
-          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
-            editing={editingId === td.id}
-            onEdit={() => setEditingId(td.id)}
-            onCloseEdit={() => setEditingId(null)} />
-        ))}
-        {dayDone.map((td) => (
-          <CreaTodoRow key={td.id} td={td} store={store} c={c} card={card} dark={dark}
-            editing={editingId === td.id}
-            onEdit={() => setEditingId(td.id)}
-            onCloseEdit={() => setEditingId(null)} />
-        ))}
       </div>
 
       {/* Task list */}
