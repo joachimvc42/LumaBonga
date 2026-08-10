@@ -1529,7 +1529,7 @@ function CreaTodos({ store, dark, t }) {
   const [kind, setKind] = React.useState('task');    // 'task' or 'activity' — see TODO_KINDS below
   const [assignees, setAssignees] = React.useState(() => store.team[0] ? [store.team[0]] : []);
   const [priority, setPriority] = React.useState('medium');
-  const [dueDate, setDueDate] = React.useState('');  // "" = no deadline; the add form and the calendar grid below share this one field
+  const [dueDate, setDueDate] = React.useState(todayLocalISO());  // shares this field with the calendar grid below — starts armed for today, matching today's cell being selected by default
   const [time, setTime] = React.useState('');        // "" = no specific time; only meaningful alongside dueDate
   const [addingMember, setAddingMember] = React.useState(false);
   const [memberDraft, setMemberDraft] = React.useState('');
