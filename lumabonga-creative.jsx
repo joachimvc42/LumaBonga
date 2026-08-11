@@ -2543,13 +2543,30 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restric
             <div style={{
               padding: '12px 16px', borderRadius: 14,
               background: c.panel2, border: `1px solid ${c.border}`,
-              display: 'flex', alignItems: 'center', gap: 10,
+              display: 'flex', flexDirection: 'column', gap: 10,
             }}>
-              <span style={{ color: c.muted, display: 'flex' }}><Icon.box width={18} height={18} /></span>
-              <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.muted, flex: 1 }}>
-                {tr('Info : {n} unités produisibles avec le stock actuel', { n: canProduce })}
-                {Number(qty) > canProduce ? tr(' · le stock matières passera en négatif', {}) : ''}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ color: c.muted, display: 'flex' }}><Icon.box width={18} height={18} /></span>
+                <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.muted, flex: 1 }}>
+                  {tr('Info : {n} unités produisibles avec le stock actuel', { n: canProduce })}
+                  {Number(qty) > canProduce ? tr(' · le stock matières passera en négatif', {}) : ''}
+                </span>
+              </div>
+              {productId && Number(qty) > canProduce && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 28 }}>
+                  <span style={{ fontFamily: creaSans, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase', color: c.rose, fontWeight: 700 }}>
+                    {tr('À acheter pour produire {n}', { n: qty })}
+                  </span>
+                  {store.shortfallsFor(productId, qty).map((s) => {
+                    const mat = store.materialById[s.materialId];
+                    return (
+                      <span key={s.materialId} style={{ fontFamily: creaMono, fontSize: 12, color: c.text }}>
+                        {mat?.name} · {fmtQty(s.missing)} {mat?.unit} {tr('manquant')}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </React.Fragment>
         )}

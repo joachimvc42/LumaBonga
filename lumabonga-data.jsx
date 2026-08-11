@@ -218,6 +218,7 @@ const LB_EN = {
   'À acheter': 'To purchase',
   'Stock insuffisant pour produire 10 unités': 'Not enough stock to make 10 units',
   'manquant': 'missing', 'pour 10× {name}': 'for 10× {name}',
+  'À acheter pour produire {n}': 'To buy to produce {n}',
   'Rien à acheter — les stocks couvrent 10 unités de chaque produit.': 'Nothing to buy — stock covers 10 units of every product.',
   // Public mode
   'Se connecter': 'Sign in',
@@ -336,6 +337,7 @@ const LB_ID = {
   'Rien à acheter — les stocks couvrent 10 unités de chaque produit.':
     'Tidak ada yang perlu dibeli — stok cukup untuk 10 unit setiap produk.',
   'pour 10× {name}': 'untuk 10× {name}', 'manquant': 'kurang',
+  'À acheter pour produire {n}': 'Perlu dibeli untuk memproduksi {n}',
 
   // ── Add/edit sheet: sale, purchase, cost, production, material, product, settlement ──
   'Encaissé par': 'Diterima oleh', 'Payé par': 'Dibayar oleh', 'Modifier': 'Edit',
@@ -1133,6 +1135,25 @@ function useLumaStore(seed, shareLumaya) {
     return best;
   }, [recipes, materialStock]);
 
+  // For a specific desired production quantity (not just "what's producible
+  // right now"), every ingredient short of covering it and by how much
+  // (base unit, same shape as toPurchase's per-material entries).
+  const shortfallsFor = React.useCallback((pid, desiredQty) => {
+    const r = recipes[pid];
+    const n = Number(desiredQty) || 0;
+    if (!r || !r.ingredients.length || n <= 0) return [];
+    const out = [];
+    for (const ing of r.ingredients) {
+      const need = (Number(ing.qty) || 0) * n;
+      if (need <= 0) continue;
+      const have = materialStock[ing.materialId] ?? 0;
+      const missing = need - have;
+      if (missing <= 0) continue;
+      out.push({ materialId: ing.materialId, missing, need, have });
+    }
+    return out.sort((a, b) => b.missing - a.missing);
+  }, [recipes, materialStock]);
+
   const cogsOf = React.useCallback((s) => {
     const r = recipes[s.productId];
     const unit = r ? recipeCost(r, materialById, purchases, s.date).total : 0;
@@ -1320,7 +1341,7 @@ function useLumaStore(seed, shareLumaya) {
     sopDrafts, sopDraftFor, startSopDraft, setSopDraftSteps, approveSopDraftAsBase, approveSopDraftAsBaseAndRestart, discardSopDraft,
     todos, addTodo, updateTodo, toggleTodo, removeTodo,
     team, addTeamMember, removeTeamMember, toPurchase,
-    materialStock, finishedStock, producibleFor, bottleneckFor,
+    materialStock, finishedStock, producibleFor, bottleneckFor, shortfallsFor,
     addIngredient, updateIngredientQty, updateIngredient, removeIngredient,
     addLabor, updateLabor, removeLabor,
   };
