@@ -670,6 +670,15 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose, draft = false })
       if (mode === 'g' && !(unitWeight > 0)) return;
       setBatch(mode === 'g' ? n / unitWeight : n);
     };
+    // Desired quantity expressed in product units, whichever mode is
+    // active — lets the stock check below work identically for "50
+    // units" and "for 2000 g" (~N units at unitWeight g/unit).
+    const desiredUnitsN = Number(batchDraft);
+    const desiredUnits = (desiredUnitsN > 0)
+      ? (mode === 'g' ? (unitWeight > 0 ? desiredUnitsN / unitWeight : 0) : desiredUnitsN)
+      : 0;
+    const canProduce = store.producibleFor(pid);
+    const shortfalls = desiredUnits > canProduce ? store.shortfallsFor(pid, desiredUnits) : [];
     const modeBtn = (id, label) => (
       <button key={id} onClick={() => setMode(id)} style={{
         flex: 1, padding: '9px 0', borderRadius: 10, cursor: 'pointer',
@@ -705,6 +714,35 @@ function ProdSopViewerSheet({ store, dark, t, product, onClose, draft = false })
             {tr('Les quantités de la SOP s’adaptent automatiquement.')}
           </div>
         </div>
+        {desiredUnits > 0 && (
+          <div style={{
+            padding: '12px 16px', borderRadius: 14,
+            background: c.panel2, border: `1px solid ${c.border}`,
+            display: 'flex', flexDirection: 'column', gap: 10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: c.muted, display: 'flex' }}><Icon.box width={18} height={18} /></span>
+              <span style={{ fontFamily: prodSans, fontSize: 12.5, color: c.muted, flex: 1 }}>
+                {tr('Info : {n} unités produisibles avec le stock actuel', { n: canProduce })}
+              </span>
+            </div>
+            {shortfalls.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 28 }}>
+                <span style={{ fontFamily: prodSans, fontSize: 11, letterSpacing: 0.5, textTransform: 'uppercase', color: c.rose, fontWeight: 700 }}>
+                  {tr('À acheter pour produire {n}', { n: Math.ceil(desiredUnits) })}
+                </span>
+                {shortfalls.map((s) => {
+                  const mat = store.materialById[s.materialId];
+                  return (
+                    <span key={s.materialId} style={{ fontFamily: prodMono, fontSize: 12, color: c.text }}>
+                      {mat?.name} · {fmtQty(s.missing)} {mat?.unit} {tr('manquant')}
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
         <button onClick={go} style={{
           width: '100%', padding: '14px', borderRadius: 999, cursor: 'pointer', border: 'none',
           background: c.accent, color: c.inkContrast, fontFamily: prodSans, fontSize: 15, fontWeight: 700,
