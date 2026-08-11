@@ -2200,18 +2200,23 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restric
   // Purchase: user enters quantity (in a chosen unit) + total price paid (IDR).
   // Stored values stay per BASE unit (g/ml/m/pièce); per-unit price is computed.
   // Buying a not-yet-existing material: pick "+ New material", name it, and the
-  // purchase itself creates it — no separate material-creation step.
+  // purchase itself creates it — no separate material-creation step. The unit
+  // picked next to the purchased quantity IS the new material's base unit —
+  // there used to be a second, separate unit picker under the name field that
+  // just duplicated this choice (and could silently disagree with it).
   const [newMatMode, setNewMatMode] = React.useState(!!initialNewMatMode);
   const [newMatName, setNewMatName] = React.useState('');
-  const [newMatUnit, setNewMatUnit] = React.useState('g');
-  const selMatBase = newMatMode ? newMatUnit : (store.materialById[materialId]?.unit || 'g');
   const defBuyUnit = (b) => COMPONENT_UNITS.includes(b) ? b : 'g';
-  const [buyUnit, setBuyUnit] = React.useState(defBuyUnit(ed?.buyUnit || selMatBase));
+  const [buyUnit, setBuyUnit] = React.useState(defBuyUnit(ed?.buyUnit || store.materialById[ed?.materialId || materialId]?.unit || 'g'));
+  const selMatBase = newMatMode ? buyUnit : (store.materialById[materialId]?.unit || 'g');
   const [buyTotal, setBuyTotal] = React.useState(ed && ed.qty != null && ed.price != null ? String(Math.round(ed.qty * ed.price)) : '');
-  // keep buy unit aligned when the selected material (or new-material unit) changes
+  // Keep buy unit aligned to the selected EXISTING material's own base unit
+  // when switching between materials. Not needed in newMatMode — there the
+  // buy-unit picker IS the (not-yet-set) new material's base unit, nothing
+  // to sync against yet.
   React.useEffect(() => {
-    if (kind === 'buy' && !ed) setBuyUnit(defBuyUnit(newMatMode ? newMatUnit : (store.materialById[materialId]?.unit || 'g')));
-  }, [materialId, kind, newMatMode, newMatUnit]);
+    if (kind === 'buy' && !ed && !newMatMode) setBuyUnit(defBuyUnit(store.materialById[materialId]?.unit || 'g'));
+  }, [materialId, kind, newMatMode]);
   // which organisation paid / cashed in this transaction
   const [org, setOrg] = React.useState(ed?.org || 'lumaya');
   // settlement: who pays whom
@@ -2224,7 +2229,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restric
     if (kind === 'buy' && materialId) setPrice(String(store.materialPrices[materialId] || ''));
   }, [productId, materialId, kind]);
 
-  const selMat = newMatMode ? { unit: newMatUnit } : store.materialById[materialId];
+  const selMat = newMatMode ? { unit: buyUnit } : store.materialById[materialId];
   const canProduce = kind === 'production' ? store.producibleFor(productId) : null;
   const bottleneck = kind === 'production' ? store.bottleneckFor(productId) : null;
 
@@ -2237,7 +2242,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restric
       let matId = materialId, mm = store.materialById[materialId];
       if (newMatMode) {
         if (!newMatName.trim() || !qty || !buyTotal) return;
-        mm = store.addMaterial({ name: newMatName.trim(), unit: newMatUnit, stock0: 0 });
+        mm = store.addMaterial({ name: newMatName.trim(), unit: buyUnit, stock0: 0 });
         matId = mm.id;
       }
       if (!matId || !qty || !buyTotal) return;
@@ -2428,11 +2433,6 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restric
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: 12, borderRadius: 12, background: c.panel2, border: `1px solid ${c.border}` }}>
                   <input value={newMatName} autoFocus onChange={(e) => setNewMatName(e.target.value)}
                     placeholder={tr('Nom de la matière')} style={{ ...inputStyle, background: 'transparent' }} />
-                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {['g', 'ml', 'goutte', 'm', 'pièce'].map((u) => (
-                      <button key={u} onClick={() => setNewMatUnit(u)} style={pill(newMatUnit === u)}>{u}</button>
-                    ))}
-                  </div>
                   <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft }}>
                     {tr('Le prix de cet achat devient le prix de référence de la matière.')}
                   </div>
@@ -2459,7 +2459,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restric
                 <div style={labelStyle}>{tr('Unité')}</div>
                 <select value={buyUnit} onChange={(e) => setBuyUnit(e.target.value)}
                   style={{ ...inputStyle, paddingRight: 4, background: c.panel, color: c.text }}>
-                  {COMPONENT_UNITS.map((u) => (
+                  {(newMatMode ? ['g', 'ml', 'goutte', 'm', 'pièce'] : COMPONENT_UNITS).map((u) => (
                     <option key={u} value={u} style={{ background: c.panel, color: c.text }}>{u}</option>
                   ))}
                 </select>
