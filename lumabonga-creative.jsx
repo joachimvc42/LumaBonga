@@ -1686,13 +1686,13 @@ function CreaTodos({ store, dark, t }) {
                   <span key={x.id} style={{ display: 'flex', alignItems: 'center', gap: 3, width: '100%', minWidth: 0 }}>
                     <span style={{ width: 4, height: 4, borderRadius: 999, flexShrink: 0, background: x.kind === 'activity' ? c.mutedSoft : c.rose }} />
                     <span style={{
-                      flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                      flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'left',
                       fontFamily: creaSans, fontSize: isToday ? 8.5 : 7, fontWeight: 600, color: c.text, lineHeight: `${lineH}px`,
                     }}>{x.text}</span>
                   </span>
                 ))}
                 {overflowN > 0 && (
-                  <span style={{ fontFamily: creaMono, fontSize: isToday ? 8.5 : 7, fontWeight: 700, lineHeight: `${lineH}px`, color: c.mutedSoft }}>
+                  <span style={{ fontFamily: creaMono, fontSize: isToday ? 8.5 : 7, fontWeight: 700, lineHeight: `${lineH}px`, color: c.mutedSoft, textAlign: 'left' }}>
                     +{overflowN}
                   </span>
                 )}
@@ -2169,7 +2169,7 @@ function CreaNav({ value, onChange, dark, t, role }) {
 }
 
 // ── Add / Edit sheet (creative) ──────────────────────────────
-function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restrictKinds }) {
+function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restrictKinds, initialNewMatMode }) {
   const c = creaTheme(dark, t.accent);
   const ed = editing || null;
   const isEdit = !!(ed && ed.id);
@@ -2201,7 +2201,7 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restric
   // Stored values stay per BASE unit (g/ml/m/pièce); per-unit price is computed.
   // Buying a not-yet-existing material: pick "+ New material", name it, and the
   // purchase itself creates it — no separate material-creation step.
-  const [newMatMode, setNewMatMode] = React.useState(false);
+  const [newMatMode, setNewMatMode] = React.useState(!!initialNewMatMode);
   const [newMatName, setNewMatName] = React.useState('');
   const [newMatUnit, setNewMatUnit] = React.useState('g');
   const selMatBase = newMatMode ? newMatUnit : (store.materialById[materialId]?.unit || 'g');
@@ -2719,12 +2719,13 @@ function CreaApp({ t, dark, role }) {
   const KIND_RESTRICT_BY_TAB = {
     sales: ['sale'],
     buys: ['buy', 'cost'],
-    stock: ['material', 'product'],
+    stock: ['buy', 'product'],
     prods: ['product'],
   };
   const [addRestrict, setAddRestrict] = React.useState(null);
 
   const defaultKind = (tb) => ({ sales: 'sale', buys: 'buy', stock: 'production', prods: 'product' }[tb] || 'sale');
+  const [addNewMatMode, setAddNewMatMode] = React.useState(false);
   const openAdd = (k) => {
     setEditing(null);
     if (typeof k === 'string') {
@@ -2734,18 +2735,27 @@ function CreaApp({ t, dark, role }) {
       // exactly as before this plan.
       setAdding(k);
       setAddRestrict(null);
+      setAddNewMatMode(false);
     } else {
       // Generic top-bar "+" — restrict to what's relevant on this tab.
       const restrict = KIND_RESTRICT_BY_TAB[tab] || null;
+      // Stock's Matières segment routes through Achat (not a direct
+      // "create material" form) — materials only get created as part of
+      // a purchase, per an earlier deliberate decision (commit 9375482,
+      // "no material without a purchase backing it"). Pre-arm the "+
+      // Nouvelle matière" chip so the user lands one tap from where they
+      // were, instead of having to find it themselves inside the form.
+      const matFromStock = tab === 'stock' && stockSeg === 'mat';
       const initialKind = tab === 'stock'
-        ? (stockSeg === 'mat' ? 'material' : 'product')
+        ? (stockSeg === 'mat' ? 'buy' : 'product')
         : (restrict ? restrict[0] : defaultKind(tab));
       setAdding(initialKind);
       setAddRestrict(restrict);
+      setAddNewMatMode(matFromStock);
     }
   };
-  const openEdit = (k, data) => { setEditing(data); setAdding(k); setAddRestrict(null); };
-  const closeSheet = () => { setAdding(null); setEditing(null); setAddRestrict(null); };
+  const openEdit = (k, data) => { setEditing(data); setAdding(k); setAddRestrict(null); setAddNewMatMode(false); };
+  const closeSheet = () => { setAdding(null); setEditing(null); setAddRestrict(null); setAddNewMatMode(false); };
   const goTab = (id) => { setTab(id); };
 
   return (
@@ -2766,7 +2776,7 @@ function CreaApp({ t, dark, role }) {
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>
       <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} />
-      {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} restrictKinds={addRestrict} />}
+      {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} restrictKinds={addRestrict} initialNewMatMode={addNewMatMode} />}
     </div>
   );
 }
