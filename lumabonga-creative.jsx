@@ -178,7 +178,7 @@ function CreaMonthPicker({ store, dark, t }) {
 }
 
 // ── Top bar ──────────────────────────────────────────────────
-function CreaTopBar({ store, dark, t, onAdd, readonly, hidePeriod }) {
+function CreaTopBar({ store, dark, t, onAdd, readonly, hidePeriod, hideAdd }) {
   const c = creaTheme(dark, t.accent);
   return (
     <div style={{
@@ -197,13 +197,15 @@ function CreaTopBar({ store, dark, t, onAdd, readonly, hidePeriod }) {
       {!readonly && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           {!hidePeriod && <CreaMonthPicker store={store} dark={dark} t={t} />}
-          <button onClick={onAdd} aria-label="+" style={{
-            width: 34, height: 34, borderRadius: 999,
-            background: c.ink, color: c.inkContrast, border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-          }}>
-            <Icon.plus />
-          </button>
+          {!hideAdd && (
+            <button onClick={onAdd} aria-label="+" style={{
+              width: 34, height: 34, borderRadius: 999,
+              background: c.ink, color: c.inkContrast, border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <Icon.plus />
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -2167,7 +2169,7 @@ function CreaNav({ value, onChange, dark, t, role }) {
 }
 
 // ── Add / Edit sheet (creative) ──────────────────────────────
-function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
+function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose, restrictKinds }) {
   const c = creaTheme(dark, t.accent);
   const ed = editing || null;
   const isEdit = !!(ed && ed.id);
@@ -2290,6 +2292,13 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
     { id: 'material', label: 'Matière' },
     { id: 'product', label: 'Produit' },
   ];
+  // The generic top-bar "+" passes a tab-derived restrictKinds array so
+  // it only ever offers what's relevant to the tab it was opened from
+  // (e.g. Sales tab -> only "Vente", never "Production"). Every explicit
+  // tab-specific add button (the Achat/Charge rows in Purchases, the
+  // Production row in Stock, the Nouveau produit button in Produits)
+  // still passes nothing here and keeps the full unrestricted picker.
+  const visibleKinds = restrictKinds ? kinds.filter((k) => restrictKinds.includes(k.id)) : kinds;
   const pill = (sel, tone) => ({
     padding: '7px 13px', borderRadius: 999,
     background: sel ? (tone || c.ink) : 'transparent',
@@ -2339,9 +2348,9 @@ function CreaAddSheet({ store, dark, t, kind, setKind, editing, onClose }) {
           }}><Icon.close /></button>
         </div>
 
-        {!isEdit && kind !== 'settlement' && (
+        {!isEdit && kind !== 'settlement' && visibleKinds.length > 1 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            {kinds.map((k) => (
+            {visibleKinds.map((k) => (
               <button key={k.id} onClick={() => setKind(k.id)} style={pill(kind === k.id)}>{tr(k.label)}</button>
             ))}
           </div>
@@ -2699,11 +2708,44 @@ function CreaApp({ t, dark, role }) {
   if (!allowed.includes(tab)) { setTab(allowed[0]); }
   const [adding, setAdding] = React.useState(null);      // kind string
   const [editing, setEditing] = React.useState(null);    // entry data being edited
+  // Lifted out of CreaStock so the top-bar "+" (a sibling component) can
+  // default its kind to whichever segment (Matières/Produits finis) is
+  // currently open on the Stock tab.
+  const [stockSeg, setStockSeg] = React.useState('mat');
+  // Which kinds the generic top-bar "+" is allowed to offer, per tab —
+  // null means unrestricted (only ever used for explicit-kind opens, see
+  // openAdd below). Dash and To do have no entry here: their "+" is
+  // hidden entirely (see hideAdd on CreaTopBar below).
+  const KIND_RESTRICT_BY_TAB = {
+    sales: ['sale'],
+    buys: ['buy', 'cost'],
+    stock: ['material', 'product'],
+    prods: ['product'],
+  };
+  const [addRestrict, setAddRestrict] = React.useState(null);
 
   const defaultKind = (tb) => ({ sales: 'sale', buys: 'buy', stock: 'production', prods: 'product' }[tb] || 'sale');
-  const openAdd = (k) => { setEditing(null); setAdding(typeof k === 'string' ? k : defaultKind(tab)); };
-  const openEdit = (k, data) => { setEditing(data); setAdding(k); };
-  const closeSheet = () => { setAdding(null); setEditing(null); };
+  const openAdd = (k) => {
+    setEditing(null);
+    if (typeof k === 'string') {
+      // Explicit-kind open (a tab's own "Nouvelle facture d'achat" /
+      // "Nouvelle charge" / "Lancer une production" / "Nouveau produit"
+      // row, or Dashboard's "Règlement" button) — always unrestricted,
+      // exactly as before this plan.
+      setAdding(k);
+      setAddRestrict(null);
+    } else {
+      // Generic top-bar "+" — restrict to what's relevant on this tab.
+      const restrict = KIND_RESTRICT_BY_TAB[tab] || null;
+      const initialKind = tab === 'stock'
+        ? (stockSeg === 'mat' ? 'material' : 'product')
+        : (restrict ? restrict[0] : defaultKind(tab));
+      setAdding(initialKind);
+      setAddRestrict(restrict);
+    }
+  };
+  const openEdit = (k, data) => { setEditing(data); setAdding(k); setAddRestrict(null); };
+  const closeSheet = () => { setAdding(null); setEditing(null); setAddRestrict(null); };
   const goTab = (id) => { setTab(id); };
 
   return (
@@ -2713,16 +2755,18 @@ function CreaApp({ t, dark, role }) {
       overflow: 'hidden',
     }}>
       <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 56, paddingBottom: 120 }}>
-        <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} readonly={role === 'public'} hidePeriod={role === 'staff'} />
+        <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} readonly={role === 'public'}
+          hidePeriod={role === 'staff' || !['dash', 'sales', 'buys'].includes(tab)}
+          hideAdd={['dash', 'todos'].includes(tab)} />
         {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} role={role} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
-        {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} />}
+        {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} seg={stockSeg} onSegChange={setStockSeg} />}
         {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} />}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>
       <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} />
-      {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} />}
+      {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} restrictKinds={addRestrict} />}
     </div>
   );
 }

@@ -162,9 +162,16 @@ function AddRowButton({ c, label, onClick }) {
 }
 
 // ── Screen: Stock (matières + produits finis) ────────────────
-function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role }) {
+function CreaStock({ store, dark, t, onEdit, onAdd, onOpen, role, seg: segProp, onSegChange }) {
   const c = creaTheme(dark, t.accent);
-  const [seg, setSeg] = React.useState('mat');
+  // Controlled/uncontrolled hybrid: CreaApp now needs to read which
+  // segment (Matières/Produits finis) is active, to default the top-bar
+  // "+" button's kind to match what's on screen. Falls back to fully
+  // local state if no controlling props are passed, so any other caller
+  // of this component keeps working unchanged.
+  const [segState, setSegState] = React.useState('mat');
+  const seg = segProp !== undefined ? segProp : segState;
+  const setSeg = onSegChange || setSegState;
   // Staff (level-1 pass) sees stock levels to do their job, never the $ value.
   const restricted = role === 'staff';
   // Category folds — both lists start fully collapsed: pick the category
