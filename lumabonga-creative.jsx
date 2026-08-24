@@ -2736,12 +2736,14 @@ function CreaApp({ t, dark, role }) {
   const KIND_RESTRICT_BY_TAB = {
     sales: ['sale'],
     buys: ['buy', 'cost'],
-    stock: ['buy', 'product'],
-    prods: ['product'],
+    // From the Products tab, the main "+" records a production lot. Product
+    // creation remains available through the explicit "Nouveau produit"
+    // button at the bottom of the catalogue.
+    prods: ['production'],
   };
   const [addRestrict, setAddRestrict] = React.useState(null);
 
-  const defaultKind = (tb) => ({ sales: 'sale', buys: 'buy', stock: 'production', prods: 'product' }[tb] || 'sale');
+  const defaultKind = (tb) => ({ sales: 'sale', buys: 'buy', stock: 'production', prods: 'production' }[tb] || 'sale');
   const [addNewMatMode, setAddNewMatMode] = React.useState(false);
   const openAdd = (k) => {
     setEditing(null);
@@ -2755,7 +2757,12 @@ function CreaApp({ t, dark, role }) {
       setAddNewMatMode(false);
     } else {
       // Generic top-bar "+" — restrict to what's relevant on this tab.
-      const restrict = KIND_RESTRICT_BY_TAB[tab] || null;
+      // Stock follows its active segment: raw materials are replenished by a
+      // purchase, while finished products are increased by a production lot
+      // (finished products are never bought directly).
+      const restrict = tab === 'stock'
+        ? (stockSeg === 'mat' ? ['buy'] : ['production'])
+        : (KIND_RESTRICT_BY_TAB[tab] || null);
       // Stock's Matières segment routes through Achat (not a direct
       // "create material" form) — materials only get created as part of
       // a purchase, per an earlier deliberate decision (commit 9375482,
@@ -2764,7 +2771,7 @@ function CreaApp({ t, dark, role }) {
       // were, instead of having to find it themselves inside the form.
       const matFromStock = tab === 'stock' && stockSeg === 'mat';
       const initialKind = tab === 'stock'
-        ? (stockSeg === 'mat' ? 'buy' : 'product')
+        ? restrict[0]
         : (restrict ? restrict[0] : defaultKind(tab));
       setAdding(initialKind);
       setAddRestrict(restrict);

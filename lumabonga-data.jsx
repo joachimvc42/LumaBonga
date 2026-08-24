@@ -817,9 +817,48 @@ const savePersisted = (snapshot) => {
   }
 };
 
+// Ledger-only stock, before any inventory-count correction. Keeping this
+// calculation separate lets corrections act as offsets: a correction anchors
+// the displayed quantity, then later purchases, sales and productions still
+// move stock normally instead of being hidden by a permanent absolute value.
+const deriveLedgerStocks = ({ products = [], materials = [], purchases = [], production = [], sales = [], recipes = {} } = {}) => {
+  const material = {};
+  for (const m of materials) material[m.id] = Number(m.stock0) || 0;
+  for (const p of purchases) if (material[p.materialId] != null) material[p.materialId] += Number(p.qty) || 0;
+  for (const pr of production) {
+    const r = recipes[pr.productId];
+    if (!r) continue;
+    for (const ing of (r.ingredients || [])) {
+      if (material[ing.materialId] != null) material[ing.materialId] -= (Number(pr.qty) || 0) * (Number(ing.qty) || 0);
+    }
+  }
+
+  const finished = {};
+  for (const p of products) finished[p.id] = Number(p.stock0) || 0;
+  for (const pr of production) if (finished[pr.productId] != null) finished[pr.productId] += Number(pr.qty) || 0;
+  for (const sa of sales) if (finished[sa.productId] != null) finished[sa.productId] -= Number(sa.qty) || 0;
+  return { material, finished };
+};
+
 // ── Store hook ───────────────────────────────────────────────
 function useLumaStore(seed, shareLumaya) {
   const saved = React.useMemo(loadPersisted, []);
+  // Version 1 stored inventory corrections as absolute quantities, which
+  // froze stock forever: later ledger entries were calculated and then
+  // overwritten. Convert those legacy targets to offsets once on load so the
+  // currently displayed quantity is preserved and future movements apply.
+  const initialStockAdj = React.useMemo(() => {
+    const source = saved || seed || {};
+    const materialAdj = source.materialAdj || {};
+    const productAdj = source.productAdj || {};
+    if (source.stockAdjVersion === 2) return { materialAdj, productAdj };
+    const raw = deriveLedgerStocks(source);
+    const materialDelta = {};
+    const productDelta = {};
+    for (const id of Object.keys(materialAdj)) materialDelta[id] = Number(materialAdj[id]) - (raw.material[id] ?? 0);
+    for (const id of Object.keys(productAdj)) productDelta[id] = Number(productAdj[id]) - (raw.finished[id] ?? 0);
+    return { materialAdj: materialDelta, productAdj: productDelta };
+  }, [saved, seed]);
   // When a backend snapshot exists (Supabase, or prior local save) it is
   // authoritative — empty means empty. Demo seeds load only on a true first run.
   // No demo data anywhere: defaults are empty. Real data comes from the backend
@@ -835,10 +874,10 @@ function useLumaStore(seed, shareLumaya) {
   // Settlements: cash transfers between the two partners to balance accounts.
   // { id, date, from:'lumaya'|'gawah', to, amount, note }
   const [settlements, setSettlements] = React.useState(saved?.settlements || []);
-  // Manual stock overrides (id -> target qty). When set, the displayed stock is
-  // forced to this value instead of the derived one (used to match reality).
-  const [materialAdj, setMaterialAdj] = React.useState(saved?.materialAdj || {});
-  const [productAdj, setProductAdj] = React.useState(saved?.productAdj || {});
+  // Manual inventory corrections are offsets from the ledger-derived stock.
+  // This preserves the counted quantity while allowing subsequent movements.
+  const [materialAdj, setMaterialAdj] = React.useState(initialStockAdj.materialAdj);
+  const [productAdj, setProductAdj] = React.useState(initialStockAdj.productAdj);
   // Selected reporting period: 'YYYY-MM' (a month) or 'all'. Default = everything.
   const [period, setPeriod] = React.useState('all');
   // SOPs — production procedure per product.
@@ -877,7 +916,7 @@ function useLumaStore(seed, shareLumaya) {
 
   // Persist on any change. Recipes already carry stable ids, so they round-trip.
   React.useEffect(() => {
-    savePersisted({ products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, sopDrafts, todos, team });
+    savePersisted({ products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, stockAdjVersion: 2, sops, sopDrafts, todos, team });
   }, [products, sales, purchases, costs, production, materials, recipes, recipeDrafts, activeUser, settlements, materialAdj, productAdj, sops, sopDrafts, todos, team]);
 
   const recipeFor = (pid) => recipes[pid] || { ingredients: [], labor: [] };
@@ -1017,10 +1056,11 @@ function useLumaStore(seed, shareLumaya) {
   const updateSettlement = (id, patch) => setSettlements((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
   const removeSettlement = (id) => setSettlements((xs) => xs.filter((x) => x.id !== id));
 
-  // Manual stock override: set/clear a forced quantity for a material or product.
-  const setMaterialStockManual = (id, qty) => setMaterialAdj((m) => ({ ...m, [id]: Number(qty) }));
+  // Inventory count correction: store the difference from the ledger, not a
+  // permanent absolute override. New movements then remain visible.
+  const setMaterialStockManual = (id, qty) => setMaterialAdj((m) => ({ ...m, [id]: Number(qty) - (rawMaterialStock[id] ?? 0) }));
   const clearMaterialStockManual = (id) => setMaterialAdj((m) => { const n = { ...m }; delete n[id]; return n; });
-  const setProductStockManual = (id, qty) => setProductAdj((m) => ({ ...m, [id]: Number(qty) }));
+  const setProductStockManual = (id, qty) => setProductAdj((m) => ({ ...m, [id]: Number(qty) - (rawFinishedStock[id] ?? 0) }));
   const clearProductStockManual = (id) => setProductAdj((m) => { const n = { ...m }; delete n[id]; return n; });
 
   const removeSale = (id) => setSales((xs) => xs.filter((x) => x.id !== id));
@@ -1079,32 +1119,23 @@ function useLumaStore(seed, shareLumaya) {
   }, [recipes, materialById, purchases]);
 
   // ── Stock derivations ──────────────────────────────────────
-  // Raw-material stock = opening + purchases − consumed by production (current recipe).
+  // Ledger movements and inventory-count corrections stay separate. A
+  // production therefore always consumes recipe materials and adds finished
+  // units, even when either stock was corrected manually beforehand.
+  const ledgerStocks = React.useMemo(() => deriveLedgerStocks({ products, materials, purchases, production, sales, recipes }),
+    [products, materials, purchases, production, sales, recipes]);
+  const rawMaterialStock = ledgerStocks.material;
+  const rawFinishedStock = ledgerStocks.finished;
   const materialStock = React.useMemo(() => {
-    const s = {};
-    for (const m of materials) s[m.id] = m.stock0 || 0;
-    for (const p of purchases) if (s[p.materialId] != null) s[p.materialId] += Number(p.qty) || 0;
-    for (const pr of production) {
-      const r = recipes[pr.productId];
-      if (!r) continue;
-      for (const ing of r.ingredients) {
-        if (s[ing.materialId] != null) s[ing.materialId] -= (Number(pr.qty) || 0) * (Number(ing.qty) || 0);
-      }
-    }
-    // Manual override wins (corrects stock to match reality).
-    for (const id of Object.keys(materialAdj)) if (s[id] != null) s[id] = Number(materialAdj[id]);
+    const s = { ...rawMaterialStock };
+    for (const id of Object.keys(materialAdj)) if (s[id] != null) s[id] += Number(materialAdj[id]) || 0;
     return s;
-  }, [materials, purchases, production, recipes, materialAdj]);
-
-  // Finished-goods stock = opening + produced − sold (manual override wins).
+  }, [rawMaterialStock, materialAdj]);
   const finishedStock = React.useMemo(() => {
-    const s = {};
-    for (const p of products) s[p.id] = p.stock0 || 0;
-    for (const pr of production) if (s[pr.productId] != null) s[pr.productId] += Number(pr.qty) || 0;
-    for (const sa of sales) if (s[sa.productId] != null) s[sa.productId] -= Number(sa.qty) || 0;
-    for (const id of Object.keys(productAdj)) if (s[id] != null) s[id] = Number(productAdj[id]);
+    const s = { ...rawFinishedStock };
+    for (const id of Object.keys(productAdj)) if (s[id] != null) s[id] += Number(productAdj[id]) || 0;
     return s;
-  }, [products, production, sales, productAdj]);
+  }, [rawFinishedStock, productAdj]);
 
   // How many more units of a product can be produced with current material stock.
   const producibleFor = React.useCallback((pid) => {
