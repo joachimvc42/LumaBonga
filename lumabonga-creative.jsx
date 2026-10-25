@@ -912,10 +912,14 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly, onOpenTests }) 
     return st === 'correction' ? 'test' : st;
   };
   const products = readonly ? store.products.filter((p) => productStatus(p) === 'ready') : store.products;
+  const testCount = products.filter((p) => productStatus(p) === 'test'
+    || store.draftFor(p.id) || store.sopDraftFor(p.id)).length;
 
   return (
     <div>
-      <CreaHero label={tr('Catalogue')} value={products.length} sub={tr('produits actifs')} color={c.rose} t={t} dark={dark} unit="" />
+      <CreaHero label={tr('Catalogue')} value={products.length}
+        sub={readonly ? tr('produits actifs') : tr('{ready} versions approuvées · {test} en test', { ready: products.length - testCount, test: testCount })}
+        color={c.rose} t={t} dark={dark} unit="" />
       <CreaSection title={tr('Produits')} right={`${products.length}`} dark={dark} t={t} />
 
       {(() => {
@@ -1285,6 +1289,10 @@ function CreaFormulaTests({ store, dark, t }) {
   const [addFor, setAddFor] = React.useState(null);
   const [sopView, setSopView] = React.useState(null);
   const [sopEdit, setSopEdit] = React.useState(null);
+  const [openCats, setOpenCats] = React.useState(() => new Set());
+  const [expandedIds, setExpandedIds] = React.useState(() => new Set());
+  const toggleCat = foldToggle(setOpenCats);
+  const toggleProduct = foldToggle(setExpandedIds);
   const products = store.products.filter((p) => ['test', 'correction'].includes(p.status)
     || store.draftFor(p.id) || store.sopDraftFor(p.id));
   const buttonStyle = {
@@ -1296,20 +1304,50 @@ function CreaFormulaTests({ store, dark, t }) {
     <div>
       <CreaHero label={tr('À tester')} value={products.length} sub={tr('Formules à tester')}
         color={c.testAccent} t={t} dark={dark} unit="" />
-      <div style={{ padding: '0 22px', display: 'grid', gap: 14 }}>
+      <CreaSection title={tr('Formules à tester')} right={`${products.length}`} dark={dark} t={t} />
+      <div style={{ padding: '0 22px' }}>
         {products.length === 0 && (
           <div style={{ padding: 20, borderRadius: 16, background: c.panel, color: c.muted, lineHeight: 1.6 }}>
             {tr('Aucune formule à tester pour le moment.')}
           </div>
         )}
-        {products.map((p) => {
+        {groupedProducts(products).map((g) => (
+          <CreaFold key={g.cat} label={tr(g.label)} count={g.items.length} c={c} dark={dark}
+            open={openCats.has(g.cat)} onToggle={() => toggleCat(g.cat)}>
+          <div style={{ display: 'grid', gap: 10, paddingBottom: 6 }}>
+          {g.items.map((p) => {
           const draft = store.draftFor(p.id);
           const recipe = draft || store.recipeFor(p.id);
           const base = store.recipeFor(p.id);
           const hasSop = !!((store.sopDraftFor(p.id) || store.sops[p.id])?.steps?.length);
+          const expanded = expandedIds.has(p.id);
           return (
-            <section key={p.id} style={{ padding: 16, borderRadius: 16, background: c.panel, border: `1px solid ${c.border}` }}>
-              <div style={{ fontFamily: creaDisplay, fontSize: 23, color: c.text, overflowWrap: 'anywhere' }}>{p.name}</div>
+            <section key={p.id} style={{ padding: expanded ? 16 : '7px 12px', borderRadius: expanded ? 18 : 12, background: c.panel, border: `1px solid ${c.border}` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button onClick={() => toggleProduct(p.id)} aria-expanded={expanded} style={{
+                  flex: 1, minWidth: 0, padding: 0, background: 'transparent', border: 'none',
+                  color: c.text, cursor: 'pointer', textAlign: 'left',
+                }}>
+                  <span style={{ display: 'inline-block', maxWidth: '100%', boxSizing: 'border-box',
+                    padding: expanded ? '5px 12px' : '4px 10px', borderRadius: 8, overflowWrap: 'anywhere',
+                    fontFamily: creaDisplay, fontSize: expanded ? 18 : 13, ...prodStatusTint(dark, { ...p, status: 'test' }) }}>{p.name}</span>
+                </button>
+                {hasSop && (
+                  <button onClick={() => setSopView(p)} aria-label={tr('Voir la SOP (test)')} style={{
+                    display: 'flex', alignItems: 'center', gap: 5, padding: '4px 9px', borderRadius: 999,
+                    background: `${c.testAccent}1c`, color: c.testAccent, border: `1px solid ${c.testAccent}55`,
+                    fontFamily: creaSans, fontSize: 10.5, fontWeight: 700, cursor: 'pointer', flexShrink: 0,
+                  }}><Icon.list width={11} height={11} /> SOP</button>
+                )}
+                <button onClick={() => toggleProduct(p.id)} aria-label={expanded ? tr('Réduire') : tr('Développer')}
+                  aria-expanded={expanded} style={{
+                    width: expanded ? 34 : 24, height: expanded ? 34 : 24, borderRadius: 999,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    background: c.panel2, color: c.muted, border: `1px solid ${c.border}`, cursor: 'pointer',
+                    transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform .2s',
+                  }}><Icon.chevronDown width={expanded ? 15 : 12} height={expanded ? 15 : 12} /></button>
+              </div>
+              {expanded && <React.Fragment>
               <div style={{ fontSize: 11, color: c.testAccent, margin: '6px 0 12px' }}>{tr('Quantités par unité produite')}</div>
               {recipe.ingredients.length === 0 && <div style={{ color: c.muted, fontSize: 12 }}>{tr('Aucun composant')}</div>}
               {recipe.ingredients.map((ing) => {
@@ -1340,9 +1378,13 @@ function CreaFormulaTests({ store, dark, t }) {
                 <button style={{ ...buttonStyle, width: '100%', marginTop: 12, background: c.testAccent, color: c.inkContrast }}
                   onClick={() => store.validateProductTest(p.id)}>{tr('Valider la version test')}</button>
               )}
+              </React.Fragment>}
             </section>
           );
-        })}
+          })}
+          </div>
+          </CreaFold>
+        ))}
       </div>
       {addFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addFor} draft
         used={new Set((store.draftFor(addFor)?.ingredients || []).map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
