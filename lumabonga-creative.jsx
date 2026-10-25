@@ -827,17 +827,11 @@ function CreaSparkline({ series, c, title }) {
 }
 
 // ── Screen: Products (per-product edit) ──────────────────────────────────────
-function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
+function CreaProducts({ store, dark, t, onAdd, onEdit, readonly, onOpenTests }) {
   const c = creaTheme(dark, t.accent);
   const [editId, setEditId] = React.useState(null);  // product currently being edited
-  const [addFor, setAddFor] = React.useState(null);  // product id awaiting a component
   const [nameDraft, setNameDraft] = React.useState('');
   const [sopView, setSopView] = React.useState(null);  // product whose SOP is being viewed
-  const [sopEdit, setSopEdit] = React.useState(null);  // product whose SOP is being edited
-  const [sopDraftView, setSopDraftView] = React.useState(null);  // product whose TEST SOP is being viewed
-  const [sopDraftEdit, setSopDraftEdit] = React.useState(null);  // product whose TEST SOP is being edited
-  const [addTestFor, setAddTestFor] = React.useState(null);  // product id currently adding a component to its TEST composition
-  const [finalizeFor, setFinalizeFor] = React.useState(null);  // product pending the Ready-vs-Test finalize choice
   const [deleteTarget, setDeleteTarget] = React.useState(null);  // product pending DELETE confirmation
   const [expandedIds, setExpandedIds] = React.useState(() => new Set());  // rows showing the full card
   const toggleExpand = (id) => setExpandedIds((s) => {
@@ -1010,7 +1004,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 {(hasSop || !readonly) && (() => {
                   const sopColor = !hasSop ? c.mutedSoft : (productStatus(p) === 'ready' ? (c.pos || c.accent) : c.amber);
                   return (
-                    <button onClick={(e) => { e.stopPropagation(); hasSop ? setSopView(p) : (productStatus(p) !== 'test' && setSopEdit(p)); }}
+                    <button onClick={(e) => { e.stopPropagation(); if (hasSop) setSopView(p); else { store.startProductTest(p.id); onOpenTests(); } }}
                       aria-label={hasSop ? tr('Voir la SOP') : tr('Créer la SOP')} style={{
                       flexShrink: 0, padding: expanded ? '7px 12px' : '4px 9px', borderRadius: 999, cursor: 'pointer',
                       display: 'flex', alignItems: 'center', gap: 5,
@@ -1055,14 +1049,12 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                       <button key={st.id} disabled={!edit}
                         onClick={() => {
                           if (st.id === 'test') {
-                            store.updateProduct(p.id, { status: 'test' });
-                            store.startDraft(p.id);
-                            store.startSopDraft(p.id);
+                            store.startProductTest(p.id);
                             return;
                           }
                           // st.id === 'ready'
                           if (productStatus(p) === 'test' && (store.draftFor(p.id) || store.sopDraftFor(p.id))) {
-                            setFinalizeFor(p);
+                            onOpenTests();
                             return;
                           }
                           store.updateProduct(p.id, { status: 'ready' });
@@ -1186,14 +1178,12 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                 {cost.ingredientLines.length === 0 && (
                   <div style={{ fontFamily: creaSans, fontSize: 12, color: c.muted, padding: '6px 0' }}>{tr('Aucun composant')}</div>
                 )}
-                {edit && productStatus(p) === 'test' && (
+                {edit && (
                   <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft, padding: '4px 0 2px', fontStyle: 'italic' }}>
-                    {tr('Composition verrouillée pendant Test.')}
+                    {tr('La version produit reste inchangée jusqu’à la validation du test.')}
                   </div>
                 )}
-                {edit && productStatus(p) !== 'test'
-                  ? cost.ingredientLines.map((ln) => <CreaIngredientEdit key={ln.id} pid={p.id} ln={ln} c={c} store={store} />)
-                  : cost.ingredientLines.map((ln) => (
+                {cost.ingredientLines.map((ln) => (
                       <div key={ln.id} style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, padding: '4px 0' }}>
                         <span style={{ fontFamily: creaSans, fontSize: 12.5, color: c.text, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 999, background: `oklch(0.62 0.16 ${ln.material?.hue || 0})`, marginRight: 7 }} />
@@ -1210,22 +1200,9 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                         })()}
                       </div>
                     ))}
-                {edit && productStatus(p) !== 'test' && (
-                  <button onClick={() => setAddFor(p.id)} style={{
-                    width: '100%', marginTop: 8, padding: '9px', borderRadius: 10, cursor: 'pointer',
-                    border: `1px dashed ${c.border}`, background: 'transparent', color: c.muted,
-                    fontFamily: creaSans, fontSize: 12, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                  }}><Icon.plus width={15} height={15} /> {tr('Ajouter un composant')}</button>
-                )}
               </div>
 
-              {/* SOP — production procedure. Editing (not viewing) is locked
-                  during Test, same reasoning as the Composition lock above:
-                  a SOP draft is auto-snapshotted the moment Test starts, and
-                  editing the base directly would silently diverge from (and
-                  later be overwritten by) that snapshot. Use the Test
-                  composition section's own SOP buttons during Test instead. */}
+              {/* Products always shows the published SOP; edits live in Tests. */}
               {(() => {
                 if (!hasSop && readonly) return null;
                 const btn = (label, onClick, solid) => (
@@ -1243,88 +1220,23 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
                   <React.Fragment>
                     {locked && !readonly && (
                       <div style={{ fontFamily: creaSans, fontSize: 11.5, color: c.mutedSoft, padding: '4px 0 2px', fontStyle: 'italic' }}>
-                        {tr('SOP verrouillée pendant Test — utilise la section Test composition ci-dessous.')}
+                        {tr('Modifier la formule et la SOP dans À tester.')}
                       </div>
                     )}
                     <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                       {hasSop && btn(tr('Voir la SOP'), () => setSopView(p), true)}
-                      {!readonly && !locked && btn(hasSop ? tr('Éditer la SOP') : tr('Créer la SOP'), () => setSopEdit(p), false)}
+                      {!readonly && !locked && btn(tr('Démarrer le test'), () => { store.startProductTest(p.id); onOpenTests(); }, false)}
                     </div>
                   </React.Fragment>
                 );
               })()}
 
-              {/* Test composition — editable draft, distinct blue tint.
-                  Auto-created when status flips to Test (Task 3's status-chip
-                  handler); "Valider" below promotes it to base and
-                  immediately starts a fresh copy so testing continues
-                  without an extra click. */}
-              {!readonly && productStatus(p) === 'test' && (() => {
-                const tc = c.testAccent;
-                const draft = store.draftFor(p.id);
-                const sopDraft = store.sopDraftFor(p.id);
-                const hasSopDraft = !!(sopDraft && sopDraft.steps && sopDraft.steps.length > 0);
-                const base = store.recipeFor(p.id);
-                return (
-                  <div style={{ marginTop: 12, padding: 12, borderRadius: 14, background: `${tc}0e`, border: `1px solid ${tc}33` }}>
-                    <div style={{ fontSize: 9, letterSpacing: 0.8, textTransform: 'uppercase', color: tc, fontWeight: 700, fontFamily: creaSans, marginBottom: 4 }}>{tr('Test composition')}</div>
-                    {!draft ? (
-                      <React.Fragment>
-                        <div style={{ fontFamily: creaSans, fontSize: 12, color: c.mutedSoft, padding: '4px 0 8px', lineHeight: 1.5 }}>
-                          {tr('Aucun test en cours pour ce produit.')}
-                        </div>
-                        <button onClick={() => { store.startDraft(p.id); store.startSopDraft(p.id); }} style={{
-                          width: '100%', padding: '9px', borderRadius: 10, cursor: 'pointer', border: 'none',
-                          background: tc, color: c.inkContrast, fontFamily: creaSans, fontSize: 12, fontWeight: 700,
-                        }}>{tr('Démarrer le test')}</button>
-                      </React.Fragment>
-                    ) : (
-                      <React.Fragment>
-                        {draft.ingredients.length === 0 && (
-                          <div style={{ fontFamily: creaSans, fontSize: 12, color: c.muted, padding: '6px 0' }}>{tr('Aucun composant')}</div>
-                        )}
-                        {draft.ingredients.map((ing) => {
-                          const mat = store.materialById[ing.materialId];
-                          const baseIng = base.ingredients.find((i) => i.materialId === ing.materialId);
-                          const diff = !baseIng ? 'added' : (ing.qty !== baseIng.qty ? 'changed' : 'same');
-                          return <ProdDraftRow key={ing.id} pid={p.id} ing={ing} mat={mat} diff={diff} store={store} c={c} />;
-                        })}
-                        <button onClick={() => setAddTestFor(p.id)} style={{
-                          width: '100%', marginTop: 8, padding: '9px', borderRadius: 10, cursor: 'pointer',
-                          border: `1px dashed ${tc}55`, background: 'transparent', color: tc,
-                          fontFamily: creaSans, fontSize: 12, fontWeight: 600,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        }}><Icon.plus width={15} height={15} /> {tr('Ajouter un composant')}</button>
-
-                        <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-                          {hasSopDraft && (
-                            <button onClick={() => setSopDraftView(p)} style={{
-                              flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer', border: 'none',
-                              background: `${tc}22`, color: tc,
-                              fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
-                              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                            }}><Icon.list width={15} height={15} /> {tr('Voir la SOP (test)')}</button>
-                          )}
-                          <button onClick={() => { store.startSopDraft(p.id); setSopDraftEdit(p); }} style={{
-                            flex: 1, padding: '10px', borderRadius: 12, cursor: 'pointer',
-                            border: `1px solid ${tc}55`, background: 'transparent', color: tc,
-                            fontFamily: creaSans, fontSize: 12.5, fontWeight: 600,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                          }}><Icon.list width={15} height={15} /> {tr(hasSopDraft ? 'Éditer la SOP (test)' : 'Créer la SOP (test)')}</button>
-                        </div>
-
-                        <button onClick={() => {
-                          store.approveDraftAsBaseAndRestart(p.id);
-                          store.approveSopDraftAsBaseAndRestart(p.id);
-                        }} style={{
-                          width: '100%', marginTop: 10, padding: '11px', borderRadius: 10, cursor: 'pointer', border: 'none',
-                          background: tc, color: c.inkContrast, fontFamily: creaSans, fontSize: 13, fontWeight: 700,
-                        }}>{tr('Valider comme nouvelle base')}</button>
-                      </React.Fragment>
-                    )}
-                  </div>
-                );
-              })()}
+              {!readonly && productStatus(p) === 'test' && (
+                <button onClick={onOpenTests} style={{ width: '100%', marginTop: 12, padding: 12, borderRadius: 12,
+                  background: c.panel2, color: c.testAccent, border: `1px solid ${c.border}`, cursor: 'pointer' }}>
+                  {tr('Modifier dans À tester')}
+                </button>
+              )}
 
               {/* Delete — edit mode only, guarded by a typed confirmation
                   (see the DELETE modal below) so it can't happen by accident. */}
@@ -1359,19 +1271,9 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
         </div>
       )}
 
-      {addFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addFor}
-        used={new Set(store.recipeFor(addFor).ingredients.map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
-      {addTestFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addTestFor} draft
-        used={new Set((store.draftFor(addTestFor)?.ingredients || []).map((i) => i.materialId))} onClose={() => setAddTestFor(null)} />}
       {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} onClose={() => setSopView(null)} />}
-      {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} onClose={() => setSopEdit(null)} />}
-      {sopDraftView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopDraftView} draft onClose={() => setSopDraftView(null)} />}
-      {sopDraftEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopDraftEdit} draft onClose={() => setSopDraftEdit(null)} />}
       {deleteTarget && (
         <CreaDeleteProductConfirm store={store} c={c} product={deleteTarget} onClose={() => setDeleteTarget(null)} />
-      )}
-      {finalizeFor && (
-        <CreaFinalizeVersionConfirm store={store} c={c} product={finalizeFor} onClose={() => setFinalizeFor(null)} />
       )}
     </div>
   );
@@ -1427,20 +1329,24 @@ function CreaFormulaTests({ store, dark, t }) {
                 {draft ? (
                   <button style={buttonStyle} onClick={() => setAddFor(p.id)}>{tr('Ajouter un composant')}</button>
                 ) : (
-                  <button style={buttonStyle} onClick={() => { store.startDraft(p.id); store.startSopDraft(p.id); }}>{tr('Démarrer le test')}</button>
+                  <button style={buttonStyle} onClick={() => store.startProductTest(p.id)}>{tr('Démarrer le test')}</button>
                 )}
                 {hasSop && <button style={buttonStyle} onClick={() => setSopView(p)}>{tr('Voir la SOP (test)')}</button>}
-                <button style={buttonStyle} onClick={() => { store.startSopDraft(p.id); setSopEdit(p); }}>
+                <button style={buttonStyle} onClick={() => { store.startProductTest(p.id); setSopEdit(p); }}>
                   {tr(hasSop ? 'Éditer la SOP (test)' : 'Créer la SOP (test)')}
                 </button>
               </div>
+              {draft && (
+                <button style={{ ...buttonStyle, width: '100%', marginTop: 12, background: c.testAccent, color: c.inkContrast }}
+                  onClick={() => store.validateProductTest(p.id)}>{tr('Valider la version test')}</button>
+              )}
             </section>
           );
         })}
       </div>
       {addFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addFor} draft
         used={new Set((store.draftFor(addFor)?.ingredients || []).map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
-      {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} draft onClose={() => setSopView(null)} />}
+      {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} draft={!!store.sopDraftFor(sopView.id)} onClose={() => setSopView(null)} />}
       {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} draft onClose={() => setSopEdit(null)} />}
     </div>
   );
@@ -1506,9 +1412,7 @@ function CreaDeleteProductConfirm({ store, c, product, onClose }) {
 // CreaDeleteProductConfirm's overlay/card chrome.
 function CreaFinalizeVersionConfirm({ store, c, product, onClose }) {
   const keepTest = () => {
-    store.approveDraftAsBase(product.id);
-    store.approveSopDraftAsBase(product.id);
-    store.updateProduct(product.id, { status: 'ready' });
+    store.validateProductTest(product.id);
     onClose();
   };
   const keepBase = () => {
@@ -2866,7 +2770,7 @@ function CreaApp({ t, dark, role }) {
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} role={role} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} seg={stockSeg} onSegChange={setStockSeg} />}
-        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} />}
+        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} onOpenTests={() => goTab('tests')} />}
         {tab === 'tests' && <CreaFormulaTests store={store} dark={dark} t={t} />}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>

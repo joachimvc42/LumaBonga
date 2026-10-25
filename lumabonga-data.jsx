@@ -229,6 +229,10 @@ const LB_EN = {
   // Test composition section (product card)
   'Test composition': 'Test composition',
   'À tester': 'To test',
+  'Modifier dans À tester': 'Edit in To test',
+  'Valider la version test': 'Validate test version',
+  'La version produit reste inchangée jusqu’à la validation du test.': 'The product version stays unchanged until the test is validated.',
+  'Modifier la formule et la SOP dans À tester.': 'Edit the formula and SOP in To test.',
   'Formules à tester': 'Formulas to test',
   'Quantités par unité produite': 'Quantities per unit produced',
   'Aucune formule à tester pour le moment.': 'No formulas to test at the moment.',
@@ -404,6 +408,10 @@ const LB_ID = {
   // ── Test composition section (product card) ──
   'Test composition': 'Komposisi uji',
   'À tester': 'Perlu diuji',
+  'Modifier dans À tester': 'Edit di Perlu diuji',
+  'Valider la version test': 'Validasi versi uji',
+  'La version produit reste inchangée jusqu’à la validation du test.': 'Versi produk tetap sama hingga pengujian divalidasi.',
+  'Modifier la formule et la SOP dans À tester.': 'Edit formula dan SOP di Perlu diuji.',
   'Formules à tester': 'Formula yang perlu diuji',
   'Quantités par unité produite': 'Jumlah per unit yang diproduksi',
   'Aucune formule à tester pour le moment.': 'Belum ada formula yang perlu diuji.',
@@ -834,7 +842,7 @@ const deriveLedgerStocks = ({ products = [], materials = [], purchases = [], pro
   for (const m of materials) material[m.id] = Number(m.stock0) || 0;
   for (const p of purchases) if (material[p.materialId] != null) material[p.materialId] += Number(p.qty) || 0;
   for (const pr of production) {
-    const r = recipes[pr.productId];
+    const r = pr.recipeSnapshot || recipes[pr.productId];
     if (!r) continue;
     for (const ing of (r.ingredients || [])) {
       if (material[ing.materialId] != null) material[ing.materialId] -= (Number(pr.qty) || 0) * (Number(ing.qty) || 0);
@@ -1055,7 +1063,8 @@ function useLumaStore(seed, shareLumaya) {
   };
   const addProductionLot = (p) => {
     const id = 'pr_' + Math.random().toString(36).slice(2, 8);
-    setProduction((xs) => [{ id, date: todayISO(), ...p }, ...xs]);
+    const recipeSnapshot = { ingredients: recipeFor(p.productId).ingredients.map((i) => ({ ...i })) };
+    setProduction((xs) => [{ id, date: todayISO(), ...p, recipeSnapshot }, ...xs]);
   };
   const addSettlement = (s) => {
     const id = 'st_' + Math.random().toString(36).slice(2, 8);
@@ -1078,7 +1087,14 @@ function useLumaStore(seed, shareLumaya) {
   const updateSale = (id, patch) => setSales((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
   const updatePurchase = (id, patch) => setPurchases((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
   const updateCost = (id, patch) => setCosts((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
-  const updateProduction = (id, patch) => setProduction((xs) => xs.map((x) => x.id === id ? { ...x, ...patch } : x));
+  const updateProduction = (id, patch) => setProduction((xs) => xs.map((x) => {
+    if (x.id !== id) return x;
+    const changedProduct = patch.productId && patch.productId !== x.productId;
+    const recipeSnapshot = changedProduct
+      ? { ingredients: recipeFor(patch.productId).ingredients.map((i) => ({ ...i })) }
+      : x.recipeSnapshot;
+    return { ...x, ...patch, recipeSnapshot };
+  }));
 
   // Wipe everything to an empty ledger (no demo data).
   const resetStore = () => {
@@ -1312,6 +1328,22 @@ function useLumaStore(seed, shareLumaya) {
   };
   const discardSopDraft = (pid) => setSopDrafts((ds) => { const n = { ...ds }; delete n[pid]; return n; });
 
+  // A test is an isolated working copy. Only explicit validation publishes it.
+  const startProductTest = (pid) => {
+    startDraft(pid);
+    startSopDraft(pid);
+    updateProduct(pid, { status: 'test' });
+  };
+  const validateProductTest = (pid) => {
+    if (!recipeDrafts[pid]) return;
+    // Preserve consumption of existing lots when the published recipe changes.
+    const previous = { ingredients: recipeFor(pid).ingredients.map((i) => ({ ...i })) };
+    setProduction((xs) => xs.map((p) => p.productId === pid && !p.recipeSnapshot ? { ...p, recipeSnapshot: previous } : p));
+    approveDraftAsBase(pid);
+    approveSopDraftAsBase(pid);
+    updateProduct(pid, { status: 'ready' });
+  };
+
   // ── To-do actions ──────────────────────────────────────────
   const addTodo = (td) => {
     const id = 'td_' + Math.random().toString(36).slice(2, 8);
@@ -1374,6 +1406,7 @@ function useLumaStore(seed, shareLumaya) {
     productById, materialById, materialPrices, totals,
     recipes, recipeFor, unitCostFor,
     recipeDrafts, draftFor, startDraft, discardDraft,
+    startProductTest, validateProductTest,
     addDraftIngredient, updateDraftIngredient, removeDraftIngredient,
     approveDraftAsBase, approveDraftAsBaseAndRestart,
     sops, setSop, removeSop,
