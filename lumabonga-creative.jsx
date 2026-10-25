@@ -1377,6 +1377,75 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly }) {
   );
 }
 
+// All pending formulas in one place, using the same drafts as the catalogue.
+function CreaFormulaTests({ store, dark, t }) {
+  const c = creaTheme(dark, t.accent);
+  const [addFor, setAddFor] = React.useState(null);
+  const [sopView, setSopView] = React.useState(null);
+  const [sopEdit, setSopEdit] = React.useState(null);
+  const products = store.products.filter((p) => ['test', 'correction'].includes(p.status)
+    || store.draftFor(p.id) || store.sopDraftFor(p.id));
+  const buttonStyle = {
+    padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+    background: c.panel2, color: c.text, border: `1px solid ${c.border}`,
+    fontFamily: creaSans, fontSize: 12, fontWeight: 600,
+  };
+  return (
+    <div>
+      <CreaHero label={tr('À tester')} value={products.length} sub={tr('Formules à tester')}
+        color={c.testAccent} t={t} dark={dark} unit="" />
+      <div style={{ padding: '0 22px', display: 'grid', gap: 14 }}>
+        {products.length === 0 && (
+          <div style={{ padding: 20, borderRadius: 16, background: c.panel, color: c.muted, lineHeight: 1.6 }}>
+            {tr('Aucune formule à tester pour le moment.')}
+          </div>
+        )}
+        {products.map((p) => {
+          const draft = store.draftFor(p.id);
+          const recipe = draft || store.recipeFor(p.id);
+          const base = store.recipeFor(p.id);
+          const hasSop = !!((store.sopDraftFor(p.id) || store.sops[p.id])?.steps?.length);
+          return (
+            <section key={p.id} style={{ padding: 16, borderRadius: 16, background: c.panel, border: `1px solid ${c.border}` }}>
+              <div style={{ fontFamily: creaDisplay, fontSize: 23, color: c.text, overflowWrap: 'anywhere' }}>{p.name}</div>
+              <div style={{ fontSize: 11, color: c.testAccent, margin: '6px 0 12px' }}>{tr('Quantités par unité produite')}</div>
+              {recipe.ingredients.length === 0 && <div style={{ color: c.muted, fontSize: 12 }}>{tr('Aucun composant')}</div>}
+              {recipe.ingredients.map((ing) => {
+                const mat = store.materialById[ing.materialId];
+                const baseIng = base.ingredients.find((i) => i.materialId === ing.materialId);
+                return draft ? (
+                  <ProdDraftRow key={ing.id} pid={p.id} ing={ing} mat={mat} store={store} c={c}
+                    diff={!baseIng ? 'added' : ing.qty !== baseIng.qty ? 'changed' : 'same'} />
+                ) : (
+                  <div key={ing.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, padding: '8px 0', borderBottom: `1px solid ${c.border}`, fontSize: 13 }}>
+                    <span>{mat?.name || '—'}</span>
+                    <span style={{ fontFamily: creaMono, whiteSpace: 'nowrap' }}>{fmtQty(convertUnit(ing.qty, mat?.unit || 'g', ing.unit || mat?.unit || 'g', densityFor(mat)))} {ing.unit || mat?.unit}</span>
+                  </div>
+                );
+              })}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 14 }}>
+                {draft ? (
+                  <button style={buttonStyle} onClick={() => setAddFor(p.id)}>{tr('Ajouter un composant')}</button>
+                ) : (
+                  <button style={buttonStyle} onClick={() => { store.startDraft(p.id); store.startSopDraft(p.id); }}>{tr('Démarrer le test')}</button>
+                )}
+                {hasSop && <button style={buttonStyle} onClick={() => setSopView(p)}>{tr('Voir la SOP (test)')}</button>}
+                <button style={buttonStyle} onClick={() => { store.startSopDraft(p.id); setSopEdit(p); }}>
+                  {tr(hasSop ? 'Éditer la SOP (test)' : 'Créer la SOP (test)')}
+                </button>
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      {addFor && <ProdAddMaterialSheet store={store} dark={dark} t={t} productId={addFor} draft
+        used={new Set((store.draftFor(addFor)?.ingredients || []).map((i) => i.materialId))} onClose={() => setAddFor(null)} />}
+      {sopView && <ProdSopViewerSheet store={store} dark={dark} t={t} product={sopView} draft onClose={() => setSopView(null)} />}
+      {sopEdit && <ProdSopEditorSheet store={store} dark={dark} t={t} product={sopEdit} draft onClose={() => setSopEdit(null)} />}
+    </div>
+  );
+}
+
 // ── Delete-product confirmation — must type DELETE to enable the button,
 // so a product (and its recipe/SOP/drafts) can't be removed by accident.
 function CreaDeleteProductConfirm({ store, c, product, onClose }) {
@@ -2121,6 +2190,7 @@ function CreaNav({ value, onChange, dark, t, role }) {
     { id: 'buys', label: 'Achats', icon: Icon.buy },
     { id: 'stock', label: 'Stock', icon: Icon.box },
     { id: 'prods', label: 'Produits', icon: Icon.prod },
+    { id: 'tests', label: 'À tester', icon: Icon.list },
     { id: 'todos', label: 'To do', icon: Icon.todo },
   ].filter((tab) => allowed.includes(tab.id));
   if (tabs.length < 2) return null;   // public: single tab — no nav needed
@@ -2712,8 +2782,8 @@ function CreaMatChip({ m, c, selected, onClick }) {
 // ── Creative App root ────────────────────────────────────────
 // Tabs each role may see. Staff: restricted to sales / stock / products.
 const ALLOWED_TABS = {
-  admin: ['dash', 'sales', 'buys', 'stock', 'prods', 'todos'],
-  staff: ['sales', 'stock', 'prods', 'todos'],
+  admin: ['dash', 'sales', 'buys', 'stock', 'prods', 'tests', 'todos'],
+  staff: ['sales', 'stock', 'prods', 'tests', 'todos'],
   public: ['prods'],   // anonymous visitors: catalog + SOPs only, read-only
 };
 function CreaApp({ t, dark, role }) {
@@ -2791,12 +2861,13 @@ function CreaApp({ t, dark, role }) {
       <div style={{ height: '100%', overflowY: 'auto', overflowX: 'hidden', paddingTop: 56, paddingBottom: 120 }}>
         <CreaTopBar store={store} dark={dark} t={t} onAdd={() => openAdd()} readonly={role === 'public'}
           hidePeriod={role === 'staff' || !['dash', 'sales', 'buys'].includes(tab)}
-          hideAdd={['dash', 'todos'].includes(tab)} />
+          hideAdd={['dash', 'todos', 'tests'].includes(tab)} />
         {tab === 'dash' && <CreaDashboard store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} />}
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} role={role} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} seg={stockSeg} onSegChange={setStockSeg} />}
         {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} />}
+        {tab === 'tests' && <CreaFormulaTests store={store} dark={dark} t={t} />}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>
       <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} />

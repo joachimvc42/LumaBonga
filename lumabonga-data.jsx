@@ -228,6 +228,10 @@ const LB_EN = {
   'Impression cire': 'Wax printing', 'Contrôle qualité': 'Quality control', 'Transport': 'Transport',
   // Test composition section (product card)
   'Test composition': 'Test composition',
+  'À tester': 'To test',
+  'Formules à tester': 'Formulas to test',
+  'Quantités par unité produite': 'Quantities per unit produced',
+  'Aucune formule à tester pour le moment.': 'No formulas to test at the moment.',
   'Aucun test en cours pour ce produit.': 'No test in progress for this product.',
   'Démarrer le test': 'Start test',
   'Voir la SOP (test)': 'View SOP (test)',
@@ -399,6 +403,10 @@ const LB_ID = {
 
   // ── Test composition section (product card) ──
   'Test composition': 'Komposisi uji',
+  'À tester': 'Perlu diuji',
+  'Formules à tester': 'Formula yang perlu diuji',
+  'Quantités par unité produite': 'Jumlah per unit yang diproduksi',
+  'Aucune formule à tester pour le moment.': 'Belum ada formula yang perlu diuji.',
   'Aucun test en cours pour ce produit.': 'Belum ada uji coba untuk produk ini.',
   'Démarrer le test': 'Mulai uji coba',
   'Voir la SOP (test)': 'Lihat SOP (uji)',
