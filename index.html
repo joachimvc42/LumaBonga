@@ -85,8 +85,8 @@
 <!-- Supabase client (shared backend). Anon key is public by design — RLS + members allowlist protect the data. -->
 <script type="module">
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-  const SUPABASE_URL  = 'https://ivooxizmcqkwzplimvtg.supabase.co';
-  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml2b294aXptY3Frd3pwbGltdnRnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwNTA5OTgsImV4cCI6MjA5NTYyNjk5OH0.OZOqwW0LVG4jFUmwRxMb3WK6aoASlf2BeTvdTPsLSIg';
+  const SUPABASE_URL  = 'https://bubueeymqgyqyzelmyam.supabase.co';
+  const SUPABASE_ANON = 'sb_publishable_9_rOz8AY3khM_ONnl3nqnQ_uF2hyrx2';
   window.__SB_EMAIL = 'equipe@lumabonga.app';   // compte partagé (caché) — le code = son mot de passe
   // Accounts mapped to a role. Login tries each email with the entered code.
   // Order matters: the login form tries each account with the entered code
@@ -98,7 +98,8 @@
     { email: 'public@lumabonga.app', role: 'public' },  // read-only catalog + SOPs, no finances
   ];
   window.__sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
-    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'lumabonga:auth' },
+    db: { schema: 'membres' },
+    auth: { persistSession: true, autoRefreshToken: true, storageKey: 'lumabonga:rumahya:auth' },
   });
   window.dispatchEvent(new CustomEvent('sb-ready'));
 </script>
@@ -396,7 +397,7 @@ async function bootData(sb, onRemoteChange) {
   };
 
   sb.channel('app_state_sync')
-    .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'app_state' }, (payload) => {
+    .on('postgres_changes', { event: 'UPDATE', schema: 'membres', table: 'app_state' }, (payload) => {
       if (payload.new && payload.new.updated_by !== CLIENT_ID) onRemoteChange();
     })
     .subscribe();
