@@ -9,7 +9,7 @@
 ## Supabase (USER'S OTHER ACCOUNT — not in my MCP)
 - project ref: ivooxizmcqkwzplimvtg ; URL https://ivooxizmcqkwzplimvtg.supabase.co
 - anon key embedded in index.html (module script). service_role NEVER used.
-- Shared login account: equipe@lumabonga.app ; password = the "code" the user typed in supabase_setup.sql (I DON'T know it).
+- Shared login account: equipe@lumabonga.app.
 - Data model: single row `app_state(id=1, data jsonb)` + `members` allowlist + RLS + realtime. SQL = supabase_setup.sql.
 - I CANNOT touch their DB via MCP. To wipe DB: app Settings → Réinitialiser (needs login), or give user SQL.
 

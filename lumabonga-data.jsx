@@ -825,13 +825,16 @@ const savePersisted = (snapshot) => {
   // Public (read-only) viewers never write: not to the backend, and not to
   // localStorage either — a partial public catalog must not shadow real data.
   if (typeof window !== 'undefined' && window.__LUMA_READONLY) return;
-  // Always keep a local backup (offline / refresh safety).
+  // The standalone demo can persist locally. The authenticated host uses its server writer.
   try {
-    if (typeof localStorage !== 'undefined') localStorage.setItem(LUMA_STORE_KEY, JSON.stringify(snapshot));
+    if (typeof localStorage !== 'undefined' &&
+        (typeof window === 'undefined' || typeof window.__LUMA_SAVE !== 'function')) {
+      localStorage.setItem(LUMA_STORE_KEY, JSON.stringify(snapshot));
+    }
   } catch (e) { /* quota / private mode — ignore */ }
   // Push to the shared backend when wired.
   if (typeof window !== 'undefined' && typeof window.__LUMA_SAVE === 'function') {
-    try { window.__LUMA_SAVE(snapshot); } catch (e) { /* network — local backup still holds */ }
+    try { window.__LUMA_SAVE(snapshot); } catch (e) { /* retry on the next change */ }
   }
 };
 

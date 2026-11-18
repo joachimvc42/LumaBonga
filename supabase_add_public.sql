@@ -1,7 +1,7 @@
 -- ============================================================================
 -- LumaBonga — Niveau 1 "public" (catalogue lecture seule : Produits + SOP)
 -- À coller dans SQL Editor du projet ivooxizmcqkwzplimvtg → Run
--- Compte : public@lumabonga.app  ·  mot de passe (code) : Bonga
+-- Compte : public@lumabonga.app
 --
 -- Contrairement à staff/admin, ce compte n'est PAS ajouté à public.members :
 -- il reste authentifié (auth.uid() existe) mais bloqué par la RLS sur
@@ -17,7 +17,7 @@ do $$
 declare
   v_uid uuid;
   v_email text := 'public@lumabonga.app';
-  v_pass  text := 'Bonga';
+  v_pass  text := current_setting('lumabonga.bootstrap_public_password');
 begin
   select id into v_uid from auth.users where email = v_email;
 

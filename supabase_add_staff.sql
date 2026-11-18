@@ -1,7 +1,7 @@
 -- ============================================================================
 -- LumaBonga — 2ème accès "staff" (vue restreinte : Sales / Stock / Products)
 -- À coller dans SQL Editor du projet ivooxizmcqkwzplimvtg → Run
--- Compte : staff@lumabonga.app  ·  mot de passe (code) : Letsgo!
+-- Compte : staff@lumabonga.app
 -- Le code app reconnaît cet email et masque Profit + Achats.
 -- ============================================================================
 
@@ -11,7 +11,7 @@ do $$
 declare
   v_uid uuid;
   v_email text := 'staff@lumabonga.app';
-  v_pass  text := 'Letsgo!';
+  v_pass  text := current_setting('lumabonga.bootstrap_preparer_password');
 begin
   select id into v_uid from auth.users where email = v_email;
 

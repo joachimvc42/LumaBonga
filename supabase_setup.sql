@@ -4,7 +4,7 @@
 -- Projet cible : ivooxizmcqkwzplimvtg
 --
 -- AVANT DE LANCER : remplace 'CHANGE_MOI_LE_CODE' (2 endroits plus bas) par le
--- code/mot de passe partagé que tu donneras à ton équipe. Min 8 caractères.
+-- Fournir le mot de passe via le paramètre de session lumabonga.bootstrap_admin_password.
 -- L'email du compte partagé est fixe : equipe@lumabonga.app (caché dans l'app).
 -- ============================================================================
 
@@ -64,7 +64,7 @@ do $$
 declare
   v_uid uuid;
   v_email text := 'equipe@lumabonga.app';
-  v_pass  text := 'CHANGE_MOI_LE_CODE';   -- <<< REMPLACE par ton code partagé
+  v_pass  text := current_setting('lumabonga.bootstrap_admin_password');
 begin
   select id into v_uid from auth.users where email = v_email;
 

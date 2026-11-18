@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="theme-color" content="#08080b" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
@@ -11,6 +11,7 @@
 <link rel="icon" type="image/png" href="/gawahbonga.png" />
 <link rel="apple-touch-icon" href="/gawahbonga.png" />
 <link rel="manifest" href="/manifest.json" />
+<link rel="stylesheet" href="/lumabonga-recipes.css" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Schibsted+Grotesk:wght@400;500;600;700&family=Hanken+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
@@ -89,13 +90,11 @@
   const SUPABASE_ANON = 'sb_publishable_9_rOz8AY3khM_ONnl3nqnQ_uF2hyrx2';
   window.__SB_EMAIL = 'equipe@lumabonga.app';   // compte partagé (caché) — le code = son mot de passe
   // Accounts mapped to a role. Login tries each email with the entered code.
-  // Order matters: the login form tries each account with the entered code
-  // in this order, so a higher password (Kings!) must never accidentally
-  // match a lower account first — kept admin → staff → public.
+  // The role is read from Supabase after login.
   window.__SB_ACCOUNTS = [
-    { email: 'equipe@lumabonga.app', role: 'admin' },   // full access
-    { email: 'staff@lumabonga.app',  role: 'staff' },   // restricted: sales / stock / products
-    { email: 'public@lumabonga.app', role: 'public' },  // read-only catalog + SOPs, no finances
+    { email: 'equipe@lumabonga.app' },
+    { email: 'staff@lumabonga.app' },
+    { email: 'public@lumabonga.app' },
   ];
   window.__sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
     db: { schema: 'membres' },
@@ -109,6 +108,8 @@
 <script type="text/babel" src="lumabonga-creative.jsx"></script>
 <script type="text/babel" src="lumabonga-product.jsx"></script>
 <script type="text/babel" src="lumabonga-stock.jsx"></script>
+<script src="lumabonga-batch.js"></script>
+<script type="text/babel" src="lumabonga-recipes.jsx"></script>
 
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
@@ -319,6 +320,7 @@ function LangToggle({ t, set, dark, style }) {
 }
 
 function LumaBongaApp({ role, onSignIn, t, set }) {
+  const [showRecipes, setShowRecipes] = useState(false);
   const dark = t.dark;
   const c = creaTheme(dark, t.accent);
   // French is no longer offered anywhere; sanitize any stale 'fr' left over
@@ -330,6 +332,8 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
       <CreaApp t={t} dark={dark} role={role} />
+      {role === 'admin' && <button className="recipe-admin-entry" onClick={() => setShowRecipes(true)}>Recipe versions</button>}
+      {role === 'admin' && showRecipes && <RecipeWorkbench admin onClose={() => setShowRecipes(false)} />}
       {role !== 'public' && <SettingsButton t={t} set={set} dark={dark} />}
       {role !== 'public' && <InstallAppButton dark={dark} t={t} style={{ position: 'absolute', top: 12, right: 54, zIndex: 30 }} />}
       {role === 'public' && (
@@ -357,12 +361,6 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
   );
 }
 
-// Map the authenticated user's email to a role (default: admin / full access).
-const roleForEmail = (email) => {
-  const a = (window.__SB_ACCOUNTS || []).find((x) => x.email === email);
-  return a ? a.role : 'admin';
-};
-
 // slide-up keyframe for the settings sheet
 const kf = document.createElement('style');
 kf.textContent = '@keyframes lbSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }';
@@ -380,10 +378,12 @@ const waitForSb = () => new Promise((res) => {
 async function bootData(sb, onRemoteChange) {
   const { data, error } = await sb.from('app_state').select('data').eq('id', 1).maybeSingle();
   if (error) throw error;
-  window.__LUMA_INITIAL = (data && data.data) ? data.data : {};
+  if (!data) throw new Error('The shared ledger is not accessible.');
+  window.__LUMA_INITIAL = data.data || {};
 
   let timer = null, pending = null;
   window.__LUMA_SAVE = (snapshot) => {
+    window.__LUMA_INITIAL = snapshot;
     pending = snapshot;
     clearTimeout(timer);
     timer = setTimeout(async () => {
@@ -392,7 +392,7 @@ async function bootData(sb, onRemoteChange) {
         await sb.from('app_state').update({
           data: snap, updated_at: new Date().toISOString(), updated_by: CLIENT_ID,
         }).eq('id', 1);
-      } catch (e) { /* local backup still holds; will retry on next change */ }
+      } catch (e) { /* retry on the next change */ }
     }, 700);
   };
 
@@ -488,7 +488,7 @@ function UpdateBanner() {
 function Root() {
   const [phase, setPhase] = useState('connecting'); // connecting | login | loading | ready
   const [remote, setRemote] = useState(false);
-  const [role, setRole] = useState('admin');
+  const [role, setRole] = useState(null);
   const [t, set] = useAppTweaks();
   setLbLang(t.lang);   // keep global translator in sync before children render, at every phase
 
@@ -498,15 +498,17 @@ function Root() {
   const load = React.useCallback(async () => {
     setPhase('loading');
     try {
-      const { data: u } = await window.__sb.auth.getUser();
-      const r = roleForEmail(u && u.user ? u.user.email : null);
+      const { data: r, error: roleError } = await window.__sb.rpc('recipe_access_role');
+      if (roleError || !['admin', 'preparer', 'public'].includes(r)) {
+        throw roleError || new Error('No LumaBonga role is assigned.');
+      }
       setRole(r);
       if (r === 'public') {
         const { data, error } = await window.__sb.from('public_catalog').select('data').maybeSingle();
         if (error) throw error;
         window.__LUMA_READONLY = true;
         window.__LUMA_INITIAL = data ? (data.data || {}) : {};
-      } else {
+      } else if (r === 'admin') {
         window.__LUMA_READONLY = false;
         await bootData(window.__sb, () => setRemote(true));
       }
@@ -538,8 +540,14 @@ function Root() {
   if (phase === 'connecting') return <Splash label={tr('Connexion…')} />;
   if (phase === 'login') return <LoginGate onAuthed={load} t={t} set={set} />;
   if (phase === 'loading') return <Splash label={tr('Chargement du registre…')} />;
+  if (role === 'preparer') return <RecipeWorkbench onSignOut={async () => {
+    const { error } = await window.__sb.auth.signOut();
+    if (!error) window.location.reload();
+  }} />;
   return (<><LumaBongaApp role={role} onSignIn={() => setPhase('login')} t={t} set={set} />{remote && <UpdateBanner />}</>);
 }
+// The hosted app must not leave an administrator's ledger on a shared device.
+try { localStorage.removeItem('lumabonga:v1'); } catch (_) {}
 ReactDOM.createRoot(document.getElementById('root')).render(<Root />);
 </script>
 </body>

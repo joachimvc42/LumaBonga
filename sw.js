@@ -1,9 +1,10 @@
 // Minimal service worker — exists so Chrome/Edge consider the app
 // installable. Network-first, falls back to cache when offline.
-const CACHE = 'lumabonga-v1';
+const CACHE = 'lumabonga-v2';
 const SHELL = [
   '/', '/index.html',
   '/lumabonga-data.jsx', '/lumabonga-creative.jsx', '/lumabonga-stock.jsx', '/lumabonga-product.jsx',
+  '/lumabonga-batch.js', '/lumabonga-recipes.jsx', '/lumabonga-recipes.css',
   '/manifest.json', '/gawahbonga.png', '/icon-192.png', '/icon-512.png',
 ];
 
@@ -20,12 +21,15 @@ self.addEventListener('activate', (e) => {
 });
 
 self.addEventListener('fetch', (e) => {
-  if (e.request.method !== 'GET') return;
+  const url = new URL(e.request.url);
+  if (e.request.method !== 'GET' || url.origin !== self.location.origin || !SHELL.includes(url.pathname)) return;
   e.respondWith(
     fetch(e.request)
       .then((res) => {
-        const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        if (res.ok) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(e.request, copy)).catch(() => {});
+        }
         return res;
       })
       .catch(() => caches.match(e.request))
