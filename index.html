@@ -411,6 +411,7 @@ async function bootData(sb, onRemoteChange) {
 // ── Login gate ───────────────────────────────────────────────────────────────
 function LoginGate({ onAuthed, onBack, target, t, set }) {
   const c = creaTheme(true, '#7dd3a0');
+  const [selectedRole, setSelectedRole] = useState(target || 'admin');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
@@ -420,18 +421,15 @@ function LoginGate({ onAuthed, onBack, target, t, set }) {
     if (!code) return;
     setBusy(true); setErr('');
     const sb = window.__sb;
-    const accounts = window.__SB_ACCOUNTS.filter((account) => !target || account.role === target);
-    let ok = false, networkDown = false;
-    for (const acct of accounts) {
-      let error;
-      try {
-        ({ error } = await sb.auth.signInWithPassword({ email: acct.email, password: code }));
-      } catch (e) { error = e; } // network/DNS failure throws instead of returning error
-      if (!error) { ok = true; break; }
-      // A dead Supabase host surfaces as status 0 / "Failed to fetch", not a real auth rejection.
-      if (error.status === 0 || /fetch/i.test(error.message || '')) networkDown = true;
+    const acct = window.__SB_ACCOUNTS.find((account) => account.role === selectedRole);
+    let error;
+    try {
+      ({ error } = await sb.auth.signInWithPassword({ email: acct.email, password: code }));
+    } catch (e) {
+      error = e;
     }
-    if (!ok) {
+    if (error) {
+      const networkDown = error.status === 0 || /fetch/i.test(error.message || '');
       setErr(networkDown ? tr('Serveur injoignable. Réessaie dans un instant.') : tr('Code incorrect.'));
       setBusy(false); return;
     }
@@ -451,6 +449,12 @@ function LoginGate({ onAuthed, onBack, target, t, set }) {
       </div>
       <LangToggle t={t} set={set} dark={true} style={{ marginBottom: 20 }} />
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 320 }}>
+        {!target && <div className="recipe-role-picker" role="group" aria-label="LumaBonga">
+          {[['admin', 'Admin'], ['preparer', t.lang === 'id' ? 'Produksi' : 'Producer']].map(([role, label]) => (
+            <button key={role} type="button" disabled={busy} aria-pressed={selectedRole === role}
+              onClick={() => { setSelectedRole(role); setCode(''); setErr(''); }}>{label}</button>
+          ))}
+        </div>}
         <label htmlFor="access-code" style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>{tr("Code d'accès")}</label>
         <input id="access-code" type="password" value={code} autoFocus onChange={(e) => setCode(e.target.value)}
           placeholder="••••••••" style={{
@@ -497,22 +501,27 @@ function UpdateBanner() {
 }
 
 function Root() {
-  const [phase, setPhase] = useState('connecting'); // connecting | login | loading | ready
+  const [directProducer] = useState(() => new URLSearchParams(window.location.search).get('view') === 'producer');
+  const [phase, setPhase] = useState('connecting');
   const [remote, setRemote] = useState(false);
   const [role, setRole] = useState(null);
-  const [loginTarget, setLoginTarget] = useState(null);
+  const [loginTarget, setLoginTarget] = useState(directProducer ? 'preparer' : null);
   const [t, set] = useAppTweaks();
   setLbLang(t.lang);   // keep global translator in sync before children render, at every phase
 
   // Every level requires a password — including level 1 (public, "Bonga"),
   // which gets a read-only catalog (products/compositions/SOPs, no
   // finances) via the `public_catalog` view instead of the full ledger.
-  const load = React.useCallback(async () => {
+  const load = React.useCallback(async (expectedRole) => {
     setPhase('loading');
     try {
       const { data: r, error: roleError } = await window.__sb.rpc('recipe_access_role');
       if (roleError || !['admin', 'preparer', 'public'].includes(r)) {
         throw roleError || new Error('No LumaBonga role is assigned.');
+      }
+      if (expectedRole && r !== expectedRole) {
+        setPhase('login');
+        return;
       }
       setRole(r);
       if (r === 'public') {
@@ -543,13 +552,13 @@ function Root() {
       for (let i = 0; i < 14 && alive; i++) {
         const { data } = await sb.auth.getSession();
         if (!alive) return;
-        if (data && data.session) { load(); return; }
+        if (data && data.session) { load(directProducer ? 'preparer' : undefined); return; }
         await new Promise((r) => setTimeout(r, 350));
       }
       if (alive) setPhase('login');
     })();
     return () => { alive = false; };
-  }, [load]);
+  }, [directProducer, load]);
 
   if (phase === 'connecting') return <Splash label={tr('Connexion…')} />;
   if (phase === 'login') return <LoginGate onAuthed={load}
@@ -557,7 +566,7 @@ function Root() {
   if (phase === 'loading') return <Splash label={tr('Chargement du registre…')} />;
   if (role === 'preparer') return <RecipeWorkbench onSignOut={async () => {
     const { error } = await window.__sb.auth.signOut();
-    if (!error) window.location.reload();
+    if (!error) window.location.assign('/');
   }} />;
   return (<><LumaBongaApp role={role} onSignIn={(target) => {
     setLoginTarget(target);

@@ -67,3 +67,15 @@
   text-decoration: underline;
   cursor: pointer;
 }
+.recipe-role-picker { display: flex; gap: .5rem; margin-bottom: 1rem; }
+.recipe-role-picker button {
+  flex: 1;
+  min-height: 2.75rem;
+  border: 1px solid #578067;
+  border-radius: .65rem;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.recipe-role-picker button[aria-pressed="true"] { background: #94dfac; color: #11251a; }
