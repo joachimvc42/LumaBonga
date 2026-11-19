@@ -827,7 +827,7 @@ function CreaSparkline({ series, c, title }) {
 }
 
 // ── Screen: Products (per-product edit) ──────────────────────────────────────
-function CreaProducts({ store, dark, t, onAdd, onEdit, readonly, onOpenTests }) {
+function CreaProducts({ store, dark, t, onAdd, onEdit, readonly, onOpenTests, hiddenProducts }) {
   const c = creaTheme(dark, t.accent);
   const [editId, setEditId] = React.useState(null);  // product currently being edited
   const [nameDraft, setNameDraft] = React.useState('');
@@ -908,7 +908,7 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly, onOpenTests }) 
     const st = p.status || 'ready';
     return st === 'correction' ? 'test' : st;
   };
-  const products = store.products.filter((p) => productStatus(p) === 'ready');
+  const products = store.products.filter((p) => productStatus(p) === 'ready' && !hiddenProducts?.has(p.id));
 
   return (
     <div>
@@ -2727,7 +2727,7 @@ const ALLOWED_TABS = {
   staff: ['sales', 'stock', 'prods', 'tests', 'todos'],
   public: ['prods'],   // anonymous visitors: catalog + SOPs only, read-only
 };
-function CreaApp({ t, dark, role, catalogAction }) {
+function CreaApp({ t, dark, role, catalogAction, hiddenProducts, onManageRecipes }) {
   const c = creaTheme(dark, t.accent);
   const store = useLumaStore(undefined, t.lumayaShare);
   const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
@@ -2791,7 +2791,10 @@ function CreaApp({ t, dark, role, catalogAction }) {
   };
   const openEdit = (k, data) => { setEditing(data); setAdding(k); setAddRestrict(null); setAddNewMatMode(false); };
   const closeSheet = () => { setAdding(null); setEditing(null); setAddRestrict(null); setAddNewMatMode(false); };
-  const goTab = (id) => { setTab(id); };
+  const goTab = (id) => {
+    if (id === 'tests' && onManageRecipes) onManageRecipes();
+    else setTab(id);
+  };
 
   return (
     <div style={{
@@ -2808,7 +2811,7 @@ function CreaApp({ t, dark, role, catalogAction }) {
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} seg={stockSeg} onSegChange={setStockSeg} />}
         {tab === 'prods' && catalogAction}
-        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} onOpenTests={() => goTab('tests')} />}
+        {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} onOpenTests={() => goTab('tests')} hiddenProducts={hiddenProducts} />}
         {tab === 'tests' && <CreaFormulaTests store={store} dark={dark} t={t} />}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>

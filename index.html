@@ -320,6 +320,7 @@ function LangToggle({ t, set, dark, style }) {
 
 function LumaBongaApp({ role, onSignIn, t, set }) {
   const [showRecipes, setShowRecipes] = useState(false);
+  const [recipeVersions, setRecipeVersions] = useState([]);
   const dark = t.dark;
   const c = creaTheme(dark, t.accent);
   // French is no longer offered anywhere; sanitize any stale 'fr' left over
@@ -328,17 +329,32 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
   useEffect(() => {
     if (role !== 'public' && t.lang !== 'en') set('lang', 'en');
   }, [role, t.lang]);
+  useEffect(() => {
+    if (role !== 'admin') return;
+    let active = true;
+    window.__sb.from('recipe_versions').select('legacy_source_key,status').then(({ data, error }) => {
+      if (active && !error) setRecipeVersions(data);
+    });
+    return () => { active = false; };
+  }, [role]);
+  const managed = new Set(recipeVersions.map((row) => row.legacy_source_key));
+  const published = new Set(recipeVersions.filter((row) => row.status === 'validated').map((row) => row.legacy_source_key));
+  const hiddenProducts = new Set([...managed]
+    .filter((key) => key?.endsWith(':base') && !published.has(key))
+    .map((key) => key.slice(0, -5)));
+  const openRecipes = role === 'admin' ? () => setShowRecipes(true) : null;
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
-      <CreaApp t={t} dark={dark} role={role} catalogAction={role === 'public' && (
+      <CreaApp t={t} dark={dark} role={role} hiddenProducts={hiddenProducts} onManageRecipes={openRecipes} catalogAction={role === 'public' && (
         <button className="recipe-producer-entry" onClick={() => onSignIn('preparer')}
           style={{ background: c.panel, color: c.text, borderColor: c.border }}>
           <strong>{t.lang === 'id' ? 'Akses produksi' : 'Producer access'}</strong>
           <span>{t.lang === 'id' ? 'Resep uji & tervalidasi' : 'Test & validated recipes'}</span>
         </button>
       )} />
-      {role === 'admin' && <button className="recipe-admin-entry" onClick={() => setShowRecipes(true)}>Recipe versions</button>}
-      {role === 'admin' && showRecipes && <RecipeWorkbench admin onClose={() => setShowRecipes(false)} />}
+      {role === 'admin' && <button className="recipe-admin-entry" onClick={openRecipes}>Recipe versions</button>}
+      {role === 'admin' && showRecipes && <RecipeWorkbench admin onClose={() => setShowRecipes(false)}
+        onVersionsLoaded={setRecipeVersions} />}
       {role !== 'public' && <SettingsButton t={t} set={set} dark={dark} />}
       {role !== 'public' && <InstallAppButton dark={dark} t={t} style={{ position: 'absolute', top: 12, right: 54, zIndex: 30 }} />}
       {role === 'public' && (

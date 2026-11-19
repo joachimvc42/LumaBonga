@@ -23,7 +23,9 @@ const recipeLabels = {
   },
 };
 
-function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
+const recipeStatusLabels = { draft: 'Draft', testing: 'To test', validated: 'Validated', archived: 'Archived' };
+
+function RecipeWorkbench({ admin = false, onClose, onSignOut, onVersionsLoaded }) {
   const [rows, setRows] = React.useState(null);
   const [legacy, setLegacy] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
@@ -45,8 +47,15 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
     }
     setLegacy(historical.data);
     setRows(versions.data);
-  }, []);
-  React.useEffect(() => { reload(); }, [reload]);
+    if (onVersionsLoaded) onVersionsLoaded(versions.data);
+    if (!admin) setSelected((current) =>
+      current && versions.data.some((row) => row.id === current.id) ? current : null);
+  }, [admin, onVersionsLoaded]);
+  React.useEffect(() => {
+    reload();
+    window.addEventListener('focus', reload);
+    return () => window.removeEventListener('focus', reload);
+  }, [reload]);
 
   const versions = rows || [];
   const integrated = new Set(versions
@@ -222,17 +231,21 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     ({ ...current, [key]: value, translations_reviewed: false }));
   const write = (status) => run(async () => {
     const { name, unit_weight, reference_weight, margin, ingredients, steps, translations_reviewed } = form;
-    const payload = { name: name.trim(), unit_weight: Number(unit_weight), reference_weight: Number(reference_weight),
+    const payload = { name: name.trim(), unit_weight: unit_weight ? Number(unit_weight) : null,
+      reference_weight: reference_weight ? Number(reference_weight) : null,
       margin: Number(margin), ingredients, steps, translations_reviewed, status };
-    const query = form.id
-      ? table().update(payload).eq('id', form.id).eq('updated_at', form.updated_at)
-      : table().insert({ ...payload, legacy_source_key: form.legacy_source_key || null });
-    const { data, error } = await query.select().maybeSingle();
+    const linked = { ...payload, legacy_source_key: form.legacy_source_key || null };
+    const { data, error } = form.id
+      ? await table().update(form.status === 'validated' ? { status } : payload)
+          .eq('id', form.id).eq('updated_at', form.updated_at).select().maybeSingle()
+      : status === 'testing'
+        ? await window.__sb.rpc('create_recipe_for_testing', { payload: linked }).single()
+        : await table().insert(linked).select().single();
     if (error) throw error;
     if (!data) throw new Error('This version changed elsewhere. Reopen it before saving.');
     setForm(data);
     await onSaved();
-    setMessage('Saved.');
+    setMessage(`Saved as ${recipeStatusLabels[data.status]}.`);
   });
   const duplicate = () => run(async () => {
     const { family_id, name, margin, unit_weight, reference_weight, ingredients, steps, legacy_source_key } = form;
@@ -260,7 +273,14 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     setNote('');
   });
   const saveAs = (status) => (event) => {
-    if (event.currentTarget.form.reportValidity()) write(status);
+    if (!event.currentTarget.form.reportValidity()) return;
+    if (status === 'testing' && (!Number(form.unit_weight) || !Number(form.reference_weight))) {
+      setMessage('Enter the net and reference weights before sending this recipe for testing.');
+      return;
+    }
+    const current = form.legacyStatus || form.status;
+    if (current === 'validated' && !window.confirm('Withdraw this recipe from validated production?')) return;
+    write(status);
   };
   const ingredients = [['id', 'Ingredient · Bahasa Indonesia'], ['en', 'Ingredient · English'],
     ['quantity', 'Reference quantity'], ['unit', 'Unit']];
@@ -271,7 +291,7 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   return <>
     <button onClick={() => onOpen(null)}>Back to recipe versions</button>
     <h2>{form.name || 'New draft'} {form.version && <small>v{form.version}</small>}</h2>
-    {!form.id && form.legacyStatus && <p>From catalogue · {{ draft: 'Draft', testing: 'To test', validated: 'Validated' }[form.legacyStatus]}</p>}
+    <p className="recipe-current-status">Status <strong>{recipeStatusLabels[form.legacyStatus || form.status]}</strong></p>
     {!form.id && !form.legacy_source_key && ledgerProducts.length > 0 && <div className="recipe-import">
       <label>Copy an existing formula
         <select value={source} onChange={(event) => setSource(event.target.value)}>
@@ -285,12 +305,17 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
       </label>
       <button type="button" disabled={!source} onClick={() => setForm(recipeFromLedger(...JSON.parse(source)))}>Copy</button>
     </div>}
-    <form onSubmit={(event) => { event.preventDefault(); write(form.status); }}>
+    <form onSubmit={(event) => {
+      event.preventDefault();
+      if (!editable) return;
+      if (form.legacyStatus === 'validated' && !window.confirm('Withdraw this recipe from validated production?')) return;
+      write(form.status);
+    }}>
       <fieldset disabled={busy || !editable}>
         <label>Recipe name<input required value={form.name} onChange={(e) => change('name', e.target.value)} /></label>
-        <label>Net weight per unit (g)<input required type="number" min="0.000001" step="any"
+        <label>Net weight per unit (g)<input type="number" min="0.000001" step="any"
           value={form.unit_weight} onChange={(e) => change('unit_weight', e.target.value)} /></label>
-        <label>Weight represented by the ingredient list (g)<input required type="number" min="0.000001" step="any"
+        <label>Weight represented by the ingredient list (g)<input type="number" min="0.000001" step="any"
           value={form.reference_weight} onChange={(e) => change('reference_weight', e.target.value)} /></label>
         <label>Manufacturing margin (%)<input required type="number" min="0" max="100" step="any"
           value={form.margin} onChange={(e) => change('margin', e.target.value)} /></label>
@@ -304,14 +329,23 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
         </label>
       </fieldset>
       {editable && <nav>
-        <button type="submit" disabled={busy}>Save {form.status === 'draft' ? 'draft' : 'test version'}</button>
-        {form.id && <button type="button" className="recipe-primary" disabled={busy || !form.translations_reviewed}
+        <button type="submit" disabled={busy}>{form.legacyStatus === 'validated' ? 'Move to Draft' : form.status === 'draft' ? 'Save draft' : 'Save test version'}</button>
+        {form.status === 'testing' && <button type="button" disabled={busy} onClick={saveAs('draft')}>Move to Draft</button>}
+        <button type="button" className="recipe-primary" disabled={busy || !form.translations_reviewed}
           onClick={saveAs(form.status === 'draft' ? 'testing' : 'validated')}>
-          {form.status === 'draft' ? 'Send to testing' : 'Validate'}
-        </button>}
+          {form.status === 'draft' ? 'Send to To test' : 'Validate for production'}
+        </button>
+        {form.status === 'draft' && !form.translations_reviewed && <p>Review both languages to make this recipe available for testing.</p>}
       </nav>}
+      {form.status === 'validated' && <>
+        <nav>
+          <button type="button" disabled={busy || hasPending} onClick={saveAs('testing')}>Move to To test</button>
+          <button type="button" disabled={busy || hasPending} onClick={saveAs('draft')}>Move to Draft</button>
+          <button type="button" disabled={busy || hasPending} onClick={duplicate}>Create a new draft version</button>
+        </nav>
+        {hasPending && <p>Finish or remove the pending version before changing this validated version’s status.</p>}
+      </>}
     </form>
-    {form.status === 'validated' && <button disabled={busy || hasPending} onClick={duplicate}>Create a new draft version</button>}
     {form.id && <button disabled={busy} onClick={remove}>Delete version</button>}
     {form.id && form.status !== 'draft' && <section>
       <h3>Test observations</h3>
