@@ -79,3 +79,66 @@
   cursor: pointer;
 }
 .recipe-role-picker button[aria-pressed="true"] { background: #94dfac; color: #11251a; }
+
+.recipe-producer {
+  background: #f1f2f4;
+  color: #14212b;
+  font-family: 'Inter', system-ui, sans-serif;
+  padding: 1rem max(1rem, calc((100% - 46rem) / 2)) 2rem;
+}
+.recipe-producer header { gap: .5rem; justify-content: flex-end; margin: 0 0 2rem; }
+.recipe-brand { display: flex; align-items: center; gap: .55rem; margin-right: auto; }
+.recipe-brand span {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: .55rem;
+  background: #1b7459;
+  color: #fff;
+  font-size: .75rem;
+  font-weight: 700;
+}
+.recipe-producer h1 { font-size: clamp(1.85rem, 5vw, 2.625rem); letter-spacing: -.045em; margin: 0 0 1.25rem; }
+.recipe-producer :is(button, select, input, textarea) { background: white; border-color: #dbe1e7; }
+.recipe-producer header :is(button, select) { font-size: .8rem; padding-inline: .55rem; max-width: 100%; }
+.recipe-producer :focus-visible { outline-color: #1b7459; }
+.recipe-producer .recipe-primary { background: #1b7459; color: #fff; border-color: #1b7459; }
+.recipe-status-picker {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: .35rem;
+  background: #e5e9ee;
+  padding: .3rem;
+  border-radius: .85rem;
+}
+.recipe-status-picker button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: .35rem;
+  border: 1px solid transparent;
+  background: transparent;
+  font-weight: 650;
+  font-size: .875rem;
+  padding-inline: .35rem;
+}
+.recipe-status-picker button[aria-pressed="true"] { background: white; color: #126047; border-color: #d5e5dd; }
+.recipe-status-picker span { background: #d8eee3; color: #125640; border-radius: 1rem; min-width: 1.35rem; padding: .05rem .25rem; }
+.recipe-producer section { margin-block: 1rem; }
+.recipe-producer .recipe-list-item { padding: .85rem 1rem; font-weight: 650; }
+.recipe-producer .recipe-list-item small { color: #126047; background: #d8eee3; border-radius: 1rem; padding: .1rem .5rem; }
+.recipe-empty {
+  display: grid;
+  justify-items: center;
+  gap: .35rem;
+  text-align: center;
+  background: white;
+  border: 1px solid #dbe1e7;
+  border-radius: 1rem;
+  padding: 2rem 1rem;
+}
+.recipe-empty svg { color: #1b7459; margin-bottom: .25rem; }
+.recipe-empty p { margin: 0; color: #526174; font-size: .875rem; }
+.recipe-producer li { border-color: #dbe1e7; }
+.recipe-producer input[type=checkbox] { accent-color: #1b7459; }

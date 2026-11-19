@@ -5,6 +5,9 @@ const recipeLabels = {
     ingredients: 'Bahan', begin: 'Mulai pembuatan', back: 'Kembali', previous: 'Sebelumnya',
     next: 'Selanjutnya', done: 'Langkah selesai', finish: 'Selesai', complete: 'Pembuatan selesai',
     loadError: 'Resep tidak dapat dimuat.', retry: 'Coba lagi', step: 'Langkah',
+    filters: 'Status resep',
+    emptyTesting: 'Resep uji akan muncul setelah admin mengirimkannya untuk diuji.',
+    emptyValidated: 'Resep siap produksi akan muncul setelah divalidasi oleh admin.',
   },
   en: {
     title: 'Preparation', testing: 'To test', validated: 'Validated recipes', empty: 'No recipes yet.',
@@ -12,6 +15,9 @@ const recipeLabels = {
     ingredients: 'Ingredients', begin: 'Start preparation', back: 'Back', previous: 'Previous',
     next: 'Next', done: 'Step complete', finish: 'Finish', complete: 'Preparation complete',
     loadError: 'Recipes could not be loaded.', retry: 'Try again', step: 'Step',
+    filters: 'Recipe status',
+    emptyTesting: 'Recipes appear here when an admin sends them for testing.',
+    emptyValidated: 'Recipes appear here when an admin validates them for production.',
   },
 };
 
@@ -20,6 +26,7 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
   const [selected, setSelected] = React.useState(null);
   const [lang, setLang] = React.useState('id');
   const [error, setError] = React.useState(false);
+  const [filter, setFilter] = React.useState(null);
   const labels = recipeLabels[admin ? 'en' : lang];
   const reload = React.useCallback(async () => {
     setError(false);
@@ -34,12 +41,19 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
   React.useEffect(() => { reload(); }, [reload]);
 
   const entries = rows || [];
-  const statuses = admin ? ['draft', 'testing', 'validated', 'archived'] : ['testing', 'validated'];
+  const counts = {
+    testing: entries.filter((row) => row.status === 'testing').length,
+    validated: entries.filter((row) => row.status === 'validated').length,
+  };
+  const activeStatus = filter || (counts.validated || !counts.testing ? 'validated' : 'testing');
+  const statuses = admin ? ['draft', 'testing', 'validated', 'archived'] : [activeStatus];
   const headings = { draft: 'Drafts', testing: labels.testing, validated: labels.validated, archived: 'Archived versions' };
   return (
-    <main className="recipe-workbench" lang={admin ? 'en' : lang}>
+    <main className={admin ? 'recipe-workbench' : 'recipe-workbench recipe-producer'} lang={admin ? 'en' : lang}>
       <header>
-        <h1>{admin ? 'Recipe versions' : labels.title}</h1>
+        {admin ? <h1>Recipe versions</h1> : <div className="recipe-brand">
+          <span aria-hidden="true">LB</span><strong>LumaBonga</strong>
+        </div>}
         {admin ? <button onClick={onClose}>Back to administration</button> : <>
           <select aria-label="Language" value={lang} onChange={(event) => setLang(event.target.value)}>
             <option value="id">Bahasa Indonesia</option><option value="en">English</option>
@@ -47,6 +61,7 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
           <button onClick={onSignOut}>{labels.signout}</button>
         </>}
       </header>
+      {!admin && !selected && <h1>{labels.title}</h1>}
       {error ? <p role="alert">{labels.loadError} <button onClick={reload}>{labels.retry}</button></p>
         : !rows ? <progress />
         : selected ? (admin
@@ -55,15 +70,30 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
           : <RecipePreparation key={selected.id} recipe={selected} language={lang} onClose={() => setSelected(null)} />)
         : <>
           {admin && <button onClick={() => setSelected(emptyRecipe())}>New draft</button>}
+          {!admin && <div className="recipe-status-picker" role="group" aria-label={labels.filters}>
+            {['validated', 'testing'].map((status) => (
+              <button key={status} aria-pressed={status === activeStatus} onClick={() => setFilter(status)}>
+                {headings[status]} <span>{counts[status]}</span>
+              </button>
+            ))}
+          </div>}
           {statuses.map((status) => (
-            <section key={status}>
-              <h2>{headings[status]}</h2>
+            <section key={status} aria-label={headings[status]}>
+              {admin && <h2>{headings[status]}</h2>}
               {entries.filter((row) => row.status === status).map((row) =>
                 <button className="recipe-list-item" key={row.id} onClick={() => setSelected(row)}>
                   {row.name} <small>v{row.version}</small>
                 </button>
               )}
-              {!entries.some((row) => row.status === status) && <p>{labels.empty}</p>}
+              {!entries.some((row) => row.status === status) && (admin ? <p>{labels.empty}</p> :
+                <div className="recipe-empty">
+                  <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <rect x="5" y="4" width="14" height="16" rx="2" />
+                    <path d="M9 9h6m-6 4h6m-6 4h3" />
+                  </svg>
+                  <strong>{labels.empty}</strong>
+                  <p>{status === 'testing' ? labels.emptyTesting : labels.emptyValidated}</p>
+                </div>)}
             </section>
           ))}
         </>}
