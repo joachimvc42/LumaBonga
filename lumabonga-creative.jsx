@@ -903,22 +903,17 @@ function CreaProducts({ store, dark, t, onAdd, onEdit, readonly, onOpenTests }) 
     window.addEventListener('pointerup', onUp);
   };
 
-  // Level-1 (public, no password) visitors only ever see "Ready" products.
-  // Missing status = legacy product = treated as Ready (nothing disappears
-  // when this field is introduced). Legacy 'correction' (retired status,
-  // folded into Test) reads as Test.
+  // Historical products created before statuses were added count as Ready.
   const productStatus = (p) => {
     const st = p.status || 'ready';
     return st === 'correction' ? 'test' : st;
   };
-  const products = readonly ? store.products.filter((p) => productStatus(p) === 'ready') : store.products;
-  const testCount = products.filter((p) => productStatus(p) === 'test'
-    || store.draftFor(p.id) || store.sopDraftFor(p.id)).length;
+  const products = store.products.filter((p) => productStatus(p) === 'ready');
 
   return (
     <div>
       <CreaHero label={tr('Catalogue')} value={products.length}
-        sub={readonly ? tr('produits actifs') : tr('{ready} versions approuvées · {test} en test', { ready: products.length - testCount, test: testCount })}
+        sub={readonly ? tr('produits actifs') : tr('produits validés')}
         color={c.rose} t={t} dark={dark} unit="" />
       <CreaSection title={tr('Produits')} right={`${products.length}`} dark={dark} t={t} />
 

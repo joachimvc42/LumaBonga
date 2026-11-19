@@ -98,6 +98,7 @@ const LB_EN = {
   '{n} entrées': '{n} entries', 'marge': 'margin', 'Tous': 'All',
   // products screen
   'Catalogue': 'Catalog', 'produits actifs': 'active products', 'Nouveau produit': 'New product',
+  'produits validés': 'validated products',
   'Composition': 'Composition', 'Aucun composant': 'No components', 'Terminé': 'Done', 'Modifier': 'Edit',
   // add sheet
   'Unités vendues': 'Units sold', 'Prix unité ({cur})': 'Unit price ({cur})',
@@ -266,6 +267,7 @@ const LB_ID = {
     'Buka menu browser dan pilih "Instal aplikasi" (atau ikon instal di bilah alamat).',
   'Chargement du registre…': 'Memuat data…',
   'Catalogue': 'Katalog', 'produits actifs': 'produk aktif', 'Produits': 'Produk',
+  'produits validés': 'produk tervalidasi',
   'Composition': 'Komposisi', 'Aucun composant': 'Belum ada komponen',
   'Voir la SOP': 'Lihat SOP', 'Procédure (SOP)': 'Prosedur (SOP)',
   'Quantité à produire': 'Jumlah yang dibuat', 'unités': 'unit', 'Continuer': 'Lanjutkan',
