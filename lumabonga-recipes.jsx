@@ -8,6 +8,7 @@ const recipeLabels = {
     filters: 'Status resep',
     emptyTesting: 'Resep uji akan muncul setelah admin mengirimkannya untuk diuji.',
     emptyValidated: 'Resep siap produksi akan muncul setelah divalidasi oleh admin.',
+    reviewPending: 'Menunggu verifikasi untuk produksi',
   },
   en: {
     title: 'Preparation', testing: 'To test', validated: 'Validated recipes', empty: 'No recipes yet.',
@@ -18,11 +19,13 @@ const recipeLabels = {
     filters: 'Recipe status',
     emptyTesting: 'Recipes appear here when an admin sends them for testing.',
     emptyValidated: 'Recipes appear here when an admin validates them for production.',
+    reviewPending: 'Awaiting checks for guided preparation',
   },
 };
 
 function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
   const [rows, setRows] = React.useState(null);
+  const [legacy, setLegacy] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
   const [lang, setLang] = React.useState('id');
   const [error, setError] = React.useState(false);
@@ -30,17 +33,35 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
   const labels = recipeLabels[admin ? 'en' : lang];
   const reload = React.useCallback(async () => {
     setError(false);
-    const { data, error } = await window.__sb.from('recipe_versions').select('*').order('name').order('version', { ascending: false });
-    if (error) {
+    const sb = window.__sb;
+    const [versions, historical] = await Promise.all([
+      sb.from('recipe_versions').select('*').order('name').order('version', { ascending: false }),
+      sb.from('recipe_legacy_index').select('*').order('name'),
+    ]);
+    if (versions.error || historical.error) {
       setRows(null);
       setError(true);
       return;
     }
-    setRows(data);
+    setLegacy(historical.data);
+    setRows(versions.data);
   }, []);
   React.useEffect(() => { reload(); }, [reload]);
 
-  const entries = rows || [];
+  const versions = rows || [];
+  const integrated = new Set(versions
+    .filter((row) => admin || row.status === 'validated')
+    .map((row) => row.legacy_source_key));
+  const entries = [...versions, ...legacy.filter((row) => !integrated.has(row.source_key))]
+    .sort((left, right) => left.name.localeCompare(right.name, admin ? 'en' : lang));
+  const open = (row) => {
+    if (!row.source_key) {
+      setSelected(row);
+      return;
+    }
+    setSelected({ ...recipeFromLedger(row.product_id, row.working_copy),
+      legacy_source_key: row.source_key, legacyStatus: row.status });
+  };
   const counts = {
     testing: entries.filter((row) => row.status === 'testing').length,
     validated: entries.filter((row) => row.status === 'validated').length,
@@ -65,7 +86,7 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
       {error ? <p role="alert">{labels.loadError} <button onClick={reload}>{labels.retry}</button></p>
         : !rows ? <progress />
         : selected ? (admin
-          ? <RecipeVersionEditor key={selected.id || 'new'} initial={selected} rows={entries}
+          ? <RecipeVersionEditor key={selected.id || 'new'} initial={selected} rows={versions}
               onOpen={setSelected} onSaved={reload} />
           : <RecipePreparation key={selected.id} recipe={selected} language={lang} onClose={() => setSelected(null)} />)
         : <>
@@ -81,9 +102,15 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut }) {
             <section key={status} aria-label={headings[status]}>
               {admin && <h2>{headings[status]}</h2>}
               {entries.filter((row) => row.status === status).map((row) =>
-                <button className="recipe-list-item" key={row.id} onClick={() => setSelected(row)}>
-                  {row.name} <small>v{row.version}</small>
-                </button>
+                !admin && row.source_key ? (
+                  <div className="recipe-list-item recipe-legacy-card" key={row.source_key}>
+                    {row.name}<small>{labels.reviewPending}</small>
+                  </div>
+                ) : (
+                  <button className="recipe-list-item" key={row.id || row.source_key} onClick={() => open(row)}>
+                    {row.name} <small>{row.source_key ? 'From catalogue' : `v${row.version}`}</small>
+                  </button>
+                )
               )}
               {!entries.some((row) => row.status === status) && (admin ? <p>{labels.empty}</p> :
                 <div className="recipe-empty">
@@ -149,16 +176,16 @@ function emptyRecipe() {
 
 function recipeFromLedger(productId, useTest) {
   const ledger = window.__LUMA_INITIAL;
-  const product = ledger.products.find((item) => item.id === productId);
-  const formula = useTest ? ledger.recipeDrafts?.[productId] : ledger.recipes?.[productId];
-  const sop = useTest ? ledger.sopDrafts?.[productId] : ledger.sops?.[productId];
+  const product = (ledger.products || []).find((item) => item.id === productId);
+  const formula = (useTest && ledger.recipeDrafts?.[productId]) || ledger.recipes?.[productId];
+  const sop = (useTest && ledger.sopDrafts?.[productId]) || ledger.sops?.[productId];
   const ingredients = (formula?.ingredients || []).map((item) => {
     const material = (ledger.materials || []).find((entry) => entry.id === item.materialId);
     return { id: '', en: material?.name || '', quantity: Number(item.qty), unit: material?.unit || '' };
   });
   const allGrams = ingredients.length && ingredients.every((item) => item.unit === 'g');
   const weight = allGrams ? ingredients.reduce((sum, item) => sum + item.quantity, 0) : '';
-  return { ...emptyRecipe(), name: product.name, unit_weight: weight, reference_weight: weight, ingredients,
+  return { ...emptyRecipe(), name: product?.name || '', unit_weight: weight, reference_weight: weight, ingredients,
     steps: (sop?.steps || []).map((step) => ({ id: '', en: step.text || '', safetyId: '', safetyEn: '' })) };
 }
 
@@ -199,7 +226,7 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
       margin: Number(margin), ingredients, steps, translations_reviewed, status };
     const query = form.id
       ? table().update(payload).eq('id', form.id).eq('updated_at', form.updated_at)
-      : table().insert(payload);
+      : table().insert({ ...payload, legacy_source_key: form.legacy_source_key || null });
     const { data, error } = await query.select().maybeSingle();
     if (error) throw error;
     if (!data) throw new Error('This version changed elsewhere. Reopen it before saving.');
@@ -208,10 +235,10 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     setMessage('Saved.');
   });
   const duplicate = () => run(async () => {
-    const { family_id, name, margin, unit_weight, reference_weight, ingredients, steps } = form;
+    const { family_id, name, margin, unit_weight, reference_weight, ingredients, steps, legacy_source_key } = form;
     const version = Math.max(...rows.filter((row) => row.family_id === family_id).map((row) => row.version)) + 1;
     const { data, error } = await table().insert({ family_id, version, name, margin, unit_weight,
-      reference_weight, ingredients, steps }).select().single();
+      reference_weight, ingredients, steps, legacy_source_key }).select().single();
     if (error) throw error;
     await onSaved();
     onOpen(data);
@@ -244,7 +271,8 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   return <>
     <button onClick={() => onOpen(null)}>Back to recipe versions</button>
     <h2>{form.name || 'New draft'} {form.version && <small>v{form.version}</small>}</h2>
-    {!form.id && ledgerProducts.length > 0 && <div className="recipe-import">
+    {!form.id && form.legacyStatus && <p>From catalogue · {{ draft: 'Draft', testing: 'To test', validated: 'Validated' }[form.legacyStatus]}</p>}
+    {!form.id && !form.legacy_source_key && ledgerProducts.length > 0 && <div className="recipe-import">
       <label>Copy an existing formula
         <select value={source} onChange={(event) => setSource(event.target.value)}>
           <option value="">Select a formula</option>
