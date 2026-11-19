@@ -25,7 +25,7 @@ const recipeLabels = {
 
 const recipeStatusLabels = { draft: 'Draft', testing: 'To test', validated: 'Validated', archived: 'Archived' };
 
-function RecipeWorkbench({ admin = false, onClose, onSignOut, onVersionsLoaded }) {
+function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsLoaded }) {
   const [rows, setRows] = React.useState(null);
   const [legacy, setLegacy] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
@@ -72,66 +72,71 @@ function RecipeWorkbench({ admin = false, onClose, onSignOut, onVersionsLoaded }
       legacy_source_key: row.source_key, legacyStatus: row.status });
   };
   const counts = {
+    draft: entries.filter((row) => row.status === 'draft').length,
     testing: entries.filter((row) => row.status === 'testing').length,
     validated: entries.filter((row) => row.status === 'validated').length,
+    archived: entries.filter((row) => row.status === 'archived').length,
   };
-  const activeStatus = filter || (counts.validated || !counts.testing ? 'validated' : 'testing');
-  const statuses = admin ? ['draft', 'testing', 'validated', 'archived'] : [activeStatus];
+  const activeStatus = filter || (admin ? 'draft' : counts.validated || !counts.testing ? 'validated' : 'testing');
   const headings = { draft: 'Drafts', testing: labels.testing, validated: labels.validated, archived: 'Archived versions' };
+  const filters = admin ? ['draft', 'testing', 'validated', ...(counts.archived ? ['archived'] : [])] : ['validated', 'testing'];
+  const visible = entries.filter((row) => row.status === activeStatus);
+  const adminColors = admin ? {
+    '--recipe-panel': theme.panel, '--recipe-panel-alt': theme.panel2, '--recipe-border': theme.border,
+    '--recipe-text': theme.text, '--recipe-muted': theme.muted,
+    '--recipe-accent': theme.accent, '--recipe-contrast': theme.inkContrast, '--recipe-font': creaSans,
+  } : undefined;
   return (
-    <main className={admin ? 'recipe-workbench' : 'recipe-workbench recipe-producer'} lang={admin ? 'en' : lang}>
-      <header>
-        {admin ? <h1>Recipe versions</h1> : <div className="recipe-brand">
+    <main className={admin ? 'recipe-workbench recipe-admin' : 'recipe-workbench recipe-producer'}
+      style={adminColors} lang={admin ? 'en' : lang}>
+      {!admin && <header>
+        <div className="recipe-brand">
           <span aria-hidden="true">LB</span><strong>LumaBonga</strong>
-        </div>}
-        {admin ? <button onClick={onClose}>Back to administration</button> : <>
-          <select aria-label="Language" value={lang} onChange={(event) => setLang(event.target.value)}>
-            <option value="id">Bahasa Indonesia</option><option value="en">English</option>
-          </select>
-          <button onClick={onSignOut}>{labels.signout}</button>
-        </>}
-      </header>
+        </div>
+        <select aria-label="Language" value={lang} onChange={(event) => setLang(event.target.value)}>
+          <option value="id">Bahasa Indonesia</option><option value="en">English</option>
+        </select>
+        <button onClick={onSignOut}>{labels.signout}</button>
+      </header>}
+      {admin && <CreaSection title="Recipe versions" dark={dark} t={t} />}
       {!admin && !selected && <h1>{labels.title}</h1>}
       {error ? <p role="alert">{labels.loadError} <button onClick={reload}>{labels.retry}</button></p>
         : !rows ? <progress />
         : selected ? (admin
-          ? <RecipeVersionEditor key={selected.id || 'new'} initial={selected} rows={versions}
-              onOpen={setSelected} onSaved={reload} />
+          ? <div className="recipe-admin-editor"><RecipeVersionEditor key={selected.id || 'new'} initial={selected} rows={versions}
+              onOpen={setSelected} onSaved={reload} /></div>
           : <RecipePreparation key={selected.id} recipe={selected} language={lang} onClose={() => setSelected(null)} />)
         : <>
-          {admin && <button onClick={() => setSelected(emptyRecipe())}>New draft</button>}
-          {!admin && <div className="recipe-status-picker" role="group" aria-label={labels.filters}>
-            {['validated', 'testing'].map((status) => (
+          <div className="recipe-status-picker" role="group" aria-label={labels.filters}>
+            {filters.map((status) => (
               <button key={status} aria-pressed={status === activeStatus} onClick={() => setFilter(status)}>
                 {headings[status]} <span>{counts[status]}</span>
               </button>
             ))}
-          </div>}
-          {statuses.map((status) => (
-            <section key={status} aria-label={headings[status]}>
-              {admin && <h2>{headings[status]}</h2>}
-              {entries.filter((row) => row.status === status).map((row) =>
+          </div>
+            <section key={activeStatus} aria-label={headings[activeStatus]} className="recipe-status-list">
+              {visible.map((row) =>
                 !admin && row.source_key ? (
                   <div className="recipe-list-item recipe-legacy-card" key={row.source_key}>
                     {row.name}<small>{labels.reviewPending}</small>
                   </div>
                 ) : (
                   <button className="recipe-list-item" key={row.id || row.source_key} onClick={() => open(row)}>
-                    {row.name} <small>{row.source_key ? 'From catalogue' : `v${row.version}`}</small>
+                    {row.name} <small>{row.source_key ? 'Catalogue' : `v${row.version}`}</small>
                   </button>
                 )
               )}
-              {!entries.some((row) => row.status === status) && (admin ? <p>{labels.empty}</p> :
+              {!visible.length && (admin ? <p className="recipe-admin-empty">{labels.empty}</p> :
                 <div className="recipe-empty">
                   <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
                     <rect x="5" y="4" width="14" height="16" rx="2" />
                     <path d="M9 9h6m-6 4h6m-6 4h3" />
                   </svg>
                   <strong>{labels.empty}</strong>
-                  <p>{status === 'testing' ? labels.emptyTesting : labels.emptyValidated}</p>
+                  <p>{activeStatus === 'testing' ? labels.emptyTesting : labels.emptyValidated}</p>
                 </div>)}
             </section>
-          ))}
+          {admin && <button className="recipe-admin-new" onClick={() => setSelected(emptyRecipe())}>+ New draft</button>}
         </>}
     </main>
   );

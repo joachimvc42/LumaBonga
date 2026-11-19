@@ -2122,7 +2122,7 @@ function CreaTodoRow({ td, store, c, card, dark, editing, onEdit, onCloseEdit, c
 }
 
 // ── Bottom nav (creative — blob style) ──────────────────────
-function CreaNav({ value, onChange, dark, t, role }) {
+function CreaNav({ value, onChange, dark, t, role, testsLabel = 'À tester' }) {
   const c = creaTheme(dark, t.accent);
   const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
   const tabs = [
@@ -2131,7 +2131,7 @@ function CreaNav({ value, onChange, dark, t, role }) {
     { id: 'buys', label: 'Achats', icon: Icon.buy },
     { id: 'stock', label: 'Stock', icon: Icon.box },
     { id: 'prods', label: 'Produits', icon: Icon.prod },
-    { id: 'tests', label: 'À tester', icon: Icon.list },
+    { id: 'tests', label: testsLabel, icon: Icon.list },
     { id: 'todos', label: 'To do', icon: Icon.todo },
   ].filter((tab) => allowed.includes(tab.id));
   if (tabs.length < 2) return null;   // public: single tab — no nav needed
@@ -2727,7 +2727,7 @@ const ALLOWED_TABS = {
   staff: ['sales', 'stock', 'prods', 'tests', 'todos'],
   public: ['prods'],   // anonymous visitors: catalog + SOPs only, read-only
 };
-function CreaApp({ t, dark, role, catalogAction, hiddenProducts, onManageRecipes }) {
+function CreaApp({ t, dark, role, catalogAction, hiddenProducts, recipeTests }) {
   const c = creaTheme(dark, t.accent);
   const store = useLumaStore(undefined, t.lumayaShare);
   const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
@@ -2791,10 +2791,7 @@ function CreaApp({ t, dark, role, catalogAction, hiddenProducts, onManageRecipes
   };
   const openEdit = (k, data) => { setEditing(data); setAdding(k); setAddRestrict(null); setAddNewMatMode(false); };
   const closeSheet = () => { setAdding(null); setEditing(null); setAddRestrict(null); setAddNewMatMode(false); };
-  const goTab = (id) => {
-    if (id === 'tests' && onManageRecipes) onManageRecipes();
-    else setTab(id);
-  };
+  const goTab = (id) => setTab(id);
 
   return (
     <div style={{
@@ -2812,10 +2809,10 @@ function CreaApp({ t, dark, role, catalogAction, hiddenProducts, onManageRecipes
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} seg={stockSeg} onSegChange={setStockSeg} />}
         {tab === 'prods' && catalogAction}
         {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} onOpenTests={() => goTab('tests')} hiddenProducts={hiddenProducts} />}
-        {tab === 'tests' && <CreaFormulaTests store={store} dark={dark} t={t} />}
+        {tab === 'tests' && (recipeTests || <CreaFormulaTests store={store} dark={dark} t={t} />)}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>
-      <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} />
+      <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} testsLabel={recipeTests ? 'Tests' : undefined} />
       {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} restrictKinds={addRestrict} initialNewMatMode={addNewMatMode} />}
     </div>
   );
