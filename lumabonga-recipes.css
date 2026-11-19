@@ -43,3 +43,27 @@
 .recipe-instruction, .recipe-safety { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 1.15rem; }
 .recipe-safety { border-inline-start: .25rem solid #ffd489; padding-inline-start: .8rem; }
 .recipe-admin-entry { position: fixed; left: 1rem; top: .75rem; z-index: 30; padding: .5rem .8rem; border: 0; border-radius: .65rem; background: #20372a; color: #f5faf7; cursor: pointer; }
+.recipe-producer-entry {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: .25rem .75rem;
+  margin: .5rem 1.25rem;
+  padding: .6rem .9rem;
+  border: 1px solid;
+  border-radius: .75rem;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.recipe-producer-entry span { font-size: .85em; }
+.recipe-login-back {
+  margin-top: .9rem;
+  min-height: 2.75rem;
+  background: transparent;
+  color: inherit;
+  border: none;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}

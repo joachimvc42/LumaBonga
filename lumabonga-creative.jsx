@@ -2732,7 +2732,7 @@ const ALLOWED_TABS = {
   staff: ['sales', 'stock', 'prods', 'tests', 'todos'],
   public: ['prods'],   // anonymous visitors: catalog + SOPs only, read-only
 };
-function CreaApp({ t, dark, role }) {
+function CreaApp({ t, dark, role, catalogAction }) {
   const c = creaTheme(dark, t.accent);
   const store = useLumaStore(undefined, t.lumayaShare);
   const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
@@ -2812,6 +2812,7 @@ function CreaApp({ t, dark, role }) {
         {tab === 'sales' && <CreaTxScreen store={store} dark={dark} t={t} kind="sale" onEdit={openEdit} role={role} />}
         {tab === 'buys' && <CreaPurchases store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} />}
         {tab === 'stock' && <CreaStock store={store} dark={dark} t={t} onEdit={openEdit} onAdd={openAdd} onOpen={(p) => goTab('prods')} role={role} seg={stockSeg} onSegChange={setStockSeg} />}
+        {tab === 'prods' && catalogAction}
         {tab === 'prods' && <CreaProducts store={store} dark={dark} t={t} onAdd={openAdd} onEdit={openEdit} readonly={role === 'public'} onOpenTests={() => goTab('tests')} />}
         {tab === 'tests' && <CreaFormulaTests store={store} dark={dark} t={t} />}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}

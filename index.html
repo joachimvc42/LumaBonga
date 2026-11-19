@@ -88,13 +88,12 @@
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
   const SUPABASE_URL  = 'https://bubueeymqgyqyzelmyam.supabase.co';
   const SUPABASE_ANON = 'sb_publishable_9_rOz8AY3khM_ONnl3nqnQ_uF2hyrx2';
-  window.__SB_EMAIL = 'equipe@lumabonga.app';   // compte partagé (caché) — le code = son mot de passe
-  // Accounts mapped to a role. Login tries each email with the entered code.
+  // The selected entry point can target one account.
   // The role is read from Supabase after login.
   window.__SB_ACCOUNTS = [
-    { email: 'equipe@lumabonga.app' },
-    { email: 'staff@lumabonga.app' },
-    { email: 'public@lumabonga.app' },
+    { email: 'equipe@lumabonga.app', role: 'admin' },
+    { email: 'staff@lumabonga.app', role: 'preparer' },
+    { email: 'public@lumabonga.app', role: 'public' },
   ];
   window.__sb = createClient(SUPABASE_URL, SUPABASE_ANON, {
     db: { schema: 'membres' },
@@ -331,7 +330,13 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
   }, [role, t.lang]);
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
-      <CreaApp t={t} dark={dark} role={role} />
+      <CreaApp t={t} dark={dark} role={role} catalogAction={role === 'public' && (
+        <button className="recipe-producer-entry" onClick={() => onSignIn('preparer')}
+          style={{ background: c.panel, color: c.text, borderColor: c.border }}>
+          <strong>{t.lang === 'id' ? 'Akses produksi' : 'Producer access'}</strong>
+          <span>{t.lang === 'id' ? 'Resep uji & tervalidasi' : 'Test & validated recipes'}</span>
+        </button>
+      )} />
       {role === 'admin' && <button className="recipe-admin-entry" onClick={() => setShowRecipes(true)}>Recipe versions</button>}
       {role === 'admin' && showRecipes && <RecipeWorkbench admin onClose={() => setShowRecipes(false)} />}
       {role !== 'public' && <SettingsButton t={t} set={set} dark={dark} />}
@@ -343,7 +348,7 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
         </div>
       )}
       {role === 'public' && (
-        <button onClick={onSignIn} style={{
+        <button onClick={() => onSignIn('admin')} style={{
           position: 'absolute', top: 12, right: 20, zIndex: 150,
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '8px 16px', borderRadius: 999, border: 'none', cursor: 'pointer',
@@ -404,7 +409,7 @@ async function bootData(sb, onRemoteChange) {
 }
 
 // ── Login gate ───────────────────────────────────────────────────────────────
-function LoginGate({ onAuthed, t, set }) {
+function LoginGate({ onAuthed, onBack, target, t, set }) {
   const c = creaTheme(true, '#7dd3a0');
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
@@ -415,9 +420,9 @@ function LoginGate({ onAuthed, t, set }) {
     if (!code) return;
     setBusy(true); setErr('');
     const sb = window.__sb;
-    // Try each known account with the entered code; first that works wins.
+    const accounts = window.__SB_ACCOUNTS.filter((account) => !target || account.role === target);
     let ok = false, networkDown = false;
-    for (const acct of (window.__SB_ACCOUNTS || [{ email: window.__SB_EMAIL }])) {
+    for (const acct of accounts) {
       let error;
       try {
         ({ error } = await sb.auth.signInWithPassword({ email: acct.email, password: code }));
@@ -440,11 +445,14 @@ function LoginGate({ onAuthed, t, set }) {
       fontFamily: creaSans, padding: 32,
     }}>
       <div style={{ fontFamily: creaDisplay, fontStyle: 'normal', fontSize: 44, marginBottom: 4 }}>LumaBonga</div>
-      <div style={{ fontSize: 12, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 20 }}>Luma · Bonga</div>
+      <div style={{ fontSize: 12, color: c.muted, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 20 }}>
+        {target === 'preparer' ? (t.lang === 'id' ? 'Akses produksi' : 'Producer access')
+          : target === 'admin' ? 'Admin' : 'Luma · Bonga'}
+      </div>
       <LangToggle t={t} set={set} dark={true} style={{ marginBottom: 20 }} />
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 320 }}>
-        <label style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>{tr("Code d'accès")}</label>
-        <input type="password" value={code} autoFocus onChange={(e) => setCode(e.target.value)}
+        <label htmlFor="access-code" style={{ fontSize: 11, color: c.muted, letterSpacing: .6, textTransform: 'uppercase' }}>{tr("Code d'accès")}</label>
+        <input id="access-code" type="password" value={code} autoFocus onChange={(e) => setCode(e.target.value)}
           placeholder="••••••••" style={{
             width: '100%', marginTop: 8, padding: '14px 16px', borderRadius: 14,
             background: c.panel, color: c.text, border: `1px solid ${err ? c.rose : c.border}`,
@@ -457,6 +465,9 @@ function LoginGate({ onAuthed, t, set }) {
           opacity: busy ? .6 : 1,
         }}>{busy ? tr('Connexion…') : tr('Entrer')}</button>
       </form>
+      {onBack && <button type="button" disabled={busy} onClick={onBack} className="recipe-login-back">
+        {t.lang === 'id' ? 'Kembali ke katalog' : 'Back to catalog'}
+      </button>}
     </div>
   );
 }
@@ -489,6 +500,7 @@ function Root() {
   const [phase, setPhase] = useState('connecting'); // connecting | login | loading | ready
   const [remote, setRemote] = useState(false);
   const [role, setRole] = useState(null);
+  const [loginTarget, setLoginTarget] = useState(null);
   const [t, set] = useAppTweaks();
   setLbLang(t.lang);   // keep global translator in sync before children render, at every phase
 
@@ -516,6 +528,8 @@ function Root() {
     } catch (e) {
       // Member check / RLS failure or network — back to login.
       try { await window.__sb.auth.signOut(); } catch (_) {}
+      setRole(null);
+      setLoginTarget(null);
       setPhase('login');
     }
   }, []);
@@ -538,13 +552,17 @@ function Root() {
   }, [load]);
 
   if (phase === 'connecting') return <Splash label={tr('Connexion…')} />;
-  if (phase === 'login') return <LoginGate onAuthed={load} t={t} set={set} />;
+  if (phase === 'login') return <LoginGate onAuthed={load}
+    onBack={role === 'public' ? () => setPhase('ready') : null} target={loginTarget} t={t} set={set} />;
   if (phase === 'loading') return <Splash label={tr('Chargement du registre…')} />;
   if (role === 'preparer') return <RecipeWorkbench onSignOut={async () => {
     const { error } = await window.__sb.auth.signOut();
     if (!error) window.location.reload();
   }} />;
-  return (<><LumaBongaApp role={role} onSignIn={() => setPhase('login')} t={t} set={set} />{remote && <UpdateBanner />}</>);
+  return (<><LumaBongaApp role={role} onSignIn={(target) => {
+    setLoginTarget(target);
+    setPhase('login');
+  }} t={t} set={set} />{remote && <UpdateBanner />}</>);
 }
 // The hosted app must not leave an administrator's ledger on a shared device.
 try { localStorage.removeItem('lumabonga:v1'); } catch (_) {}
