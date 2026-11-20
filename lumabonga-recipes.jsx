@@ -205,6 +205,7 @@ function recipeFromLedger(productId, useTest) {
 
 function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   const [form, setForm] = React.useState(initial);
+  const [units, setUnits] = React.useState('15');
   const [source, setSource] = React.useState('');
   const [observations, setObservations] = React.useState([]);
   const [note, setNote] = React.useState('');
@@ -297,6 +298,7 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     <button onClick={() => onOpen(null)}>Back to recipe versions</button>
     <h2>{form.name || 'New draft'} {form.version && <small>v{form.version}</small>}</h2>
     <p className="recipe-current-status">Status <strong>{recipeStatusLabels[form.legacyStatus || form.status]}</strong></p>
+    <AdminBatchPreview recipe={form} units={units} onUnitsChange={setUnits} />
     {!form.id && !form.legacy_source_key && ledgerProducts.length > 0 && <div className="recipe-import">
       <label>Copy an existing formula
         <select value={source} onChange={(event) => setSource(event.target.value)}>
@@ -310,13 +312,18 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
       </label>
       <button type="button" disabled={!source} onClick={() => setForm(recipeFromLedger(...JSON.parse(source)))}>Copy</button>
     </div>}
-    <form onSubmit={(event) => {
+    <form onInvalidCapture={(event) => {
+      const panel = event.target.closest('details');
+      if (panel) panel.open = true;
+    }} onSubmit={(event) => {
       event.preventDefault();
       if (!editable) return;
       if (form.legacyStatus === 'validated' && !window.confirm('Withdraw this recipe from validated production?')) return;
       write(form.status);
     }}>
       <fieldset disabled={busy || !editable}>
+        <details className="recipe-admin-details" open={!initial.name || !initial.unit_weight || !initial.reference_weight || undefined}>
+        <summary>Recipe settings</summary>
         <label>Recipe name<input required value={form.name} onChange={(e) => change('name', e.target.value)} /></label>
         <label>Net weight per unit (g)<input type="number" min="0.000001" step="any"
           value={form.unit_weight} onChange={(e) => change('unit_weight', e.target.value)} /></label>
@@ -324,10 +331,17 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
           value={form.reference_weight} onChange={(e) => change('reference_weight', e.target.value)} /></label>
         <label>Manufacturing margin (%)<input required type="number" min="0" max="100" step="any"
           value={form.margin} onChange={(e) => change('margin', e.target.value)} /></label>
+        </details>
+        <details className="recipe-admin-details">
+        <summary>Ingredients · {form.ingredients.length}</summary>
         <RecipeFields title="Ingredients" fields={ingredients} values={form.ingredients}
           onChange={(value) => changeList('ingredients', value)} />
+        </details>
+        <details className="recipe-admin-details">
+        <summary>Instructions and safety · {form.steps.length}</summary>
         <RecipeFields title="Instructions and safety" fields={steps} values={form.steps}
           onChange={(value) => changeList('steps', value)} />
+        </details>
         <label className="recipe-check"><input type="checkbox" checked={form.translations_reviewed}
           onChange={(e) => change('translations_reviewed', e.target.checked)} />
           I reviewed the ingredient names, instructions and safety information in both languages.
@@ -362,6 +376,34 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   </>;
 }
 
+function AdminBatchPreview({ recipe, units, onUnitsChange }) {
+  const batch = LumaBatch.calculate(recipe, Number(units));
+  const perUnit = LumaBatch.calculate({ ...recipe, margin: 0 }, 1);
+  const format = (quantity) => LumaBatch.format(quantity, 'en');
+  return <section className="recipe-admin-batch" aria-label="Batch preview">
+    <div className="recipe-batch-controls">
+      <label>Number of units
+        <input type="number" inputMode="numeric" min="1" step="1" value={units}
+          onChange={(event) => onUnitsChange(event.target.value)} />
+      </label>
+      {batch && <p>
+        <span>Total to prepare · {format(Number(recipe.margin))}% margin</span>
+        <strong>{format(batch.total)} g</strong>
+      </p>}
+    </div>
+    {batch && perUnit && batch.quantities.length ? <table>
+      <thead><tr><th scope="col">Ingredient</th><th scope="col">Per unit, net</th><th scope="col">To prepare</th></tr></thead>
+      <tbody>{batch.quantities.map((item, index) => <tr key={index}>
+        <th scope="row">{item.en || item.id || `Ingredient ${index + 1}`}</th>
+        <td>{format(perUnit.quantities[index].quantity)} {item.unit}</td>
+        <td>{format(item.quantity)} {item.unit}</td>
+      </tr>)}</tbody>
+    </table> : <p className="recipe-batch-note">
+      Enter a whole number of units, the recipe weights and the ingredient quantities to preview the batch.
+    </p>}
+  </section>;
+}
+
 function RecipeFields({ title, fields, values, onChange }) {
   const update = (index, key, value) =>
     onChange(values.map((row, i) => i === index ? { ...row, [key]: value } : row));
@@ -371,7 +413,6 @@ function RecipeFields({ title, fields, values, onChange }) {
     onChange(items);
   };
   return <section>
-    <h3>{title}</h3>
     {values.map((row, index) => <div className="recipe-field-row" key={index}>
       {fields.map(([key, label]) => <label key={key}>{label}
         {title === 'Instructions and safety'
