@@ -209,6 +209,7 @@ function recipeFromLedger(productId, useTest) {
 }
 
 function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
+  const [editingName, setEditingName] = React.useState(!initial.name);
   const [form, setForm] = React.useState(() => {
     const ratio = initial.unit_weight && initial.reference_weight ? initial.unit_weight / initial.reference_weight : 1;
     return ratio === 1 ? initial : { ...initial, ingredients: initial.ingredients.map((item) =>
@@ -292,6 +293,11 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   const save = (event) => {
     event.preventDefault();
     if (!canSave || busy) return;
+    if (!form.name.trim()) {
+      setEditingName(true);
+      setMessage('Enter a recipe name.');
+      return;
+    }
     if (status !== 'draft' && editable && !mass.grams) {
       setMessage('Enter at least one ingredient by weight (g or kg) before publishing.');
       return;
@@ -311,11 +317,6 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   const canSave = editable ? !(form.legacyStatus === 'validated' && status === 'validated')
     : form.status === 'validated' && status !== currentStatus && !hasPending;
   return <>
-    <div className="recipe-editor-heading">
-      <h2>{form.name || 'New draft'} <small className="recipe-net-weight"
-        title={mass.complete ? 'Net weight per unit' : 'Measured weight per unit'}>{netWeight}</small></h2>
-      <button className="recipe-editor-close" type="button" aria-label="Close recipe" disabled={busy} onClick={() => onOpen(null)}>×</button>
-    </div>
     {!form.id && !form.legacy_source_key && ledgerProducts.length > 0 && <div className="recipe-import">
       <label>Copy an existing formula
         <select value={source} onChange={(event) => setSource(event.target.value)}>
@@ -333,21 +334,27 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
       const panel = event.target.closest('details');
       if (panel) panel.open = true;
     }} onSubmit={save}>
-      <div className="recipe-status-control">
-        <label>Status
+      <div className="recipe-editor-heading">
+        <div className="recipe-editor-identity">
+          {editingName ? <input aria-label="Recipe name" value={form.name} required autoFocus disabled={busy}
+            onChange={(event) => change('name', event.target.value)}
+            onBlur={() => { if (form.name.trim()) setEditingName(false); }} />
+            : <h2>{form.name || 'New draft'}</h2>}
+          {editable && !editingName && <button type="button" className="recipe-edit-name" aria-label="Edit recipe name"
+            disabled={busy} onClick={() => setEditingName(true)}>✏️</button>}
+          <small className="recipe-net-weight" title={mass.complete ? 'Net weight per unit' : 'Measured weight per unit'}>{netWeight}</small>
+        </div>
+        <div className="recipe-status-control">
           <select aria-label="Status" value={status} disabled={busy || options.length < 2} onChange={(e) => setNextStatus(e.target.value)}>
             {options.map((value) => <option key={value} value={value}>{recipeStatusLabels[value]}</option>)}
           </select>
-        </label>
-        <button type="submit" className="recipe-primary" disabled={busy || !canSave}>Save</button>
+          <button type="submit" className="recipe-primary" disabled={busy || !canSave}>Save</button>
+          <button className="recipe-editor-close" type="button" aria-label="Close recipe" disabled={busy} onClick={() => onOpen(null)}>×</button>
+        </div>
       </div>
       {message && <p role="status">{message}</p>}
       {form.status === 'validated' && hasPending && <p>Finish or remove the pending version before changing this validated version’s status.</p>}
       <fieldset disabled={busy || !editable}>
-        <details className="recipe-admin-details" open={!initial.name || undefined}>
-        <summary>Recipe name</summary>
-        <label>Recipe name<input required value={form.name} onChange={(e) => change('name', e.target.value)} /></label>
-        </details>
         <h3>Ingredients <small>Per unit · includes {form.margin}% extra</small></h3>
         <RecipeLines values={form.ingredients} marginFactor={marginFactor} onChange={(value) => changeList('ingredients', value)} />
         <h3>Instructions</h3>
