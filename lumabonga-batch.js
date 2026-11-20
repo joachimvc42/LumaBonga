@@ -13,18 +13,21 @@
     return new Intl.NumberFormat(language, { maximumSignificantDigits: 12 }).format(quantity);
   }
 
-  function scalePerUnit(recipe, count) {
-    const margin = Number(recipe.margin);
-    if (!Number.isSafeInteger(count) || count < 1 || !Number.isFinite(margin) || margin < 0 || margin > 100) return null;
-    const factor = count * (1 + margin / 100);
-    const quantities = recipe.ingredients.map((item) => ({
-      ...item, quantity: Number(item.quantity) * factor,
-    }));
-    return quantities.some((item) => !Number.isFinite(item.quantity) || item.quantity <= 0)
-      ? null : { quantities };
+  function massSummary(ingredients) {
+    let grams = 0;
+    let complete = ingredients.length > 0;
+    for (const item of ingredients) {
+      const quantity = Number(item.quantity);
+      if (!(quantity > 0) || !Number.isFinite(quantity) || !['g', 'kg'].includes(item.unit)) {
+        complete = false;
+      } else {
+        grams += item.unit === 'kg' ? quantity * 1000 : quantity;
+      }
+    }
+    return { grams, complete };
   }
 
-  const batch = { calculate, format, scalePerUnit };
+  const batch = { calculate, format, massSummary };
   if (typeof module !== 'undefined') module.exports = batch;
   else root.LumaBatch = batch;
 })(globalThis);
