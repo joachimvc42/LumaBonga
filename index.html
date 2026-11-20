@@ -318,6 +318,7 @@ function LangToggle({ t, set, dark, style }) {
 
 function LumaBongaApp({ role, onSignIn, t, set }) {
   const [recipeVersions, setRecipeVersions] = useState([]);
+  const [recipeDetailOpen, setRecipeDetailOpen] = useState(false);
   const dark = t.dark;
   const c = creaTheme(dark, t.accent);
   // The catalogue and administration use English.
@@ -339,8 +340,9 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
     .map((key) => key.slice(0, -5)));
   return (
     <div style={{ position: 'absolute', inset: 0, background: c.bg }}>
-      <CreaApp t={t} dark={dark} role={role} hiddenProducts={hiddenProducts}
-        recipeTests={role === 'admin' && <RecipeWorkbench admin dark={dark} theme={c} t={t} onVersionsLoaded={setRecipeVersions} />}
+      <CreaApp t={t} dark={dark} role={role} hiddenProducts={hiddenProducts} recipeDetailOpen={recipeDetailOpen}
+        recipeTests={role === 'admin' && <RecipeWorkbench admin dark={dark} theme={c} t={t}
+          onVersionsLoaded={setRecipeVersions} onDetailChange={setRecipeDetailOpen} />}
         catalogAction={role === 'public' && (
         <button className="recipe-producer-entry" onClick={() => onSignIn('preparer')}
           style={{ background: c.panel, color: c.text, borderColor: c.border }}>

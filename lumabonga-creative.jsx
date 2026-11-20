@@ -2727,7 +2727,7 @@ const ALLOWED_TABS = {
   staff: ['sales', 'stock', 'prods', 'tests', 'todos'],
   public: ['prods'],   // anonymous visitors: catalog + SOPs only, read-only
 };
-function CreaApp({ t, dark, role, catalogAction, hiddenProducts, recipeTests }) {
+function CreaApp({ t, dark, role, catalogAction, hiddenProducts, recipeTests, recipeDetailOpen }) {
   const c = creaTheme(dark, t.accent);
   const store = useLumaStore(undefined, t.lumayaShare);
   const allowed = ALLOWED_TABS[role] || ALLOWED_TABS.admin;
@@ -2812,7 +2812,8 @@ function CreaApp({ t, dark, role, catalogAction, hiddenProducts, recipeTests }) 
         {tab === 'tests' && (recipeTests || <CreaFormulaTests store={store} dark={dark} t={t} />)}
         {tab === 'todos' && <CreaTodos store={store} dark={dark} t={t} />}
       </div>
-      <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} testsLabel={recipeTests ? 'Tests' : undefined} />
+      {!(tab === 'tests' && recipeDetailOpen) &&
+        <CreaNav value={tab} onChange={goTab} dark={dark} t={t} role={role} testsLabel={recipeTests ? 'Tests' : undefined} />}
       {adding && <CreaAddSheet store={store} dark={dark} t={t} kind={adding} setKind={setAdding} editing={editing} onClose={closeSheet} restrictKinds={addRestrict} initialNewMatMode={addNewMatMode} />}
     </div>
   );

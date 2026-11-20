@@ -25,13 +25,19 @@ const recipeLabels = {
 
 const recipeStatusLabels = { draft: 'Draft', testing: 'To test', validated: 'Validated', archived: 'Archived' };
 
-function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsLoaded }) {
+function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsLoaded, onDetailChange }) {
   const [rows, setRows] = React.useState(null);
   const [legacy, setLegacy] = React.useState([]);
   const [selected, setSelected] = React.useState(null);
   const [lang, setLang] = React.useState('id');
   const [error, setError] = React.useState(false);
   const [filter, setFilter] = React.useState(null);
+  const detailOpen = !!selected;
+  React.useEffect(() => {
+    if (!onDetailChange || !detailOpen) return;
+    onDetailChange(true);
+    return () => onDetailChange(false);
+  }, [onDetailChange, detailOpen]);
   const labels = recipeLabels[admin ? 'en' : lang];
   const reload = React.useCallback(async () => {
     setError(false);
@@ -98,7 +104,7 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
         </select>
         <button onClick={onSignOut}>{labels.signout}</button>
       </header>}
-      {admin && <CreaSection title="Recipe versions" dark={dark} t={t} />}
+      {admin && !selected && <CreaSection title="Recipe versions" dark={dark} t={t} />}
       {!admin && !selected && <h1>{labels.title}</h1>}
       {error ? <p role="alert">{labels.loadError} <button onClick={reload}>{labels.retry}</button></p>
         : !rows ? <progress />
@@ -205,6 +211,7 @@ function recipeFromLedger(productId, useTest) {
 
 function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   const [form, setForm] = React.useState(initial);
+  const [nextStatus, setNextStatus] = React.useState(null);
   const [units, setUnits] = React.useState('15');
   const [source, setSource] = React.useState('');
   const [observations, setObservations] = React.useState([]);
@@ -236,10 +243,11 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   const changeList = (key, value) => setForm((current) =>
     ({ ...current, [key]: value, translations_reviewed: false }));
   const write = (status) => run(async () => {
-    const { name, unit_weight, reference_weight, margin, ingredients, steps, translations_reviewed } = form;
+    const { name, unit_weight, reference_weight, margin, ingredients, steps } = form;
     const payload = { name: name.trim(), unit_weight: unit_weight ? Number(unit_weight) : null,
       reference_weight: reference_weight ? Number(reference_weight) : null,
-      margin: Number(margin), ingredients, steps, translations_reviewed, status };
+      margin: Number(margin), ingredients, steps,
+      translations_reviewed: status === 'testing' || status === 'validated', status };
     const linked = { ...payload, legacy_source_key: form.legacy_source_key || null };
     const { data, error } = form.id
       ? await table().update(form.status === 'validated' ? { status } : payload)
@@ -250,6 +258,7 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     if (error) throw error;
     if (!data) throw new Error('This version changed elsewhere. Reopen it before saving.');
     setForm(data);
+    setNextStatus(null);
     await onSaved();
     setMessage(`Saved as ${recipeStatusLabels[data.status]}.`);
   });
@@ -278,14 +287,13 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     setObservations((items) => [...items, data]);
     setNote('');
   });
-  const saveAs = (status) => (event) => {
-    if (!event.currentTarget.form.reportValidity()) return;
+  const save = (event) => {
+    event.preventDefault();
+    if (!canSave || busy) return;
     if (status === 'testing' && (!Number(form.unit_weight) || !Number(form.reference_weight))) {
       setMessage('Enter the net and reference weights before sending this recipe for testing.');
       return;
     }
-    const current = form.legacyStatus || form.status;
-    if (current === 'validated' && !window.confirm('Withdraw this recipe from validated production?')) return;
     write(status);
   };
   const ingredients = [['id', 'Ingredient · Bahasa Indonesia'], ['en', 'Ingredient · English'],
@@ -293,12 +301,19 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   const steps = [['id', 'Instruction · Bahasa Indonesia'], ['en', 'Instruction · English'],
     ['safetyId', 'Safety instruction · Bahasa Indonesia'], ['safetyEn', 'Safety instruction · English']];
   const ledgerProducts = window.__LUMA_INITIAL?.products || [];
-  const hasPending = rows.some((row) => row.family_id === form.family_id && ['draft', 'testing'].includes(row.status));
+  const hasPending = rows.some((row) => row.id !== form.id && row.family_id === form.family_id && ['draft', 'testing'].includes(row.status));
+  const currentStatus = form.legacyStatus || form.status;
+  const status = nextStatus || currentStatus;
+  const options = currentStatus === 'draft' ? ['draft', 'testing']
+    : currentStatus === 'testing' ? ['draft', 'testing', ...(form.id ? ['validated'] : [])]
+    : currentStatus === 'validated' && !hasPending ? ['draft', 'testing', 'validated'] : [currentStatus];
+  const canSave = editable ? !(form.legacyStatus === 'validated' && status === 'validated')
+    : form.status === 'validated' && status !== currentStatus && !hasPending;
   return <>
-    <button onClick={() => onOpen(null)}>Back to recipe versions</button>
-    <h2>{form.name || 'New draft'} {form.version && <small>v{form.version}</small>}</h2>
-    <p className="recipe-current-status">Status <strong>{recipeStatusLabels[form.legacyStatus || form.status]}</strong></p>
-    <AdminBatchPreview recipe={form} units={units} onUnitsChange={setUnits} />
+    <div className="recipe-editor-heading">
+      <h2>{form.name || 'New draft'} {form.version && <small>v{form.version}</small>}</h2>
+      <button className="recipe-editor-close" type="button" aria-label="Close recipe" disabled={busy} onClick={() => onOpen(null)}>×</button>
+    </div>
     {!form.id && !form.legacy_source_key && ledgerProducts.length > 0 && <div className="recipe-import">
       <label>Copy an existing formula
         <select value={source} onChange={(event) => setSource(event.target.value)}>
@@ -315,12 +330,18 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     <form onInvalidCapture={(event) => {
       const panel = event.target.closest('details');
       if (panel) panel.open = true;
-    }} onSubmit={(event) => {
-      event.preventDefault();
-      if (!editable) return;
-      if (form.legacyStatus === 'validated' && !window.confirm('Withdraw this recipe from validated production?')) return;
-      write(form.status);
-    }}>
+    }} onSubmit={save}>
+      <div className="recipe-status-control">
+        <label>Status
+          <select aria-label="Status" value={status} disabled={busy || options.length < 2} onChange={(e) => setNextStatus(e.target.value)}>
+            {options.map((value) => <option key={value} value={value}>{recipeStatusLabels[value]}</option>)}
+          </select>
+        </label>
+        <button type="submit" className="recipe-primary" disabled={busy || !canSave}>Save</button>
+      </div>
+      {message && <p role="status">{message}</p>}
+      {form.status === 'validated' && hasPending && <p>Finish or remove the pending version before changing this validated version’s status.</p>}
+      <AdminBatchPreview recipe={form} units={units} onUnitsChange={setUnits} />
       <fieldset disabled={busy || !editable}>
         <details className="recipe-admin-details" open={!initial.name || !initial.unit_weight || !initial.reference_weight || undefined}>
         <summary>Recipe settings</summary>
@@ -342,37 +363,21 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
         <RecipeFields title="Instructions and safety" fields={steps} values={form.steps}
           onChange={(value) => changeList('steps', value)} />
         </details>
-        <label className="recipe-check"><input type="checkbox" checked={form.translations_reviewed}
-          onChange={(e) => change('translations_reviewed', e.target.checked)} />
-          I reviewed the ingredient names, instructions and safety information in both languages.
-        </label>
       </fieldset>
-      {editable && <nav>
-        <button type="submit" disabled={busy}>{form.legacyStatus === 'validated' ? 'Move to Draft' : form.status === 'draft' ? 'Save draft' : 'Save test version'}</button>
-        {form.status === 'testing' && <button type="button" disabled={busy} onClick={saveAs('draft')}>Move to Draft</button>}
-        <button type="button" className="recipe-primary" disabled={busy || !form.translations_reviewed}
-          onClick={saveAs(form.status === 'draft' ? 'testing' : 'validated')}>
-          {form.status === 'draft' ? 'Send to To test' : 'Validate for production'}
-        </button>
-        {form.status === 'draft' && !form.translations_reviewed && <p>Review both languages to make this recipe available for testing.</p>}
-      </nav>}
-      {form.status === 'validated' && <>
-        <nav>
-          <button type="button" disabled={busy || hasPending} onClick={saveAs('testing')}>Move to To test</button>
-          <button type="button" disabled={busy || hasPending} onClick={saveAs('draft')}>Move to Draft</button>
-          <button type="button" disabled={busy || hasPending} onClick={duplicate}>Create a new draft version</button>
-        </nav>
-        {hasPending && <p>Finish or remove the pending version before changing this validated version’s status.</p>}
-      </>}
     </form>
-    {form.id && <button disabled={busy} onClick={remove}>Delete version</button>}
+    {form.id && <details className="recipe-admin-details">
+      <summary>Version actions</summary>
+      <nav>
+        {form.status === 'validated' && <button disabled={busy || hasPending} onClick={duplicate}>Create a new draft version</button>}
+        <button disabled={busy} onClick={remove}>Delete version</button>
+      </nav>
+    </details>}
     {form.id && form.status !== 'draft' && <section>
       <h3>Test observations</h3>
       {observations.map((item) => <p key={item.id}>{item.note}</p>)}
       <label>Observation<textarea value={note} onChange={(e) => setNote(e.target.value)} /></label>
       <button disabled={busy || !note.trim()} onClick={addNote}>Record observation</button>
     </section>}
-    {message && <p role="status">{message}</p>}
   </>;
 }
 

@@ -66,14 +66,6 @@
   text-decoration: underline;
   cursor: pointer;
 }
-.recipe-current-status strong {
-  display: inline-block;
-  margin-left: .4rem;
-  padding: .25rem .6rem;
-  border-radius: .6rem;
-  background: #94dfac;
-  color: #11251a;
-}
 .recipe-role-picker { display: flex; gap: .5rem; margin-bottom: 1rem; }
 .recipe-role-picker button {
   flex: 1;
@@ -221,10 +213,15 @@
 .recipe-admin-editor { margin-inline: 22px; }
 .recipe-admin-empty { color: var(--recipe-muted); }
 .recipe-admin .recipe-field-row { background: var(--recipe-panel-alt); border-color: var(--recipe-border); }
-.recipe-admin :is(.recipe-primary, .recipe-current-status strong) {
+.recipe-admin .recipe-primary {
   background: var(--recipe-accent);
   color: var(--recipe-contrast);
 }
+.recipe-editor-heading, .recipe-status-control { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.recipe-editor-heading h2 { min-width: 0; overflow-wrap: anywhere; margin: 0; }
+.recipe-admin .recipe-editor-close { border-radius: 100%; width: 2.75rem; flex: 0 0 2.75rem; padding: 0; font-size: 1.6rem; }
+.recipe-status-control { align-items: end; justify-content: flex-start; margin-block: 1rem; }
+.recipe-status-control label { margin: 0; width: min(12rem, 65%); }
 .recipe-admin .recipe-admin-new {
   margin: 0 22px;
   width: calc(100% - 44px);
