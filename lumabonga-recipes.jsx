@@ -7,7 +7,7 @@ const recipeLabels = {
     loadError: 'Resep tidak dapat dimuat.', retry: 'Coba lagi', step: 'Langkah',
     filters: 'Status resep',
     weighedTotal: 'Total bahan yang ditimbang',
-    scale: 'Ketelitian timbangan', belowMinimum: 'Terlalu kecil untuk ditimbang',
+    belowMinimum: 'Terlalu kecil untuk ditimbang',
     minimumUnits: (n) => `Siapkan setidaknya ${n} unit agar semua bahan dapat ditimbang.`,
     emptyTesting: 'Resep uji akan muncul setelah admin mengirimkannya untuk diuji.',
     emptyValidated: 'Resep siap produksi akan muncul setelah divalidasi oleh admin.',
@@ -21,7 +21,7 @@ const recipeLabels = {
     loadError: 'Recipes could not be loaded.', retry: 'Try again', step: 'Step',
     filters: 'Recipe status',
     weighedTotal: 'Total weighed ingredients',
-    scale: 'Scale resolution', belowMinimum: 'Below scale minimum',
+    belowMinimum: 'Below scale minimum',
     minimumUnits: (n) => `Prepare at least ${n} units so every weighed ingredient can be measured.`,
     emptyTesting: 'Recipes appear here when an admin sends them for testing.',
     emptyValidated: 'Recipes appear here when an admin validates them for production.',
@@ -162,13 +162,12 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
 function RecipePreparation({ recipe, language, onClose }) {
   const labels = recipeLabels[language];
   const [units, setUnits] = React.useState('1');
-  const [precision, setPrecision] = React.useState('0.5');
   const [index, setIndex] = React.useState(-1);
   const [checked, setChecked] = React.useState({});
   const count = Number(units);
   const batch = LumaBatch.calculate(recipe, count);
   const format = (quantity) => LumaBatch.format(quantity, language);
-  const measured = batch && LumaBatch.forScale(batch.quantities, count, Number(precision));
+  const measured = batch && LumaBatch.forScale(batch.quantities, count, 0.5);
   const ready = measured && measured.minimumUnits <= count;
   const weighed = measured && LumaBatch.massSummary(measured.ingredients);
   const step = recipe.steps[index];
@@ -176,19 +175,10 @@ function RecipePreparation({ recipe, language, onClose }) {
     <button onClick={onClose}>{labels.back}</button>
     <h2>{recipe.name} <small>v{recipe.version}</small></h2>
     {index === -1 ? <>
-      <div className="recipe-scale-controls">
-        <label>{labels.units}
-          <input type="number" inputMode="numeric" min="1" step="1" value={units}
-            onChange={(event) => { setUnits(event.target.value); setChecked({}); }} />
-        </label>
-        <label>{labels.scale}
-          <select aria-label={labels.scale} value={precision}
-            onChange={(event) => { setPrecision(event.target.value); setChecked({}); }}>
-            <option value="0.5">{format(0.5)} g</option>
-            <option value="1">1 g</option>
-          </select>
-        </label>
-      </div>
+      <label>{labels.units}
+        <input type="number" inputMode="numeric" min="1" step="1" value={units}
+          onChange={(event) => { setUnits(event.target.value); setChecked({}); }} />
+      </label>
       {batch && <>
         {weighed.complete && <p>{labels.net} <strong>{format(batch.net)} g</strong></p>}
         {ready ? <p>{weighed.complete ? labels.total : labels.weighedTotal} <strong>{format(weighed.grams)} g</strong></p>
