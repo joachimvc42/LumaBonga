@@ -1,6 +1,6 @@
 // Minimal service worker — exists so Chrome/Edge consider the app
 // installable. Network-first, falls back to cache when offline.
-const CACHE = 'lumabonga-v13';
+const CACHE = 'lumabonga-v14';
 const SHELL = [
   '/', '/index.html',
   '/lumabonga-data.jsx', '/lumabonga-creative.jsx', '/lumabonga-stock.jsx', '/lumabonga-product.jsx',

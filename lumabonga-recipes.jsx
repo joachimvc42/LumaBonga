@@ -300,7 +300,7 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   };
   const mass = LumaBatch.massSummary(form.ingredients);
   const marginFactor = 1 + Number(form.margin) / 100;
-  const netWeight = mass.grams ? `${LumaBatch.format(mass.grams, 'en')} g${mass.complete ? '' : ' + unweighed'}` : '— g';
+  const netWeight = mass.grams ? `${LumaBatch.format(mass.grams, 'en')} g` : '— g';
   const ledgerProducts = window.__LUMA_INITIAL?.products || [];
   const hasPending = rows.some((row) => row.id !== form.id && row.family_id === form.family_id && ['draft', 'testing'].includes(row.status));
   const currentStatus = form.legacyStatus || form.status;
@@ -312,7 +312,8 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     : form.status === 'validated' && status !== currentStatus && !hasPending;
   return <>
     <div className="recipe-editor-heading">
-      <h2>{form.name || 'New draft'} <small className="recipe-net-weight" title="Net weight per unit">{netWeight}</small></h2>
+      <h2>{form.name || 'New draft'} <small className="recipe-net-weight"
+        title={mass.complete ? 'Net weight per unit' : 'Measured weight per unit'}>{netWeight}</small></h2>
       <button className="recipe-editor-close" type="button" aria-label="Close recipe" disabled={busy} onClick={() => onOpen(null)}>×</button>
     </div>
     {!form.id && !form.legacy_source_key && ledgerProducts.length > 0 && <div className="recipe-import">
