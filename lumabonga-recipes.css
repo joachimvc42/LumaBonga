@@ -150,6 +150,8 @@
 .recipe-empty p { margin: 0; color: #526174; font-size: .875rem; }
 .recipe-producer li { border-color: #dbe1e7; }
 .recipe-producer input[type=checkbox] { accent-color: #1b7459; }
+.recipe-scale-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.recipe-scale-controls :is(input, select) { width: 100%; min-width: 0; }
 
 .recipe-admin {
   position: static;
