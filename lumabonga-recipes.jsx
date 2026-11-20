@@ -168,7 +168,7 @@ function RecipePreparation({ recipe, language, onClose }) {
         <p>{weighed.complete ? labels.total : labels.weighedTotal} <strong>{format(weighed.complete ? batch.total : weighed.grams)} g</strong></p>
         <h3>{labels.ingredients}</h3>
         <ul>{batch.quantities.map((item, i) => <li key={i}>
-          <span>{item[language]}</span><strong>{format(item.quantity)} {item.unit}</strong>
+          <span>{item[language] || item.en}</span><strong>{format(item.quantity)} {recipeUnit(item.unit)}</strong>
         </li>)}</ul>
       </>}
       <button className="recipe-primary" disabled={!batch} onClick={() => setIndex(0)}>{labels.begin}</button>
@@ -249,7 +249,9 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     const { name, margin, ingredients, steps } = form;
     const payload = { name: name.trim(), unit_weight: mass.grams || null,
       reference_weight: mass.grams || null,
-      margin: Number(margin), ingredients, steps,
+      margin: Number(margin), ingredients: ingredients.map((item) => ({
+        ...item, id: item.id?.trim() || item.en || '', unit: recipeUnit(item.unit),
+      })), steps,
       translations_reviewed: status === 'testing' || status === 'validated', status };
     const linked = { ...payload, legacy_source_key: form.legacy_source_key || null };
     const { data, error } = form.id
@@ -356,7 +358,7 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
       {form.status === 'validated' && hasPending && <p>Finish or remove the pending version before changing this validated version’s status.</p>}
       <fieldset disabled={busy || !editable}>
         <h3>Ingredients <small>Per unit · includes {form.margin}% extra</small></h3>
-        <RecipeLines values={form.ingredients} marginFactor={marginFactor} onChange={(value) => changeList('ingredients', value)} />
+        <IngredientTable values={form.ingredients} marginFactor={marginFactor} onChange={(value) => changeList('ingredients', value)} />
         <h3>Instructions</h3>
         <RecipeLines values={form.steps} onChange={(value) => changeList('steps', value)} />
       </fieldset>
@@ -377,8 +379,41 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
   </>;
 }
 
-function RecipeLines({ values, marginFactor, onChange }) {
-  const ingredients = marginFactor !== undefined;
+function recipeUnit(unit) {
+  return /^gouttes?$/i.test(unit || '') ? 'drop' : unit || '';
+}
+
+function IngredientTable({ values, marginFactor, onChange }) {
+  const update = (index, key, value) =>
+    onChange(values.map((row, i) => i === index ? { ...row, [key]: value } : row));
+  return <div className="recipe-lines">
+    <table className="recipe-ingredients">
+      <thead><tr><th scope="col">Ingredient</th><th scope="col">Quantity</th></tr></thead>
+      <tbody>{values.map((row, index) => {
+        const suffix = index + 1;
+        const quantity = row.quantity === '' || row.quantity == null
+          ? '' : Number((Number(row.quantity) * marginFactor).toPrecision(12));
+        return <tr key={index}>
+          <td><input aria-label={`Ingredient ${suffix}`} placeholder="Ingredient" value={row.en || ''}
+            onChange={(event) => update(index, 'en', event.target.value)} /></td>
+          <td><div className="recipe-ingredient-quantity">
+            <input aria-label={`Quantity including extra for ingredient ${suffix}`}
+              type="number" step="any" min="0" inputMode="decimal" placeholder="Qty" value={quantity}
+              onChange={(event) => update(index, 'quantity',
+                event.target.value === '' ? '' : Number(event.target.value) / marginFactor)} />
+            <input aria-label={`Unit for ingredient ${suffix}`} placeholder="Unit" value={recipeUnit(row.unit)}
+              onChange={(event) => update(index, 'unit', event.target.value)} />
+            <button type="button" aria-label={`Remove ingredient ${suffix}`}
+              onClick={() => onChange(values.filter((_, i) => i !== index))}>×</button>
+          </div></td>
+        </tr>;
+      })}</tbody>
+    </table>
+    <button type="button" onClick={() => onChange([...values, {}])}>+ Add ingredient</button>
+  </div>;
+}
+
+function RecipeLines({ values, onChange }) {
   const update = (index, key, value) =>
     onChange(values.map((row, i) => i === index ? { ...row, [key]: value } : row));
   const move = (index, offset) => {
@@ -386,52 +421,32 @@ function RecipeLines({ values, marginFactor, onChange }) {
     [items[index], items[index + offset]] = [items[index + offset], items[index]];
     onChange(items);
   };
-
   return <div className="recipe-lines">
     {values.map((row, index) => {
       const suffix = index + 1;
-      const quantity = row.quantity === '' || row.quantity == null
-        ? '' : Number((Number(row.quantity) * marginFactor).toPrecision(12));
       return <div className="recipe-line" key={index}>
-        <div className={ingredients ? 'recipe-line-main recipe-line-ingredient' : 'recipe-line-main recipe-line-step'}>
-          {ingredients ? <>
-            <input aria-label={`Ingredient ${suffix}`} placeholder="Ingredient" value={row.en || ''}
-              onChange={(event) => update(index, 'en', event.target.value)} />
-            <input aria-label={`Quantity including extra for ingredient ${suffix}`}
-              type="number" step="any" min="0" inputMode="decimal" placeholder="Qty" value={quantity}
-              onChange={(event) => update(index, 'quantity',
-                event.target.value === '' ? '' : Number(event.target.value) / marginFactor)} />
-            <input aria-label={`Unit for ingredient ${suffix}`} placeholder="Unit" value={row.unit || ''}
-              onChange={(event) => update(index, 'unit', event.target.value)} />
-          </> : <>
-            <span aria-hidden="true">{suffix}.</span>
-            <textarea rows="1" aria-label={`Step ${suffix}`} placeholder="Instruction" value={row.en || ''}
-              onChange={(event) => update(index, 'en', event.target.value)} />
-          </>}
-          <button type="button" aria-label={`Remove ${ingredients ? 'ingredient' : 'step'} ${suffix}`}
+        <div className="recipe-line-main recipe-line-step">
+          <span aria-hidden="true">{suffix}.</span>
+          <textarea rows="1" aria-label={`Step ${suffix}`} placeholder="Instruction" value={row.en || ''}
+            onChange={(event) => update(index, 'en', event.target.value)} />
+          <button type="button" aria-label={`Remove step ${suffix}`}
             onClick={() => onChange(values.filter((_, i) => i !== index))}>×</button>
         </div>
         <details className="recipe-line-details">
-          <summary>{ingredients ? 'Translation' : 'Translation and safety'}</summary>
-          <label>Bahasa Indonesia
-            {ingredients ? <input value={row.id || ''} onChange={(event) => update(index, 'id', event.target.value)} />
-              : <textarea rows="2" value={row.id || ''} onChange={(event) => update(index, 'id', event.target.value)} />}
-          </label>
-          {!ingredients && <>
-            <label>Safety instructions (English)<textarea rows="2" value={row.safetyEn || ''}
-              onChange={(event) => update(index, 'safetyEn', event.target.value)} /></label>
-            <label>Safety instructions (Bahasa Indonesia)<textarea rows="2" value={row.safetyId || ''}
-              onChange={(event) => update(index, 'safetyId', event.target.value)} /></label>
-            <div className="recipe-line-order">
-              <button type="button" disabled={!index} onClick={() => move(index, -1)}>Move up</button>
-              <button type="button" disabled={index === values.length - 1} onClick={() => move(index, 1)}>Move down</button>
-            </div>
-          </>}
+          <summary>Translation and safety</summary>
+          <label>Bahasa Indonesia<textarea rows="2" value={row.id || ''}
+            onChange={(event) => update(index, 'id', event.target.value)} /></label>
+          <label>Safety instructions (English)<textarea rows="2" value={row.safetyEn || ''}
+            onChange={(event) => update(index, 'safetyEn', event.target.value)} /></label>
+          <label>Safety instructions (Bahasa Indonesia)<textarea rows="2" value={row.safetyId || ''}
+            onChange={(event) => update(index, 'safetyId', event.target.value)} /></label>
+          <div className="recipe-line-order">
+            <button type="button" disabled={!index} onClick={() => move(index, -1)}>Move up</button>
+            <button type="button" disabled={index === values.length - 1} onClick={() => move(index, 1)}>Move down</button>
+          </div>
         </details>
       </div>;
     })}
-    <button type="button" onClick={() => onChange([...values, {}])}>
-      + Add {ingredients ? 'ingredient' : 'step'}
-    </button>
+    <button type="button" onClick={() => onChange([...values, {}])}>+ Add step</button>
   </div>;
 }
