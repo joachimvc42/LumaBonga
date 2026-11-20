@@ -398,6 +398,7 @@ function recipeUnit(unit) {
 }
 
 function IngredientTable({ values, marginFactor, onChange }) {
+  const [editingQuantity, setEditingQuantity] = React.useState(null);
   const update = (index, key, value) =>
     onChange(values.map((row, i) => i === index ? { ...row, [key]: value } : row));
   return <div className="recipe-lines">
@@ -407,12 +408,16 @@ function IngredientTable({ values, marginFactor, onChange }) {
         const suffix = index + 1;
         const quantity = row.quantity === '' || row.quantity == null
           ? '' : Number((Number(row.quantity) * marginFactor).toPrecision(12));
+        const gramsPerUnit = row.unit === 'kg' ? 1000 : row.unit === 'g' ? 1 : 0;
+        const displayedQuantity = index !== editingQuantity && gramsPerUnit && quantity * gramsPerUnit >= 0.5
+          ? Math.round(quantity * gramsPerUnit * 2) / (2 * gramsPerUnit) : quantity;
         return <tr key={index}>
           <td><input aria-label={`Ingredient ${suffix}`} placeholder="Ingredient" value={row.en || ''}
             onChange={(event) => update(index, 'en', event.target.value)} /></td>
           <td><div className="recipe-ingredient-quantity">
             <input aria-label={`Quantity including extra for ingredient ${suffix}`}
-              type="number" step="any" min="0" inputMode="decimal" placeholder="Qty" value={quantity}
+              type="number" step="any" min="0" inputMode="decimal" placeholder="Qty" value={displayedQuantity}
+              onFocus={() => setEditingQuantity(index)} onBlur={() => setEditingQuantity(null)}
               onChange={(event) => update(index, 'quantity',
                 event.target.value === '' ? '' : Number(event.target.value) / marginFactor)} />
             <input aria-label={`Unit for ingredient ${suffix}`} placeholder="Unit" value={recipeUnit(row.unit)}
