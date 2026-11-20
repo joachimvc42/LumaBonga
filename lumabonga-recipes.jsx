@@ -34,6 +34,7 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
   const [lang, setLang] = React.useState('id');
   const [error, setError] = React.useState(false);
   const [filter, setFilter] = React.useState(null);
+  const [saveNotice, setSaveNotice] = React.useState('');
   const labels = recipeLabels[admin ? 'en' : lang];
   const reload = React.useCallback(async () => {
     setError(false);
@@ -66,6 +67,7 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
   const entries = [...versions, ...legacy.filter((row) => !integrated.has(row.source_key))]
     .sort((left, right) => left.name.localeCompare(right.name, admin ? 'en' : lang));
   const open = (row) => {
+    setSaveNotice('');
     if (!row.source_key) {
       setSelected(row);
       return;
@@ -100,7 +102,10 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
         </select>
         <button onClick={onSignOut}>{labels.signout}</button>
       </header>}
-      {admin && !selected && <CreaSection title="Recipe versions" dark={dark} t={t} />}
+      {admin && !selected && <>
+        <CreaSection title="Recipe versions" dark={dark} t={t} />
+        {saveNotice && <p className="recipe-save-notice" role="status">{saveNotice}</p>}
+      </>}
       {!admin && !selected && <h1>{labels.title}</h1>}
       {error ? <p role="alert">{labels.loadError} <button onClick={reload}>{labels.retry}</button></p>
         : !rows ? <progress />
@@ -115,7 +120,11 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
           </div>
           {admin && selected ? <div className="recipe-admin-editor">
             <RecipeVersionEditor key={selected.id || selected.legacy_source_key || 'new'} initial={selected}
-              rows={versions} onOpen={setSelected} onSaved={reload} />
+              rows={versions} onOpen={setSelected} onSaved={reload} onStatusSaved={(name, status) => {
+                setSaveNotice(`${name} saved as ${recipeStatusLabels[status]}.`);
+                setFilter(null);
+                setSelected(null);
+              }} />
           </div> : <>
             <section key={activeStatus} aria-label={headings[activeStatus]} className="recipe-status-list">
               {visible.map((row) =>
@@ -208,7 +217,7 @@ function recipeFromLedger(productId, useTest) {
     steps: (sop?.steps || []).map((step) => ({ id: '', en: step.text || '', safetyId: '', safetyEn: '' })) };
 }
 
-function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
+function RecipeVersionEditor({ initial, rows, onOpen, onSaved, onStatusSaved }) {
   const [editingName, setEditingName] = React.useState(!initial.name);
   const [form, setForm] = React.useState(() => {
     const ratio = initial.unit_weight && initial.reference_weight ? initial.unit_weight / initial.reference_weight : 1;
@@ -239,7 +248,7 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     setBusy(true);
     setMessage('');
     try { await operation(); }
-    catch (error) { setMessage(error.message); }
+    catch (error) { setMessage(error.message || 'Could not save this recipe. Please try again.'); }
     finally { setBusy(false); }
   };
   const change = (key, value) => setForm((current) => ({ ...current, [key]: value }));
@@ -251,7 +260,11 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
       reference_weight: mass.grams || null,
       margin: Number(margin), ingredients: ingredients.map((item) => ({
         ...item, id: item.id?.trim() || item.en || '', unit: recipeUnit(item.unit),
-      })), steps,
+      })), steps: steps.map((step) => ({
+        ...step, id: step.id?.trim() || step.en || '',
+        safetyId: step.safetyId?.trim() || step.safetyEn || '',
+        safetyEn: step.safetyEn?.trim() || step.safetyId || '',
+      })),
       translations_reviewed: status === 'testing' || status === 'validated', status };
     const linked = { ...payload, legacy_source_key: form.legacy_source_key || null };
     const { data, error } = form.id
@@ -265,7 +278,8 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
     setForm(data);
     setNextStatus(null);
     await onSaved();
-    setMessage(`Saved as ${recipeStatusLabels[data.status]}.`);
+    if (data.status !== currentStatus) onStatusSaved(data.name, data.status);
+    else setMessage(`Saved as ${recipeStatusLabels[data.status]}.`);
   });
   const duplicate = () => run(async () => {
     const { family_id, name, margin, unit_weight, reference_weight, ingredients, steps, legacy_source_key } = form;
@@ -429,22 +443,13 @@ function RecipeLines({ values, onChange }) {
           <span aria-hidden="true">{suffix}.</span>
           <textarea rows="1" aria-label={`Step ${suffix}`} placeholder="Instruction" value={row.en || ''}
             onChange={(event) => update(index, 'en', event.target.value)} />
-          <button type="button" aria-label={`Remove step ${suffix}`}
-            onClick={() => onChange(values.filter((_, i) => i !== index))}>×</button>
-        </div>
-        <details className="recipe-line-details">
-          <summary>Translation and safety</summary>
-          <label>Bahasa Indonesia<textarea rows="2" value={row.id || ''}
-            onChange={(event) => update(index, 'id', event.target.value)} /></label>
-          <label>Safety instructions (English)<textarea rows="2" value={row.safetyEn || ''}
-            onChange={(event) => update(index, 'safetyEn', event.target.value)} /></label>
-          <label>Safety instructions (Bahasa Indonesia)<textarea rows="2" value={row.safetyId || ''}
-            onChange={(event) => update(index, 'safetyId', event.target.value)} /></label>
           <div className="recipe-line-order">
-            <button type="button" disabled={!index} onClick={() => move(index, -1)}>Move up</button>
-            <button type="button" disabled={index === values.length - 1} onClick={() => move(index, 1)}>Move down</button>
+            <button type="button" aria-label={`Move step ${suffix} up`} disabled={!index} onClick={() => move(index, -1)}>↑</button>
+            <button type="button" aria-label={`Move step ${suffix} down`} disabled={index === values.length - 1} onClick={() => move(index, 1)}>↓</button>
+            <button type="button" aria-label={`Remove step ${suffix}`}
+              onClick={() => onChange(values.filter((_, i) => i !== index))}>×</button>
           </div>
-        </details>
+        </div>
       </div>;
     })}
     <button type="button" onClick={() => onChange([...values, {}])}>+ Add step</button>
