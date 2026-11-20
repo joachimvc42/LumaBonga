@@ -11,7 +11,7 @@ const recipeLabels = {
     minimumUnits: (n) => `Siapkan setidaknya ${n} unit agar semua bahan dapat ditimbang.`,
     emptyTesting: 'Resep uji akan muncul setelah admin mengirimkannya untuk diuji.',
     emptyValidated: 'Resep siap produksi akan muncul setelah divalidasi oleh admin.',
-    reviewPending: 'Menunggu verifikasi untuk produksi',
+    noInstructions: 'Resep ini belum memiliki langkah pembuatan tersimpan.',
   },
   en: {
     title: 'Preparation', testing: 'To test', validated: 'Validated recipes', empty: 'No recipes yet.',
@@ -25,7 +25,7 @@ const recipeLabels = {
     minimumUnits: (n) => `Prepare at least ${n} units so every weighed ingredient can be measured.`,
     emptyTesting: 'Recipes appear here when an admin sends them for testing.',
     emptyValidated: 'Recipes appear here when an admin validates them for production.',
-    reviewPending: 'Awaiting checks for guided preparation',
+    noInstructions: 'This recipe has no saved preparation steps.',
   },
 };
 
@@ -45,7 +45,7 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
     const sb = window.__sb;
     const [versions, historical] = await Promise.all([
       sb.from('recipe_versions').select('*').order('name').order('version', { ascending: false }),
-      sb.from('recipe_legacy_index').select('*').order('name'),
+      sb.from(admin ? 'recipe_legacy_index' : 'recipe_legacy_preparation').select('*').order('name'),
     ]);
     if (versions.error || historical.error) {
       setRows(null);
@@ -55,8 +55,10 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
     setLegacy(historical.data);
     setRows(versions.data);
     if (onVersionsLoaded) onVersionsLoaded(versions.data);
-    if (!admin) setSelected((current) =>
-      current && versions.data.some((row) => row.id === current.id) ? current : null);
+    if (!admin) setSelected((current) => current && (
+      current.source_key ? historical.data.some((row) => row.source_key === current.source_key)
+        : versions.data.some((row) => row.id === current.id)
+    ) ? current : null);
   }, [admin, onVersionsLoaded]);
   React.useEffect(() => {
     reload();
@@ -72,7 +74,7 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
     .sort((left, right) => left.name.localeCompare(right.name, admin ? 'en' : lang));
   const open = (row) => {
     setSaveNotice('');
-    if (!row.source_key) {
+    if (!admin || !row.source_key) {
       setSelected(row);
       return;
     }
@@ -113,7 +115,7 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
       {!admin && !selected && <h1>{labels.title}</h1>}
       {error ? <p role="alert">{labels.loadError} <button onClick={reload}>{labels.retry}</button></p>
         : !rows ? <progress />
-        : selected && !admin ? <RecipePreparation key={selected.id} recipe={selected} language={lang} onClose={() => setSelected(null)} />
+        : selected && !admin ? <RecipePreparation key={selected.id || selected.source_key} recipe={selected} language={lang} onClose={() => setSelected(null)} />
         : <>
           <div className="recipe-status-picker" role="group" aria-label={labels.filters}>
             {filters.map((status) => (
@@ -131,17 +133,11 @@ function RecipeWorkbench({ admin = false, dark, theme, t, onSignOut, onVersionsL
               }} />
           </div> : <>
             <section key={activeStatus} aria-label={headings[activeStatus]} className="recipe-status-list">
-              {visible.map((row) =>
-                !admin && row.source_key ? (
-                  <div className="recipe-list-item recipe-legacy-card" key={row.source_key}>
-                    {row.name}<small>{labels.reviewPending}</small>
-                  </div>
-                ) : (
-                  <button className="recipe-list-item" key={row.id || row.source_key} onClick={() => open(row)}>
-                    {row.name} <small>{row.source_key ? 'Catalogue' : `v${row.version}`}</small>
-                  </button>
-                )
-              )}
+              {visible.map((row) => (
+                <button className="recipe-list-item" key={row.id || row.source_key} onClick={() => open(row)}>
+                  {row.name} {row.version ? <small>v{row.version}</small> : admin && <small>Catalogue</small>}
+                </button>
+              ))}
               {!visible.length && (admin ? <p className="recipe-admin-empty">{labels.empty}</p> :
                 <div className="recipe-empty">
                   <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -173,7 +169,7 @@ function RecipePreparation({ recipe, language, onClose }) {
   const step = recipe.steps[index];
   return <>
     <button onClick={onClose}>{labels.back}</button>
-    <h2>{recipe.name} <small>v{recipe.version}</small></h2>
+    <h2>{recipe.name} {recipe.version && <small>v{recipe.version}</small>}</h2>
     {index === -1 ? <>
       <label>{labels.units}
         <input type="number" inputMode="numeric" min="1" step="1" value={units}
@@ -181,19 +177,23 @@ function RecipePreparation({ recipe, language, onClose }) {
       </label>
       {batch && <>
         {weighed.complete && <p>{labels.net} <strong>{format(batch.net)} g</strong></p>}
-        {ready ? <p>{weighed.complete ? labels.total : labels.weighedTotal} <strong>{format(weighed.grams)} g</strong></p>
-          : <p role="status" className="recipe-safety">{labels.minimumUnits(format(measured.minimumUnits))}</p>}
+        {ready && weighed.grams > 0 && <p>{weighed.complete ? labels.total : labels.weighedTotal} <strong>{format(weighed.grams)} g</strong></p>}
+        {!ready && <p role="status" className="recipe-safety">{labels.minimumUnits(format(measured.minimumUnits))}</p>}
         <h3>{labels.ingredients}</h3>
         <ul>{measured.ingredients.map((item, i) => <li key={i}>
           <span>{item[language] || item.en}</span>
           <strong>{item.belowMinimum ? labels.belowMinimum : `${format(item.quantity)} ${recipeUnit(item.unit)}`}</strong>
         </li>)}</ul>
       </>}
-      <button className="recipe-primary" disabled={!ready} onClick={() => setIndex(0)}>{labels.begin}</button>
+      {recipe.steps.length
+        ? <button className="recipe-primary" disabled={!ready} onClick={() => setIndex(0)}>{labels.begin}</button>
+        : <p>{labels.noInstructions}</p>}
     </> : step ? <>
       <p>{labels.step} {index + 1} / {recipe.steps.length}</p>
-      <p className="recipe-instruction">{step[language]}</p>
-      {step.safetyId && <p className="recipe-safety">{language === 'id' ? step.safetyId : step.safetyEn}</p>}
+      <p className="recipe-instruction">{step[language] || step.en}</p>
+      {(step.safetyId || step.safetyEn) && <p className="recipe-safety">
+        {(language === 'id' ? step.safetyId : step.safetyEn) || step.safetyEn || step.safetyId}
+      </p>}
       <label className="recipe-check"><input type="checkbox" checked={!!checked[index]}
         onChange={(event) => setChecked({ ...checked, [index]: event.target.checked })} />{labels.done}</label>
       <nav>

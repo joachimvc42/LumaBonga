@@ -1,8 +1,10 @@
 (function (root) {
   function calculate(recipe, count) {
-    const net = count * Number(recipe.unit_weight);
-    const total = net * (1 + Number(recipe.margin) / 100);
-    const factor = total / Number(recipe.reference_weight);
+    const unitWeight = recipe.per_unit ? massSummary(recipe.ingredients).grams : Number(recipe.unit_weight);
+    const net = count * unitWeight;
+    const extra = 1 + Number(recipe.margin) / 100;
+    const total = net * extra;
+    const factor = recipe.per_unit ? count * extra : total / Number(recipe.reference_weight);
     if (!Number.isSafeInteger(count) || count < 1 || !Number.isFinite(factor) || factor <= 0) return null;
     const quantities = recipe.ingredients.map((item) => ({ ...item, quantity: item.quantity * factor }));
     if (quantities.some((item) => !Number.isFinite(item.quantity) || item.quantity <= 0)) return null;
