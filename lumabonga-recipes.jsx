@@ -7,8 +7,6 @@ const recipeLabels = {
     loadError: 'Resep tidak dapat dimuat.', retry: 'Coba lagi', step: 'Langkah',
     filters: 'Status resep',
     weighedTotal: 'Total bahan yang ditimbang',
-    belowMinimum: 'Terlalu kecil untuk ditimbang',
-    minimumUnits: (n) => `Siapkan setidaknya ${n} unit agar semua bahan dapat ditimbang.`,
     emptyTesting: 'Resep uji akan muncul setelah admin mengirimkannya untuk diuji.',
     emptyValidated: 'Resep siap produksi akan muncul setelah divalidasi oleh admin.',
     noInstructions: 'Resep ini belum memiliki langkah pembuatan tersimpan.',
@@ -21,8 +19,6 @@ const recipeLabels = {
     loadError: 'Recipes could not be loaded.', retry: 'Try again', step: 'Step',
     filters: 'Recipe status',
     weighedTotal: 'Total weighed ingredients',
-    belowMinimum: 'Below scale minimum',
-    minimumUnits: (n) => `Prepare at least ${n} units so every weighed ingredient can be measured.`,
     emptyTesting: 'Recipes appear here when an admin sends them for testing.',
     emptyValidated: 'Recipes appear here when an admin validates them for production.',
     noInstructions: 'This recipe has no saved preparation steps.',
@@ -163,9 +159,8 @@ function RecipePreparation({ recipe, language, onClose }) {
   const count = Number(units);
   const batch = LumaBatch.calculate(recipe, count);
   const format = (quantity) => LumaBatch.format(quantity, language);
-  const measured = batch && LumaBatch.forScale(batch.quantities, count, 0.5);
-  const ready = measured && measured.minimumUnits <= count;
-  const weighed = measured && LumaBatch.massSummary(measured.ingredients);
+  const measured = batch && LumaBatch.forScale(batch.quantities, 0.5);
+  const weighed = measured && LumaBatch.massSummary(measured);
   const step = recipe.steps[index];
   return <>
     <button onClick={onClose}>{labels.back}</button>
@@ -177,16 +172,15 @@ function RecipePreparation({ recipe, language, onClose }) {
       </label>
       {batch && <>
         {weighed.complete && <p>{labels.net} <strong>{format(batch.net)} g</strong></p>}
-        {ready && weighed.grams > 0 && <p>{weighed.complete ? labels.total : labels.weighedTotal} <strong>{format(weighed.grams)} g</strong></p>}
-        {!ready && <p role="status" className="recipe-safety">{labels.minimumUnits(format(measured.minimumUnits))}</p>}
+        {weighed.grams > 0 && <p>{weighed.complete ? labels.total : labels.weighedTotal} <strong>{format(weighed.grams)} g</strong></p>}
         <h3>{labels.ingredients}</h3>
-        <ul>{measured.ingredients.map((item, i) => <li key={i}>
+        <ul>{measured.map((item, i) => <li key={i}>
           <span>{item[language] || item.en}</span>
-          <strong>{item.belowMinimum ? labels.belowMinimum : `${format(item.quantity)} ${recipeUnit(item.unit)}`}</strong>
+          <strong>{format(item.quantity)} {recipeUnit(item.unit)}</strong>
         </li>)}</ul>
       </>}
       {recipe.steps.length
-        ? <button className="recipe-primary" disabled={!ready} onClick={() => setIndex(0)}>{labels.begin}</button>
+        ? <button className="recipe-primary" disabled={!batch} onClick={() => setIndex(0)}>{labels.begin}</button>
         : <p>{labels.noInstructions}</p>}
     </> : step ? <>
       <p>{labels.step} {index + 1} / {recipe.steps.length}</p>

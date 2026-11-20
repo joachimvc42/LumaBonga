@@ -29,19 +29,14 @@
     return { grams, complete };
   }
 
-  function forScale(quantities, count, precision) {
-    let minimumUnits = 1;
-    const ingredients = quantities.map((item) => {
+  function forScale(quantities, precision) {
+    return quantities.map((item) => {
       if (!['g', 'kg'].includes(item.unit)) return item;
       const gramsPerUnit = item.unit === 'kg' ? 1000 : 1;
       const scaleSteps = item.quantity * gramsPerUnit / precision;
-      if (scaleSteps < 1 - 1e-12) {
-        minimumUnits = Math.max(minimumUnits, Math.ceil(count * (1 - 1e-12) / scaleSteps));
-        return { ...item, belowMinimum: true };
-      }
+      if (scaleSteps < 1 - 1e-12) return item;
       return { ...item, unit: 'g', quantity: Math.round(scaleSteps) * precision };
     });
-    return { ingredients, minimumUnits };
   }
 
   const batch = { calculate, format, massSummary, forScale };
