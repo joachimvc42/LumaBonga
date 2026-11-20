@@ -377,29 +377,46 @@ function RecipeVersionEditor({ initial, rows, onOpen, onSaved }) {
 }
 
 function AdminBatchPreview({ recipe, units, onUnitsChange }) {
-  const batch = LumaBatch.calculate(recipe, Number(units));
-  const perUnit = LumaBatch.calculate({ ...recipe, margin: 0 }, 1);
+  const count = Number(units);
+  const sized = Number(recipe.unit_weight) > 0 && Number(recipe.reference_weight) > 0;
+  const legacy = !!recipe.legacy_source_key && !sized;
+  const batch = legacy ? LumaBatch.scalePerUnit(recipe, count) : LumaBatch.calculate(recipe, count);
+  const netRecipe = { ...recipe, margin: 0 };
+  const perUnit = legacy ? LumaBatch.scalePerUnit(netRecipe, 1) : LumaBatch.calculate(netRecipe, 1);
   const format = (quantity) => LumaBatch.format(quantity, 'en');
+  const unit = (value) => ({ goutte: 'drops', pièce: 'pcs' }[value] || value);
+  const subtotals = new Map();
+  if (legacy && batch) for (const item of batch.quantities) {
+    const key = unit(item.unit === 'kg' ? 'g' : item.unit);
+    const quantity = item.unit === 'kg' ? item.quantity * 1000 : item.quantity;
+    subtotals.set(key, (subtotals.get(key) || 0) + quantity);
+  }
+  const total = legacy
+    ? [...subtotals].map(([key, quantity]) => `${format(quantity)} ${key}`.trim()).join(' + ')
+    : batch && `${format(batch.total)} g`;
   return <section className="recipe-admin-batch" aria-label="Batch preview">
     <div className="recipe-batch-controls">
       <label>Number of units
         <input type="number" inputMode="numeric" min="1" step="1" value={units}
           onChange={(event) => onUnitsChange(event.target.value)} />
       </label>
-      {batch && <p>
+      {total && <p>
         <span>Total to prepare · {format(Number(recipe.margin))}% margin</span>
-        <strong>{format(batch.total)} g</strong>
+        <strong>{total}</strong>
       </p>}
     </div>
     {batch && perUnit && batch.quantities.length ? <table>
       <thead><tr><th scope="col">Ingredient</th><th scope="col">Per unit, net</th><th scope="col">To prepare</th></tr></thead>
       <tbody>{batch.quantities.map((item, index) => <tr key={index}>
         <th scope="row">{item.en || item.id || `Ingredient ${index + 1}`}</th>
-        <td>{format(perUnit.quantities[index].quantity)} {item.unit}</td>
-        <td>{format(item.quantity)} {item.unit}</td>
+        <td>{format(perUnit.quantities[index].quantity)} {unit(item.unit)}</td>
+        <td>{format(item.quantity)} {unit(item.unit)}</td>
       </tr>)}</tbody>
     </table> : <p className="recipe-batch-note">
       Enter a whole number of units, the recipe weights and the ingredient quantities to preview the batch.
+    </p>}
+    {legacy && batch && <p className="recipe-batch-note">
+      Based on the recorded per-unit formula. The net and reference weights are required to publish it for testing.
     </p>}
   </section>;
 }

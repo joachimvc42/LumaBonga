@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="en">
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -295,9 +295,7 @@ function InstallAppButton({ dark, t, style }) {
   );
 }
 
-// ── EN/ID language pill — level-1 (public) only. Staff/admin have no
-// language toggle at all: French isn't offered anywhere in the app anymore,
-// so English is their only (fixed) language. ─────────────────────
+// Language choice for the dedicated producer sign-in screen.
 function LangToggle({ t, set, dark, style }) {
   const c = creaTheme(dark, t.accent);
   const langs = ['en', 'id'];
@@ -322,11 +320,9 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
   const [recipeVersions, setRecipeVersions] = useState([]);
   const dark = t.dark;
   const c = creaTheme(dark, t.accent);
-  // French is no longer offered anywhere; sanitize any stale 'fr' left over
-  // from before the Settings toggle was removed, or a stray 'id' from testing
-  // (non-public roles only — public keeps its own EN/ID choice).
+  // The catalogue and administration use English.
   useEffect(() => {
-    if (role !== 'public' && t.lang !== 'en') set('lang', 'en');
+    if (t.lang !== 'en') set('lang', 'en');
   }, [role, t.lang]);
   useEffect(() => {
     if (role !== 'admin') return;
@@ -348,8 +344,8 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
         catalogAction={role === 'public' && (
         <button className="recipe-producer-entry" onClick={() => onSignIn('preparer')}
           style={{ background: c.panel, color: c.text, borderColor: c.border }}>
-          <strong>{t.lang === 'id' ? 'Akses produksi' : 'Producer access'}</strong>
-          <span>{t.lang === 'id' ? 'Resep uji & tervalidasi' : 'Test & validated recipes'}</span>
+          <strong>Producer access</strong>
+          <span>Test &amp; validated recipes</span>
         </button>
       )} />
       {role !== 'public' && <SettingsButton t={t} set={set} dark={dark} />}
@@ -357,7 +353,6 @@ function LumaBongaApp({ role, onSignIn, t, set }) {
       {role === 'public' && (
         <div style={{ position: 'absolute', top: 12, left: 14, zIndex: 150, display: 'flex', alignItems: 'center', gap: 8 }}>
           <InstallAppButton dark={dark} t={t} style={{}} />
-          <LangToggle t={t} set={set} dark={dark} />
         </div>
       )}
       {role === 'public' && (
@@ -460,10 +455,10 @@ function LoginGate({ onAuthed, onBack, target, t, set }) {
         {target === 'preparer' ? (t.lang === 'id' ? 'Akses produksi' : 'Producer access')
           : target === 'admin' ? 'Admin' : 'Luma · Bonga'}
       </div>
-      <LangToggle t={t} set={set} dark={true} style={{ marginBottom: 20 }} />
+      {target === 'preparer' && <LangToggle t={t} set={set} dark={true} style={{ marginBottom: 20 }} />}
       <form onSubmit={submit} style={{ width: '100%', maxWidth: 320 }}>
         {!target && <div className="recipe-role-picker" role="group" aria-label="LumaBonga">
-          {[['admin', 'Admin'], ['preparer', t.lang === 'id' ? 'Produksi' : 'Producer']].map(([role, label]) => (
+          {[['admin', 'Admin'], ['preparer', 'Producer']].map(([role, label]) => (
             <button key={role} type="button" disabled={busy} aria-pressed={selectedRole === role}
               onClick={() => { setSelectedRole(role); setCode(''); setErr(''); }}>{label}</button>
           ))}
@@ -520,7 +515,7 @@ function Root() {
   const [role, setRole] = useState(null);
   const [loginTarget, setLoginTarget] = useState(directProducer ? 'preparer' : null);
   const [t, set] = useAppTweaks();
-  setLbLang(t.lang);   // keep global translator in sync before children render, at every phase
+  setLbLang(phase === 'login' && loginTarget === 'preparer' ? t.lang : 'en');
 
   // Every level requires a password — including level 1 (public, "Bonga"),
   // which gets a read-only catalog (products/compositions/SOPs, no
